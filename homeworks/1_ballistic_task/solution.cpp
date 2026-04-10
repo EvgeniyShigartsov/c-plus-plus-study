@@ -86,7 +86,8 @@ if (strcmp(ammo_name, "VOG-17") == 0) {
   }
 
   float fi = acos(angle);
-  float t = 2 * sqrt((-p / 3) * cos((fi + M_PI * 4) / 3) - b / 3 * a);
+  
+  float t = 2 * sqrt(-p / 3) * cos((fi + M_PI * 4) / 3) - b / (3 * a);
 
   float h = get_h(t, d, g, l, m, v0);
 
@@ -102,8 +103,8 @@ if (strcmp(ammo_name, "VOG-17") == 0) {
   float fireX = valid_xd + (targetX - valid_xd) * ratio;
   float fireY = valid_yd + (targetY - valid_yd) * ratio;
 
-
-  std::cout << m << ' ' << d << ' ' <<  l << std::endl;
+  
+ std::cout << "fireX = " << fireX <<", "<< "fireY = " << fireY<< std::endl;
 
   return 0;
 }

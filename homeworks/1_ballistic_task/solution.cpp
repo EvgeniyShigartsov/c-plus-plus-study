@@ -98,14 +98,19 @@ if (strcmp(ammo_name, "VOG-17") == 0) {
 
   float valid_xd = shouldMakeManeuver ? targetX - (targetX - xd) * (h + accelerationPath) / D : xd;
   float valid_yd = shouldMakeManeuver ? targetY - (targetY - yd) * (h + accelerationPath) / D : yd;
+  float valid_D = shouldMakeManeuver ? sqrt(pow(targetX - valid_xd, 2) + pow(targetY - valid_yd, 2)) : D;
 
-  float ratio = (D - h) / D;
+  std::ofstream output("output.txt");
+
+  if(shouldMakeManeuver) {
+    output << valid_xd << ' ' << valid_yd << '\n';
+  }
+
+  float ratio = (valid_D - h) / valid_D;
 
   float fireX = valid_xd + (targetX - valid_xd) * ratio;
   float fireY = valid_yd + (targetY - valid_yd) * ratio;
 
-  
- std::ofstream output("output.txt");
  output << fireX << ' ' << fireY << std::endl;
  output.close();
 

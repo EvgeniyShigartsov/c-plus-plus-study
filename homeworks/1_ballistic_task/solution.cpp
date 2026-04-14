@@ -1,4 +1,5 @@
 #include <cstring>
+#include <iostream>
 #include <fstream>
 
 float get_h(float t, float d, float g, float l, float m, float v0){
@@ -71,6 +72,7 @@ if (strcmp(ammo_name, "VOG-17") == 0) {
     d = 0.10;
     l = 1.0;
 } else {
+    std::cerr << "Invalid ammo_name: " << ammo_name << std::endl;
     return 1;
 }
 
@@ -84,6 +86,7 @@ if (strcmp(ammo_name, "VOG-17") == 0) {
   float angCos = 3 * q / (2 * p) * sqrt(-3 / p);
 
   if(angCos > 1.0f || angCos < -1.0f){
+    std::cerr << "arccos is out -1...1, value is: " << angCos << std::endl;
     return 1;
   }
 

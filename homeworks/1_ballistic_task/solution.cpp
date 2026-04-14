@@ -1,5 +1,4 @@
 #include <cstring>
-#include <iostream>
 #include <fstream>
 
 float get_h(float t, float d, float g, float l, float m, float v0){

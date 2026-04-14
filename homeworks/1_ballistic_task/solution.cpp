@@ -92,6 +92,11 @@ if (strcmp(ammo_name, "VOG-17") == 0) {
   
   float t = 2 * sqrt(-p / 3) * cos((fi + M_PI * 4) / 3) - b / (3 * a);
   float h = get_h(t, d, g, l, m, v0);
+
+  if(xd == targetX){
+    xd = targetX - (h + accelerationPath);
+  }
+
   float D = sqrt(pow(targetX - xd, 2) + pow(targetY - yd, 2)); // Distance from drone to target
 
   bool shouldMakeManeuver = h + accelerationPath > D;
@@ -103,7 +108,7 @@ if (strcmp(ammo_name, "VOG-17") == 0) {
   std::ofstream output("output.txt");
 
   if(shouldMakeManeuver) {
-    output << valid_xd << ' ' << valid_yd << '\n';
+    output << valid_xd << ' ' << valid_yd << ' ';
   }
 
   float ratio = (valid_D - h) / valid_D;

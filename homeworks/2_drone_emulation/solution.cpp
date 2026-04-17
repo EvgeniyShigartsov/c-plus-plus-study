@@ -6,10 +6,6 @@ float get_h(float t, float d, float g, float l, float m, float v0);
 
 const int BOMBS_COUNT = 5;
 const int BOMB_CHAR_COUNT = 12;
-const char bombNames[BOMBS_COUNT][BOMB_CHAR_COUNT] =  {"VOG-17", "M67", "RKG-3", "GLIDING-VOG", "GLIDING-RKG"};
-const float bombM[BOMBS_COUNT] = {0.35f, 0.6f, 1.2f, 0.45f, 1.4f};
-const float bombD[BOMBS_COUNT] = {0.07f, 0.10f, 0.10f, 0.10f, 0.10f};
-const float bombL[BOMBS_COUNT] = {0.0f, 0.0f, 0.0f, 1.0f, 1.0f};
 
 const int MAX_STEPS = 10000;
 const int TARGETS_COUNT = 5;
@@ -41,15 +37,15 @@ bool readInput (
   input >> out_xd >> out_yd >> out_zd >> out_initialDir >> out_v0 >> out_accelerationPath >> out_ammo_name
   >> out_arrayTimeStep >> out_simTimeStep >> out_hitRadius >> out_angularSpeed >> out_turnThreshold;
   
-  input.close();
-
    if(input.fail()){
     std::cout << "input.txt has incorrect data format." << std::endl;
     return false;
   }
 
+  input.close();
+
   return true;
-};
+}
 
 bool readTargets (
   float out_targetXInTime[TARGETS_COUNT][TARGET_MOVES_COUNT],
@@ -73,15 +69,38 @@ bool readTargets (
     }
   }
 
-  targets.close();
-
   if(targets.fail()){
     std::cout << "targets.txt has incorrect data format." << std::endl;
     return false;
   }
 
+  targets.close();
+
   return true;
-};
+}
+
+bool setBombParams (const char ammo_name[BOMB_CHAR_COUNT], float& out_m, float& out_d, float& out_l){
+
+  const char bombNames[BOMBS_COUNT][BOMB_CHAR_COUNT] =  {"VOG-17", "M67", "RKG-3", "GLIDING-VOG", "GLIDING-RKG"};
+  const float bombM[BOMBS_COUNT] = {0.35f, 0.6f, 1.2f, 0.45f, 1.4f};
+  const float bombD[BOMBS_COUNT] = {0.07f, 0.10f, 0.10f, 0.10f, 0.10f};
+  const float bombL[BOMBS_COUNT] = {0.0f, 0.0f, 0.0f, 1.0f, 1.0f};
+
+    for (int i = 0; i < BOMBS_COUNT; i++){
+    if(strcmp(ammo_name, bombNames[i]) == 0){
+      out_m = bombM[i];
+      out_d = bombD[i];
+      out_l = bombL[i];
+      break;
+    }
+    if(i == BOMBS_COUNT - 1){
+      std::cerr << "Invalid ammo_name: " << ammo_name << std::endl;
+      return false;
+    }
+  }
+
+  return true;
+}
 
 int main(){
 
@@ -98,36 +117,29 @@ int main(){
   float angularSpeed;
   float turnThreshold;
 
-  if(!readInput(
-    xd, yd, zd, initialDir, v0, accelerationPath, ammo_name, arrayTimeStep, simTimeStep, hitRadius,
-    angularSpeed, turnThreshold)){
-      return 1;
-  }
-
   float targetXInTime[TARGETS_COUNT][TARGET_MOVES_COUNT] = {};
   float targetYInTime[TARGETS_COUNT][TARGET_MOVES_COUNT] = {};
-
-  if(!readTargets(targetXInTime, targetYInTime)){
-    return 1;
-  }
 
   float m; // ammoMass
   float d; // coeffAero
   float l; // liftForce
   const float g = 9.81f; // gravity
 
-  for (int i = 0; i < BOMBS_COUNT; i++){
-    if(strcmp(ammo_name, bombNames[i]) == 0){
-      m = bombM[i];
-      d = bombD[i];
-      l = bombL[i];
-      break;
-    }
-    if(i == BOMBS_COUNT - 1){
-      std::cerr << "Invalid ammo_name: " << ammo_name << std::endl;
-      return 1;
-    }
+  if(!readInput(
+    xd, yd, zd, initialDir, v0, accelerationPath, ammo_name, arrayTimeStep, simTimeStep, hitRadius,
+    angularSpeed, turnThreshold)){
+    return 1;
   }
+
+  if(!readTargets(targetXInTime, targetYInTime)){
+    return 1;
+  }
+
+  if(!setBombParams(ammo_name, m, d, l)){
+    return 1;
+  }
+
+  std::cout << m << ' ' << d << ' ' << l << std::endl;
 
   std::ofstream simulation("simulation.txt");
 

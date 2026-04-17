@@ -40,6 +40,7 @@ bool readInput (
 
   input >> out_xd >> out_yd >> out_zd >> out_initialDir >> out_v0 >> out_accelerationPath >> out_ammo_name
   >> out_arrayTimeStep >> out_simTimeStep >> out_hitRadius >> out_angularSpeed >> out_turnThreshold;
+  
   input.close();
 
    if(input.fail()){
@@ -50,15 +51,40 @@ bool readInput (
   return true;
 };
 
-int main(){
-
+bool readTargets (
+  float out_targetXInTime[TARGETS_COUNT][TARGET_MOVES_COUNT],
+  float out_targetYInTime[TARGETS_COUNT][TARGET_MOVES_COUNT]
+) {
   std::ifstream targets("targets.txt");
 
   if (!targets.is_open()) {
-    std::cout << "input.txt or targets.txt not found." << std::endl;
-    return 1;
+    std::cout << "targets.txt not found." << std::endl;
+    return false;
   }
-  
+
+  for (int t = 0; t < TARGETS_COUNT; t++){
+    for (int x = 0; x < TARGET_MOVES_COUNT; x++){
+      targets >> out_targetXInTime[t][x];
+    }
+  }
+  for(int t = 0; t < TARGETS_COUNT; t++){
+    for(int y = 0; y < TARGET_MOVES_COUNT; y++){
+      targets >> out_targetYInTime[t][y];
+    }
+  }
+
+  targets.close();
+
+  if(targets.fail()){
+    std::cout << "targets.txt has incorrect data format." << std::endl;
+    return false;
+  }
+
+  return true;
+};
+
+int main(){
+
   float xd;
   float yd;
   float zd;
@@ -76,16 +102,19 @@ int main(){
     xd, yd, zd, initialDir, v0, accelerationPath, ammo_name, arrayTimeStep, simTimeStep, hitRadius,
     angularSpeed, turnThreshold)){
       return 1;
-    }
-  
-  float m; // ammoMass
-  float d; // coeffAero
-  float l; // liftForce
-  const float g = 9.81f; // gravity
+  }
 
   float targetXInTime[TARGETS_COUNT][TARGET_MOVES_COUNT] = {};
   float targetYInTime[TARGETS_COUNT][TARGET_MOVES_COUNT] = {};
 
+  if(!readTargets(targetXInTime, targetYInTime)){
+    return 1;
+  }
+
+  float m; // ammoMass
+  float d; // coeffAero
+  float l; // liftForce
+  const float g = 9.81f; // gravity
 
   for (int i = 0; i < BOMBS_COUNT; i++){
     if(strcmp(ammo_name, bombNames[i]) == 0){
@@ -98,23 +127,6 @@ int main(){
       std::cerr << "Invalid ammo_name: " << ammo_name << std::endl;
       return 1;
     }
-  }
-
-  for (int i = 0; i < TARGETS_COUNT; i++){
-    for (int x = 0; x < TARGET_MOVES_COUNT; x++){
-      targets >> targetXInTime[i][x];
-    }
-  }
-  for(int i = 0; i < TARGETS_COUNT; i++){
-    for(int y = 0; y < TARGET_MOVES_COUNT; y++){
-      targets >> targetYInTime[i][y];
-    }
-  }
-
-  targets.close();
-
-  if(targets.fail()){
-    std::cout << "targets.txt has incorrect data format." << std::endl;
   }
 
   std::ofstream simulation("simulation.txt");

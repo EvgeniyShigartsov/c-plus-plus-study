@@ -139,7 +139,24 @@ int main(){
     return 1;
   }
 
-  std::cout << m << ' ' << d << ' ' << l << std::endl;
+  float a = (d * g * m) - ((pow(d, 2) * 2) * l * v0);
+  float b = ((-3 * g) * (pow(m, 2))) + ((d * 3) * l * m * v0);
+  float c = (6 * pow(m, 2)) * zd;
+
+  float p = -pow(b, 2) / (3 * pow(a, 2));
+  float q = (2 * pow(b, 3)) / (27 * pow(a, 3)) + c / a;
+
+  float angCos = 3 * q / (2 * p) * sqrt(-3 / p);
+
+  if(angCos > 1.0f || angCos < -1.0f){
+    std::cerr << "arccos is out -1...1, value is: " << angCos << std::endl;
+    return 1;
+  }
+
+  float fi = acos(angCos);
+  
+  float t = 2 * sqrt(-p / 3) * cos((fi + M_PI * 4) / 3) - b / (3 * a);
+  float h = get_h(t, d, g, l, m, v0);
 
   std::ofstream simulation("simulation.txt");
 

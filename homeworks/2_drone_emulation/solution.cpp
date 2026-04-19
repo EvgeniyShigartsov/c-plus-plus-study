@@ -210,8 +210,13 @@ int main(){
   float t = 0.0f;
   float droneX = xd;
   float droneY = yd;
+  float CURRENT_DIR = initialDir;
+  DroneState CURRENT_STATE = STOPPED;
+  float CURRENT_SPEED = v0;
+  float turningTimeLeft = 0.0f;
 
-  float a = pow(v0, 2) / (2 * accelerationPath); // droneAcceleration
+  float droneAcceleration = pow(v0, 2) / (2 * accelerationPath); // (a)
+  int selectedTargetIndex = 0;
 
   // while (step <= MAX_STEPS && !reachedFirePoint){
   while (step <= 10 && !reachedFirePoint) {
@@ -264,18 +269,44 @@ int main(){
 
         float timeToPredictedFire = calcDistance(predictedFireX, predictedFireY, droneX, droneY) / v0 + bombFlightTime;
 
-        if(bestTime == -1 || timeToPredictedFire < bestTime){
-          bestTime = timeToPredictedFire;
+        float totalTime = timeToPredictedFire;
+
+        if(i != selectedTargetIndex){
+          float timeToChangeTarget = 0.0f; // STOPPED drone case or deltaAngle < turnThreshold;
+
+          float dirToFire = atan2(predictedFireY - droneY, predictedFireX - droneX);
+          float deltaAngle = abs(dirToFire - CURRENT_DIR);
+
+          if(deltaAngle > turnThreshold){
+            float turningTime = deltaAngle / angularSpeed;
+
+            // Додавання часу залежно від поточної дії дрону
+            switch (CURRENT_STATE) {
+            case ACCELERATING:
+            case DECELERATING:
+              timeToChangeTarget += CURRENT_SPEED / droneAcceleration;
+              break;
+            case MOVING:
+              timeToChangeTarget += v0 / droneAcceleration;
+            case TURNING:
+              timeToChangeTarget += turningTimeLeft;
+              break;
+          }
+          // Додавання часу повороту
+          timeToChangeTarget += turningTime;
+          // Додавання часу на розгін
+          timeToChangeTarget += v0 / droneAcceleration;
+        }
+        totalTime += timeToChangeTarget;
+       }
+
+
+        if(bestTime == -1 || totalTime < bestTime) {
+          bestTime = totalTime;
           bestTarget = i;
           bestFireX = predictedFireX;
           bestFireY = predictedFireY;
-        }
-
-        if(i == 0){
-          std::cout <<
-           calcDistance(predictedFireX, predictedFireY, droneX, droneY) <<
-          ' ' << timeToPredictedFire << std::endl;
-        }
+        }      
       }
 
       t+= simTimeStep;

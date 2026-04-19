@@ -203,9 +203,7 @@ int main(){
 
   // ==== from HM-1 end
 
-  std::ofstream simulation("simulation.txt");
-
-  int step = 0;
+  int steps = 0;
   bool reachedFirePoint = false;
   float t = 0.0f;
   float droneX = xd;
@@ -218,12 +216,13 @@ int main(){
   float droneAcceleration = pow(v0, 2) / (2 * accelerationPath); // (a)
   int selectedTargetIndex = 0;
 
-  // while (step <= MAX_STEPS && !reachedFirePoint){
-  while (step <= 10 && !reachedFirePoint) {
-      step++;
+  float droneXHistory[MAX_STEPS] = {};
+  float droneYHistory[MAX_STEPS] = {};
+  float droneDirHistory[MAX_STEPS] = {};
+  DroneState droneStateHistory[MAX_STEPS] = {};
+  int droneSelectedTargetHistory[MAX_STEPS] = {};
 
-      simulation << step << ' ';
-      
+  while (steps <= MAX_STEPS && !reachedFirePoint){
       int idx, next;
       float frac;
       setInterpolationIndex(t, arrayTimeStep, idx, next, frac);
@@ -243,7 +242,6 @@ int main(){
 
         float timeToCurrentFire = calcDistance(currentFireX, currentFireY, droneX, droneY) / v0 + bombFlightTime;
         
-
         // 2. Обчислити швидкість цілі (targetVx, targetVy) через кінцеві різниці
         int idxNext, nextNext;
         float fracNext;
@@ -291,7 +289,9 @@ int main(){
             case TURNING:
               timeToChangeTarget += turningTimeLeft;
               break;
-            }
+            case STOPPED: // Немає потреби додавати час
+              break;
+          }
             // Додавання часу повороту
             timeToChangeTarget += turningTime;
             // Додавання часу на розгін
@@ -307,9 +307,8 @@ int main(){
           bestFireX = predictedFireX;
           bestFireY = predictedFireY;
         }
-        selectedTargetIndex = bestTarget;
       }
-
+      selectedTargetIndex = bestTarget;
 
       // Перевірено кут повороту та змінено стан відповідно вибраної цілі
       float dirToFire = atan2(bestFireY - droneY, bestFireX - droneX);
@@ -319,7 +318,6 @@ int main(){
         if(CURRENT_STATE == MOVING || CURRENT_STATE == ACCELERATING) CURRENT_STATE = DECELERATING;
         else if(CURRENT_STATE == STOPPED) CURRENT_STATE = TURNING;
       }
-
 
       // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
       if(CURRENT_STATE == DECELERATING){
@@ -365,10 +363,39 @@ int main(){
         droneY += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
       }
 
+      if(calcDistance(droneX, droneY, bestFireX, bestFireY) <= hitRadius){
+        reachedFirePoint = true;
+      }
+
       t+= simTimeStep;
+      steps++;
   }
 
- simulation.close();
+  std::ofstream simulation("simulation.txt");
+
+  simulation << steps << std::endl;
+
+  for(int i = 0; i < steps; i++){
+    simulation << droneXHistory[i] << ' ' << droneYHistory[i] << ' ';
+  }
+  simulation << std::endl;
+
+  for(int i = 0; i < steps; i++){
+    simulation << droneDirHistory[i] << ' ';
+  }
+  simulation << std::endl;
+
+  for(int i = 0; i < steps; i++){
+    simulation << droneStateHistory[i] << ' ';
+  }
+  simulation << std::endl;
+
+  for(int i = 0; i < steps; i++){
+    simulation << droneSelectedTargetHistory[i] << ' ';
+  }
+  simulation << std::endl;
+
+  simulation.close();
 
   return 0;
 }

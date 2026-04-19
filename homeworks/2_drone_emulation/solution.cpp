@@ -120,7 +120,7 @@ float calcDistance (const float targetX, const float targetY, const float droneX
 }
 
 void setFirePoint (
-  const float targetX, const float targetY, const float xd, const float yd,
+  const float targetX, const float targetY, float xd, const float yd,
   const float h, const float accelerationPath,
   float& out_fireX, float& out_fireY
 ){
@@ -128,7 +128,8 @@ void setFirePoint (
   float D = calcDistance(targetX, targetY, xd, yd); // Distance from drone to target
 
   if(D == 0){
-    D = calcDistance(targetX, targetY, targetX - (h + accelerationPath), yd);
+    xd = targetX - (h + accelerationPath);
+    D = calcDistance(targetX, targetY, xd, yd);
   }
 
   bool shouldMakeManeuver = h + accelerationPath > D;
@@ -210,7 +211,7 @@ int main(){
   float droneY = yd;
   float CURRENT_DIR = initialDir;
   DroneState CURRENT_STATE = STOPPED;
-  float CURRENT_SPEED = v0;
+  float CURRENT_SPEED = 0;
   float turningTimeLeft = 0.0f;
 
   float droneAcceleration = pow(v0, 2) / (2 * accelerationPath); // (a)
@@ -286,6 +287,7 @@ int main(){
               break;
             case MOVING:
               timeToChangeTarget += v0 / droneAcceleration;
+              break;
             case TURNING:
               timeToChangeTarget += turningTimeLeft;
               break;

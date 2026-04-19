@@ -291,22 +291,78 @@ int main(){
             case TURNING:
               timeToChangeTarget += turningTimeLeft;
               break;
+            }
+            // Додавання часу повороту
+            timeToChangeTarget += turningTime;
+            // Додавання часу на розгін
+            timeToChangeTarget += v0 / droneAcceleration;
           }
-          // Додавання часу повороту
-          timeToChangeTarget += turningTime;
-          // Додавання часу на розгін
-          timeToChangeTarget += v0 / droneAcceleration;
+          totalTime += timeToChangeTarget;
         }
-        totalTime += timeToChangeTarget;
-       }
 
-
+        // Обрано ціль з мінімальним загальним часом
         if(bestTime == -1 || totalTime < bestTime) {
           bestTime = totalTime;
           bestTarget = i;
           bestFireX = predictedFireX;
           bestFireY = predictedFireY;
-        }      
+        }
+        selectedTargetIndex = bestTarget;
+      }
+
+
+      // Перевірено кут повороту та змінено стан відповідно вибраної цілі
+      float dirToFire = atan2(bestFireY - droneY, bestFireX - droneX);
+      float deltaAngle = abs(dirToFire - CURRENT_DIR);
+
+      if(deltaAngle > turnThreshold) {
+        if(CURRENT_STATE == MOVING || CURRENT_STATE == ACCELERATING) CURRENT_STATE = DECELERATING;
+        else if(CURRENT_STATE == STOPPED) CURRENT_STATE = TURNING;
+      }
+
+
+      // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
+      if(CURRENT_STATE == DECELERATING){
+        CURRENT_SPEED -= droneAcceleration * simTimeStep;
+        
+        droneX += cos(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+        droneY += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+
+        if(CURRENT_SPEED <= 0){
+          CURRENT_SPEED = 0;
+          CURRENT_STATE = STOPPED;
+          turningTimeLeft = deltaAngle / angularSpeed;
+        }
+      } else if (CURRENT_STATE == STOPPED){
+        if(deltaAngle > turnThreshold){
+          turningTimeLeft = deltaAngle / angularSpeed;
+          CURRENT_STATE = TURNING;
+        } else {
+          CURRENT_STATE = ACCELERATING;
+        }
+      } else if(CURRENT_STATE == TURNING){
+        dirToFire > CURRENT_DIR 
+        ? CURRENT_DIR += angularSpeed * simTimeStep
+        : CURRENT_DIR -= angularSpeed * simTimeStep;
+
+        turningTimeLeft -= simTimeStep;
+
+        if(turningTimeLeft <= 0){
+          CURRENT_DIR = dirToFire;
+          CURRENT_STATE = ACCELERATING;
+        }
+      } else if (CURRENT_STATE == ACCELERATING) {
+        CURRENT_SPEED += droneAcceleration * simTimeStep;
+
+        if(CURRENT_SPEED >= v0){
+          CURRENT_SPEED = v0;
+          CURRENT_STATE = MOVING;
+        }
+        droneX += cos(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+        droneY += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+      } else if(CURRENT_STATE == MOVING){
+        droneX += cos(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+        droneY += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
       }
 
       t+= simTimeStep;

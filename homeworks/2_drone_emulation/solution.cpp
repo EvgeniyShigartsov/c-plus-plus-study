@@ -229,29 +229,29 @@ int main(){
 
 
       for(int i = 0; i < TARGETS_COUNT; i++){
-        float currentTargetX = interpolateCoord(frac, targetXInTime[i][idx], targetXInTime[i][next]);
-        float currentTargetY = interpolateCoord(frac, targetYInTime[i][idx], targetYInTime[i][next]);
+        float targetCurrentX = interpolateCoord(frac, targetXInTime[i][idx], targetXInTime[i][next]);
+        float targetCurrentY = interpolateCoord(frac, targetYInTime[i][idx], targetYInTime[i][next]);
 
         int idxNext, nextNext;
         float fracNext;
         setInterpolationIndex(t + simTimeStep, arrayTimeStep, idxNext, nextNext, fracNext);
 
-        float xNext = interpolateCoord(fracNext, targetXInTime[i][idxNext], targetXInTime[i][nextNext]);
-        float yNext = interpolateCoord(fracNext, targetYInTime[i][idxNext], targetYInTime[i][nextNext]);
+        float targetXNext = interpolateCoord(fracNext, targetXInTime[i][idxNext], targetXInTime[i][nextNext]);
+        float targetYNext = interpolateCoord(fracNext, targetYInTime[i][idxNext], targetYInTime[i][nextNext]);
 
-        float dx = xNext - currentTargetX;
-        float dy = yNext - currentTargetY;
+        float dx = targetXNext - targetCurrentX;
+        float dy = targetYNext - targetCurrentY;
 
         float targetVx = dx / simTimeStep;
         float targetVy = dy / simTimeStep;
 
         float currentFireX, currentFireY;
-        setFirePoint(currentTargetX, currentTargetY, droneX, droneY, h, accelerationPath, currentFireX, currentFireY);
+        setFirePoint(targetCurrentX, targetCurrentY, droneX, droneY, h, accelerationPath, currentFireX, currentFireY);
 
         float timeToCurrentFire = calcDistance(currentFireX, currentFireY, droneX, droneY) / v0 + bombFlightTime;
 
-        float predictedX = currentTargetX + targetVx * timeToCurrentFire;
-        float predictedY = currentTargetY + targetVy * timeToCurrentFire;
+        float predictedX = targetCurrentX + targetVx * timeToCurrentFire;
+        float predictedY = targetCurrentY + targetVy * timeToCurrentFire;
 
         float predictedFireX, predictedFireY;
         setFirePoint(predictedX, predictedY, droneX, droneY, h, accelerationPath, predictedFireX, predictedFireY);

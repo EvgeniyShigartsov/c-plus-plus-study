@@ -203,7 +203,7 @@ int main(){
 
   // ==== from HM-1 end
 
-  int steps = 0;
+  int step = 0;
   bool reachedFirePoint = false;
   float t = 0.0f;
   float droneX = xd;
@@ -222,7 +222,7 @@ int main(){
   DroneState droneStateHistory[MAX_STEPS] = {};
   int droneSelectedTargetHistory[MAX_STEPS] = {};
 
-  while (steps <= MAX_STEPS && !reachedFirePoint){
+  while (step <= MAX_STEPS && !reachedFirePoint){
       int idx, next;
       float frac;
       setInterpolationIndex(t, arrayTimeStep, idx, next, frac);
@@ -367,30 +367,36 @@ int main(){
         reachedFirePoint = true;
       }
 
+      droneXHistory[step] = droneX;
+      droneYHistory[step] = droneY;
+      droneDirHistory[step] = CURRENT_DIR;
+      droneStateHistory[step] = CURRENT_STATE;
+      droneSelectedTargetHistory[step] = selectedTargetIndex;
+
       t+= simTimeStep;
-      steps++;
+      step++;
   }
 
   std::ofstream simulation("simulation.txt");
 
-  simulation << steps << std::endl;
+  simulation << step << std::endl;
 
-  for(int i = 0; i < steps; i++){
+  for(int i = 0; i < step; i++){
     simulation << droneXHistory[i] << ' ' << droneYHistory[i] << ' ';
   }
   simulation << std::endl;
 
-  for(int i = 0; i < steps; i++){
+  for(int i = 0; i < step; i++){
     simulation << droneDirHistory[i] << ' ';
   }
   simulation << std::endl;
 
-  for(int i = 0; i < steps; i++){
+  for(int i = 0; i < step; i++){
     simulation << droneStateHistory[i] << ' ';
   }
   simulation << std::endl;
 
-  for(int i = 0; i < steps; i++){
+  for(int i = 0; i < step; i++){
     simulation << droneSelectedTargetHistory[i] << ' ';
   }
   simulation << std::endl;

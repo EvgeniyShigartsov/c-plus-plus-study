@@ -232,6 +232,14 @@ int main(){
         float targetCurrentX = interpolateCoord(frac, targetXInTime[i][idx], targetXInTime[i][next]);
         float targetCurrentY = interpolateCoord(frac, targetYInTime[i][idx], targetYInTime[i][next]);
 
+        // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
+        float currentFireX, currentFireY;
+        setFirePoint(targetCurrentX, targetCurrentY, droneX, droneY, h, accelerationPath, currentFireX, currentFireY);
+
+        float timeToCurrentFire = calcDistance(currentFireX, currentFireY, droneX, droneY) / v0 + bombFlightTime;
+        
+
+        // 2. Обчислити швидкість цілі (targetVx, targetVy) через кінцеві різниці
         int idxNext, nextNext;
         float fracNext;
         setInterpolationIndex(t + simTimeStep, arrayTimeStep, idxNext, nextNext, fracNext);
@@ -245,16 +253,14 @@ int main(){
         float targetVx = dx / simTimeStep;
         float targetVy = dy / simTimeStep;
 
-        float currentFireX, currentFireY;
-        setFirePoint(targetCurrentX, targetCurrentY, droneX, droneY, h, accelerationPath, currentFireX, currentFireY);
 
-        float timeToCurrentFire = calcDistance(currentFireX, currentFireY, droneX, droneY) / v0 + bombFlightTime;
+        // 3. Інтерполювати прогнозовану позицію цілі на момент currentTime + totalTime
+        float targetPredictedX = targetCurrentX + targetVx * timeToCurrentFire;
+        float targetPredictedY = targetCurrentY + targetVy * timeToCurrentFire;
 
-        float predictedX = targetCurrentX + targetVx * timeToCurrentFire;
-        float predictedY = targetCurrentY + targetVy * timeToCurrentFire;
-
+        // 4. Перерахувати балістику до прогнозованої позиції
         float predictedFireX, predictedFireY;
-        setFirePoint(predictedX, predictedY, droneX, droneY, h, accelerationPath, predictedFireX, predictedFireY);
+        setFirePoint(targetPredictedX, targetPredictedY, droneX, droneY, h, accelerationPath, predictedFireX, predictedFireY);
 
         float timeToPredictedFire = calcDistance(predictedFireX, predictedFireY, droneX, droneY) / v0 + bombFlightTime;
 

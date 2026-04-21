@@ -219,6 +219,15 @@ void writeSimulation (
   simulation.close();
 }
 
+void updateDroneXY (
+  const float CURRENT_DIR, const float CURRENT_SPEED, const float simTimeStep,
+  float& out_droneX, float& out_droneY
+  ){
+    out_droneX += cos(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+    out_droneY += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+}
+
+
 int main(){
 
   float xd;
@@ -261,7 +270,8 @@ int main(){
     return 1;
   }
 
-  float h = get_h(bombFlightTime, d, g, l, m, v0);
+  const float h = get_h(bombFlightTime, d, g, l, m, v0);
+  const float droneAcceleration = pow(v0, 2) / (2 * accelerationPath); // (a)
 
   int step = 0;
   bool reachedFirePoint = false;
@@ -272,8 +282,6 @@ int main(){
   float CURRENT_SPEED = 0.0f;
   DroneState CURRENT_STATE = STOPPED;
   float turningTimeLeft = 0.0f;
-
-  float droneAcceleration = pow(v0, 2) / (2 * accelerationPath); // (a)
   int selectedTargetIndex = 0;
 
   float droneXHistory[MAX_STEPS] = {};
@@ -388,9 +396,7 @@ int main(){
       // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
       if(CURRENT_STATE == DECELERATING){
         CURRENT_SPEED -= droneAcceleration * simTimeStep;
-        
-        droneX += cos(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
-        droneY += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+        updateDroneXY(CURRENT_DIR, CURRENT_SPEED, simTimeStep, droneX, droneY);        
 
         if(CURRENT_SPEED <= 0){
           CURRENT_SPEED = 0;
@@ -421,11 +427,10 @@ int main(){
           CURRENT_SPEED = v0;
           CURRENT_STATE = MOVING;
         }
-        droneX += cos(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
-        droneY += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+        updateDroneXY(CURRENT_DIR, CURRENT_SPEED, simTimeStep, droneX, droneY);
+
       } else if(CURRENT_STATE == MOVING){
-        droneX += cos(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
-        droneY += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
+        updateDroneXY(CURRENT_DIR, CURRENT_SPEED, simTimeStep, droneX, droneY);
       }
 
       if(calcDistance(droneX, droneY, bestFireX, bestFireY) <= hitRadius){

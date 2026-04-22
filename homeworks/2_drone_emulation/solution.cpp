@@ -172,23 +172,14 @@ float calcDistance (const float targetX, const float targetY, const float droneX
 }
 
 void setFirePoint (
-  const float targetX, const float targetY, const float xd, const float yd,
-  const float h, const float accelerationPath,
+  const float targetX, const float targetY, const float xd, const float yd, const float h,
   float& out_fireX, float& out_fireY
 ){
-  
   float D = calcDistance(targetX, targetY, xd, yd); // Distance from drone to target
+  float ratio = (D - h) / D;
 
-  bool shouldMakeManeuver = h + accelerationPath > D;
-
-  float valid_xd = shouldMakeManeuver ? targetX - (targetX - xd) * (h + accelerationPath) / D : xd;
-  float valid_yd = shouldMakeManeuver ? targetY - (targetY - yd) * (h + accelerationPath) / D : yd;
-  float valid_D = shouldMakeManeuver ? calcDistance(targetX, targetY, valid_xd, valid_yd) : D;
-
-  float ratio = (valid_D - h) / valid_D;
-
-  out_fireX = valid_xd + (targetX - valid_xd) * ratio;
-  out_fireY = valid_yd + (targetY - valid_yd) * ratio;
+  out_fireX = xd + (targetX - xd) * ratio;
+  out_fireY = yd + (targetY - yd) * ratio;
 }
 
 void writeSimulation (
@@ -301,7 +292,7 @@ int main(){
 
         // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
         float currentFireX, currentFireY;
-        setFirePoint(targetCurrentX, targetCurrentY, droneX, droneY, h, accelerationPath, currentFireX, currentFireY);
+        setFirePoint(targetCurrentX, targetCurrentY, droneX, droneY, h, currentFireX, currentFireY);
 
         const float timeToCurrentFire = calcDistance(currentFireX, currentFireY, droneX, droneY) / v0 + bombFlightTime;
         
@@ -326,7 +317,7 @@ int main(){
 
         // 4. Перерахувати балістику до прогнозованої позиції
         float predictedFireX, predictedFireY;
-        setFirePoint(targetPredictedX, targetPredictedY, droneX, droneY, h, accelerationPath, predictedFireX, predictedFireY);
+        setFirePoint(targetPredictedX, targetPredictedY, droneX, droneY, h, predictedFireX, predictedFireY);
 
         const float timeToPredictedFire = calcDistance(predictedFireX, predictedFireY, droneX, droneY) / v0 + bombFlightTime;
 
@@ -427,6 +418,16 @@ int main(){
       } else if(CURRENT_STATE == MOVING){
         updateDroneXY(CURRENT_DIR, CURRENT_SPEED, simTimeStep, droneX, droneY);
       }
+
+// std::cout
+//     << "step: " << step
+//     << " | CURRENT_STATE: " << CURRENT_STATE
+//     << " | droneX: " << droneX
+//     << " | droneY: " << droneY
+//     << " | bestFireX: " << bestFireX
+//     << " | bestFireY: " << bestFireY
+//     << std::endl;
+
 
       if(calcDistance(droneX, droneY, bestFireX, bestFireY) <= hitRadius){
         reachedFirePoint = true;

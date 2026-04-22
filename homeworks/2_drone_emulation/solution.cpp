@@ -328,7 +328,21 @@ int main(){
         float predictedFireX, predictedFireY;
         setFirePoint(targetPredictedX, targetPredictedY, droneX, droneY, h, accelerationPath, predictedFireX, predictedFireY);
 
-        const float timeToPredictedFire = calcDistance(predictedFireX, predictedFireY, droneX, droneY) / v0 + bombFlightTime;
+        const float D_toTarget = calcDistance(targetPredictedX, targetPredictedY, droneX, droneY);
+        const bool shouldMakeManeuver = h + accelerationPath > D_toTarget;
+
+
+        float actualDestX = predictedFireX;
+        float actualDestY = predictedFireY;
+
+        if(shouldMakeManeuver){
+          actualDestX = targetPredictedX - (targetPredictedX - droneX) * (h + accelerationPath) / D_toTarget;
+          actualDestY = targetPredictedY - (targetPredictedY - droneY) * (h + accelerationPath) / D_toTarget;
+        }
+        std::cout << (shouldMakeManeuver ? "true" : "false") << ' ' << D_toTarget << std::endl;
+
+
+        const float timeToPredictedFire = calcDistance(actualDestX, actualDestY, droneX, droneY) / v0 + bombFlightTime;
 
         float totalTime = timeToPredictedFire;
 

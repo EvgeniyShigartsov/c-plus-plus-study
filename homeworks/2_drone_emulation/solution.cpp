@@ -267,7 +267,6 @@ int main(){
   float maneuverY = droneY;
   bool needsManeuver = false;
   bool reachedManeuverPoint = false;
-  float actualDistX, actualDistY;
   float CURRENT_TIME = 0.0f;
   float CURRENT_DIR = initialDir;
   float CURRENT_SPEED = 0.0f;
@@ -287,10 +286,11 @@ int main(){
       float frac;
       setInterpolationIndex(CURRENT_TIME, arrayTimeStep, idx, next, frac);
 
-      float bestTime = -1;
       int bestTarget = 0;
+      float bestTime = -1.0f;
       float bestFireX, bestFireY;
       float bestTargetX, bestTargetY;
+      float actualDistX, actualDistY;
 
       for(int i = 0; i < TARGETS_COUNT; i++){
         const float targetCurrentX = interpolateCoord(frac, targetXInTime[i][idx], targetXInTime[i][next]);
@@ -330,7 +330,7 @@ int main(){
         float totalTime = timeToPredictedFire;
 
         if(i != selectedTargetIndex){
-          float timeToChangeTarget = 0.0f; // STOPPED drone case or deltaAngle < turnThreshold;
+          float timeToChangeTarget = 0.0f; // STOPPED стан або deltaAngle < turnThreshold;
 
           const float dirToFire = atan2(predictedFireY - droneY, predictedFireX - droneX);
           const float deltaAngle = abs(dirToFire - CURRENT_DIR);
@@ -372,58 +372,43 @@ int main(){
         }
       }
      
-     if(!needsManeuver){
-       selectedTargetIndex = bestTarget;
-     }
-
-    float distDroneToTarget = calcDistance(droneX, droneY, bestTargetX, bestTargetY);
-    float distFireToTarget = calcDistance(bestFireX, bestFireY, bestTargetX, bestTargetY);
-    bool droneIsBetween = distFireToTarget > distDroneToTarget;
-
-    if(selectedTargetIndex != prevSelectedTargetIndex || step == 0){
-      reachedManeuverPoint = false;
-      if(droneIsBetween){
-        // дрон "між" ціллю і точкою скиду - треба відлетіти далі
-        const float dirAwayFromTarget = atan2(droneY - bestTargetY, droneX - bestTargetX);
-        needsManeuver = true;
-        maneuverX = droneX + (cos(dirAwayFromTarget) * (h + accelerationPath) * 2);
-        maneuverY = droneY + (sin(dirAwayFromTarget) * (h + accelerationPath) * 2);
+      if(!needsManeuver){
+        selectedTargetIndex = bestTarget;
       }
-    }
 
-    if(needsManeuver && !reachedManeuverPoint){
-      actualDistX = maneuverX;
-      actualDistY = maneuverY;
-    } else {
-      actualDistX = bestFireX;
-      actualDistY = bestFireY;
-    }
+      if(selectedTargetIndex != prevSelectedTargetIndex || step == 0){
+        reachedManeuverPoint = false;
 
-    if(!reachedManeuverPoint){
-      if(calcDistance(droneX, droneY, actualDistX, actualDistY) <= hitRadius) {
-        reachedManeuverPoint = true;
-        needsManeuver = false;
-        actualDistX = bestFireX;  // одразу оновлюємо
+        float distDroneToTarget = calcDistance(droneX, droneY, bestTargetX, bestTargetY);
+        float distFireToTarget = calcDistance(bestFireX, bestFireY, bestTargetX, bestTargetY);
+
+        if(distFireToTarget > distDroneToTarget){
+          // дрон між ціллю і точкою скиду - треба відлетіти далі
+          const float dirAwayFromTarget = atan2(droneY - bestTargetY, droneX - bestTargetX);
+          needsManeuver = true;
+          maneuverX = droneX + (cos(dirAwayFromTarget) * (h + accelerationPath) * 2);
+          maneuverY = droneY + (sin(dirAwayFromTarget) * (h + accelerationPath) * 2);
+        }
+      }
+
+      if(needsManeuver && !reachedManeuverPoint){
+        actualDistX = maneuverX;
+        actualDistY = maneuverY;
+      } else {
+        actualDistX = bestFireX;
         actualDistY = bestFireY;
       }
-    }
 
-      // Перевірено кут повороту та змінено стан відповідно вибраної цілі
+      if(!reachedManeuverPoint && calcDistance(droneX, droneY, actualDistX, actualDistY) <= hitRadius){
+        reachedManeuverPoint = true;
+        needsManeuver = false;
+        actualDistX = bestFireX;
+        actualDistY = bestFireY;
+      }
+
+        // Перевірено кут повороту та змінено стан відповідно вибраної цілі
       const float dirToFire = atan2(actualDistY - droneY, actualDistX - droneX);
       const float deltaAngle = abs(dirToFire - CURRENT_DIR);
-
-    //   std::cout
-    // << "step: " << step
-    // << " | reachedManeuverPoint: " << reachedManeuverPoint
-    // << " | needsManeuver: " << needsManeuver
-    // << " | actualDistX: " << actualDistX
-    // << " | actualDistY: " << actualDistY
-    // << " | bestFireX: " << bestFireX
-    // << " | bestFireY: " << bestFireY
-    // << " | dirToFire: " << dirToFire
-    // << " | CURRENT_DIR: " << CURRENT_DIR
-    // << " | CURRENT_STATE: " << CURRENT_STATE
-    // << std::endl;
 
       if(deltaAngle > turnThreshold) {
         if(CURRENT_STATE == MOVING || CURRENT_STATE == ACCELERATING) CURRENT_STATE = DECELERATING;

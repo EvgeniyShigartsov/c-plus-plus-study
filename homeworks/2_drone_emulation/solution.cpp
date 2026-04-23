@@ -1,6 +1,7 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 const int BOMBS_COUNT = 5;
 const int BOMB_CHAR_COUNT = 12;

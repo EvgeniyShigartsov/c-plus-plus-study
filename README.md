@@ -1,28 +1,54 @@
 # C++ для військових технологій
 
-Навчальний репозиторій курсу. Містить dev-контейнер з C++ toolchain, стартову
+Шаблон репозиторію курсу. Містить dev-контейнер з C++ toolchain, стартову
 структуру проєкту і окремі папки під кожну домашню роботу.
+
+Основний спосіб користуватись цим репо - створити власну копію через кнопку
+**Use this template** на GitHub. Курс-репо залишається read-only для вас,
+PR-и на вашій копії йдуть у ваш main.
 
 ## Швидкий старт
 
-1. Склонувати репо і зайти в папку:
+1. **Створити власну копію через Use this template:**
+   - Відкрити сторінку курс-репо на GitHub.
+   - Натиснути `Use this template` -> `Create a new repository`.
+   - В Owner dropdown обрати свій акаунт, задати назву (наприклад
+     `cpp-miltech`), створити.
+
+   Це дає самостійне репо у вашому акаунті з чистою git-історією і без
+   fork-зв'язку з курс-репо.
+
+2. **Склонувати власний репо і відкрити у VS Code:**
    ```bash
-   git clone https://github.com/robot-dreams-code/C-PLUS-PLUS-FOR-MILITARY-TECHNOLOGY.git
-   cd C-PLUS-PLUS-FOR-MILITARY-TECHNOLOGY
-   ```
-2. Відкрити у VS Code:
-   ```bash
+   git clone https://github.com/<your-username>/cpp-miltech.git
+   cd cpp-miltech
    code .
    ```
    VS Code запропонує `Reopen in Container` - погодитись. Перший запуск
    тягне і білдить Docker image (5-10 хв), наступні запуски миттєві.
 
-3. Всередині контейнера зібрати весь репо:
+3. **Зібрати весь репо всередині контейнера:**
    ```bash
    cmake -S . -B build -G Ninja
    cmake --build build
    ```
    Виконувані файли домашніх робіт з'являться в `build/homework_XX/`.
+
+## Оновлення з курс-репо
+
+Якщо у курс-репо з'являється щось нове (новий starter, фікс у devcontainer,
+оновлена інструкція) - підтягти у свій репо можна через додатковий remote:
+
+```bash
+# одноразово: додати курс-репо як remote `course`
+git remote add course https://github.com/robot-dreams-code/C-PLUS-PLUS-FOR-MILITARY-TECHNOLOGY.git
+
+# коли треба оновитись:
+git fetch course
+git merge course/main              # підтягнути все
+# або точково:
+git cherry-pick <commit-sha>       # конкретний коміт
+```
 
 ## Перед стартом
 
@@ -50,13 +76,16 @@
 
 ## Як додати нову домашку
 
+Коли лектор анонсував нову ДЗ або ви починаєте роботу над уже анонсованою:
+
 1. Створити папку `homework_NN/` з власним `CMakeLists.txt`, `src/`, `include/`
    і даними якщо є.
 2. Додати у корневий CMakeLists.txt рядок:
    ```cmake
    add_subdirectory(homework_NN)
    ```
-3. Відкрити PR. GitHub Actions перевірить що все збирається у devcontainer-і.
+3. Комітити і пушити у свій репо. CI (якщо налаштований у вашому репо)
+   перевірить що все збирається.
 
 ## Що робить CI
 

@@ -44,13 +44,15 @@ PR-и на вашій копії йдуть у ваш main.
 
 ## Доступ для перевірки
 
-Додати лектора як collaborator свого репо, щоб він міг бачити код і робити
-review на pull request-ах:
+Додати обох лекторів як collaborators свого репо, щоб вони могли бачити
+код і робити review на pull request-ах:
 
 - `Settings` -> `Collaborators` -> `Add people` -> `yevhenkuznetsov`, роль
   `Read` достатня.
+- `Settings` -> `Collaborators` -> `Add people` -> `farnblack`, роль
+  `Read` достатня.
 
-Без цього лектор не побачить приватний репо взагалі і не зможе залишати
+Без цього лектори не побачать приватний репо взагалі і не зможуть залишати
 formal review (approve / request changes) навіть на публічному.
 
 ## Оновлення з курс-репо

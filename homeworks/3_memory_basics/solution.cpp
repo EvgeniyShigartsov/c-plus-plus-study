@@ -101,8 +101,8 @@ bool readDroneConfig (DroneConfig& out_config) {
     json data;
     config >> data;
 
-    const char* tmp = data["ammo"].get<std::string>().c_str();
-    strncpy(out_config.ammoName, tmp, BOMB_CHAR_COUNT);
+    const std::string tmp = data["ammo"].get<std::string>();
+    strncpy(out_config.ammoName, tmp.c_str(), BOMB_CHAR_COUNT);
     
     out_config.startPos.x = data["drone"]["position"]["x"];
     out_config.startPos.y = data["drone"]["position"]["y"];
@@ -158,26 +158,33 @@ bool readTargets (
 }
 
 bool readBombParams (const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bombParams){
-  const char bombNames[BOMBS_COUNT][BOMB_CHAR_COUNT] =  {"VOG-17", "M67", "RKG-3", "GLIDING-VOG", "GLIDING-RKG"};
-  const float bombM[BOMBS_COUNT] = {0.35f, 0.6f, 1.2f, 0.45f, 1.4f};
-  const float bombD[BOMBS_COUNT] = {0.07f, 0.10f, 0.10f, 0.10f, 0.10f};
-  const float bombL[BOMBS_COUNT] = {0.0f, 0.0f, 0.0f, 1.0f, 1.0f};
+  std::ifstream ammoFile("ammo.json");
+  json ammoData; ammoFile >> ammoData;
 
-    for (int i = 0; i < BOMBS_COUNT; i++){
-      if(strcmp(ammo_name, bombNames[i]) == 0){
-        strncpy(out_bombParams.name, ammo_name, BOMB_CHAR_COUNT);
-        out_bombParams.mass = bombM[i];
-        out_bombParams.drag = bombD[i];
-        out_bombParams.lift = bombL[i];
-        break;
-      }
-    if(i == BOMBS_COUNT - 1){
-      std::cerr << "Invalid ammo_name: " << ammo_name << std::endl;
-      return false;
-    }
+  const int ammoCount = ammoData.size();
+  BombParams* const ammoList = new BombParams[ammoCount];
+
+  for(int i = 0; i < ammoCount; i++){
+    strncpy(ammoList[i].name, ammoData[i]["name"].get<std::string>().c_str(), BOMB_CHAR_COUNT);
+    ammoList[i].mass = ammoData[i]["mass"];
+    ammoList[i].drag = ammoData[i]["drag"];
+    ammoList[i].lift = ammoData[i]["lift"];
   }
+  bool found = false;
 
-  return true;
+  for (int i = 0; i < ammoCount; i++){
+    const BombParams bomb = ammoList[i];
+    if(strcmp(ammo_name, bomb.name) == 0){
+      out_bombParams = bomb;
+      found = true;
+      break;
+    }
+ }
+
+ if(!found) std::cerr << "Invalid ammo_name: " << ammo_name << std::endl;
+
+  delete[] ammoList;
+  return found;
 }
 
 float get_h(float t, float d, float g, float l, float m, float v0){

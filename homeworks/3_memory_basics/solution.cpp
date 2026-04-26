@@ -10,8 +10,7 @@ const int BOMBS_COUNT = 5;
 const int BOMB_CHAR_COUNT = 12;
 
 const int MAX_STEPS = 10000;
-const int TARGETS_COUNT = 5;
-const int TARGET_MOVES_COUNT = 60;
+const int __OLD__TARGET_MOVES_COUNT = 60;
 
 enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
 
@@ -125,38 +124,6 @@ bool readDroneConfig (DroneConfig& out_config) {
   return true;
 }
 
-bool readTargets (
-  float out_targetXInTime[TARGETS_COUNT][TARGET_MOVES_COUNT],
-  float out_targetYInTime[TARGETS_COUNT][TARGET_MOVES_COUNT]
-) {
-  std::ifstream targets("targets.txt");
-
-  if (!targets.is_open()) {
-    std::cout << "targets.txt not found." << std::endl;
-    return false;
-  }
-
-  for (int t = 0; t < TARGETS_COUNT; t++){
-    for (int x = 0; x < TARGET_MOVES_COUNT; x++){
-      targets >> out_targetXInTime[t][x];
-    }
-  }
-  for(int t = 0; t < TARGETS_COUNT; t++){
-    for(int y = 0; y < TARGET_MOVES_COUNT; y++){
-      targets >> out_targetYInTime[t][y];
-    }
-  }
-
-  if(targets.fail()){
-    std::cout << "targets.txt has incorrect data format." << std::endl;
-    return false;
-  }
-
-  targets.close();
-
-  return true;
-}
-
 bool readBombParams (const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bombParams){
   std::ifstream ammoFile("ammo.json");
   json ammoData; ammoFile >> ammoData;
@@ -241,13 +208,16 @@ bool setBombFlightTime (
   return true;
 }
 
-float interpolatePos (const float frac, const float currentTargetPos, const float nextTargetPos){
-     return currentTargetPos + (nextTargetPos - currentTargetPos) * frac;
+Coord interpolatePos (const float frac, const Coord& currentTargetPos, const Coord& nextTargetPos){
+  const float x = currentTargetPos.x + (nextTargetPos.x - currentTargetPos.x) * frac;
+  const float y = currentTargetPos.y + (nextTargetPos.y - currentTargetPos.y) * frac;
+
+   return {x, y};
 }
 
 InterpolationIndex getInterpolationIndex (const float t, const float arrayTimeStep){
-  const int idx = (int)(floor(t / arrayTimeStep)) % TARGET_MOVES_COUNT;
-  const int next = (idx + 1) % TARGET_MOVES_COUNT;
+  const int idx = (int)(floor(t / arrayTimeStep)) % __OLD__TARGET_MOVES_COUNT;
+  const int next = (idx + 1) % __OLD__TARGET_MOVES_COUNT;
   const float frac = (t - idx * arrayTimeStep) / arrayTimeStep;
   
   return {frac, idx, next};
@@ -303,8 +273,21 @@ float getDirectionFromTo (const Coord& from, const Coord& to){
 }
 
 int main(){
-  float targetXInTime[TARGETS_COUNT][TARGET_MOVES_COUNT] = {};
-  float targetYInTime[TARGETS_COUNT][TARGET_MOVES_COUNT] = {};
+  std::ifstream targetsFile("targets.json");
+  json targetsData; targetsFile >> targetsData;
+
+  const int TARGETS_COUNT = targetsData["targetCount"];
+  const int TARGET_MOVES_COUNT = targetsData["timeSteps"];
+
+  Coord** targetsInTime = new Coord*[TARGETS_COUNT];
+
+  for(int target = 0; target < TARGETS_COUNT; target++){
+    targetsInTime[target] = new Coord[TARGET_MOVES_COUNT];
+    for(int move = 0; move < TARGET_MOVES_COUNT; move++){
+      targetsInTime[target][move].x = targetsData["targets"][target]["positions"][move]["x"];
+      targetsInTime[target][move].y = targetsData["targets"][target]["positions"][move]["y"];
+    }
+  }
 
   const float g = 9.81f; // gravity
   float bombFlightTime;
@@ -314,7 +297,6 @@ int main(){
 
   if(!readDroneConfig(dc)
       || !readBombParams(dc.ammoName, bp)
-      || !readTargets(targetXInTime, targetYInTime)
       || !setBombFlightTime(bp.drag, g, bp.mass, bp.lift, dc.v0, dc.altitude, bombFlightTime)
     ){
     return 1;
@@ -341,33 +323,29 @@ int main(){
       Coord actualDist;
 
       for(int i = 0; i < TARGETS_COUNT; i++){
-        const float targetCurrentX = interpolatePos(currentIndex.frac, targetXInTime[i][currentIndex.idx], targetXInTime[i][currentIndex.next]);
-        const float targetCurrentY = interpolatePos(currentIndex.frac, targetYInTime[i][currentIndex.idx], targetYInTime[i][currentIndex.next]);
+        const Coord targetCurrentXY = interpolatePos(currentIndex.frac, targetsInTime[i][currentIndex.idx],targetsInTime[i][currentIndex.next]);
 
         // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
-        Coord currentFire = getFirePoint({ targetCurrentX, targetCurrentY }, sim.CURRENT_POS, h);
+        Coord currentFire = getFirePoint(targetCurrentXY, sim.CURRENT_POS, h);
         const float timeToCurrentFire = calcDistance(currentFire, sim.CURRENT_POS) / dc.v0 + bombFlightTime;
         
         // 2. Обчислити швидкість цілі (targetVx, targetVy) через кінцеві різниці
         const InterpolationIndex nextIndex = getInterpolationIndex(sim.CURRENT_TIME + dc.simTimeStep, dc.arrayTimeStep);
 
-        const float targetXNext = interpolatePos(nextIndex.frac, targetXInTime[i][nextIndex.idx], targetXInTime[i][nextIndex.next]);
-        const float targetYNext = interpolatePos(nextIndex.frac, targetYInTime[i][nextIndex.idx], targetYInTime[i][nextIndex.next]);
+        const Coord targetNextXY = interpolatePos(nextIndex.frac, targetsInTime[i][nextIndex.idx], targetsInTime[i][nextIndex.next]);
 
-        const float dx = targetXNext - targetCurrentX;
-        const float dy = targetYNext - targetCurrentY;
+        const float dx = targetNextXY.x - targetCurrentXY.x;
+        const float dy = targetNextXY.y - targetCurrentXY.y;
 
         const float targetVx = dx / dc.simTimeStep;
         const float targetVy = dy / dc.simTimeStep;
 
-
         // 3. Інтерполювати прогнозовану позицію цілі на момент currentTime + totalTime
-        const float targetPredictedX = targetCurrentX + targetVx * timeToCurrentFire;
-        const float targetPredictedY = targetCurrentY + targetVy * timeToCurrentFire;
+        const float targetPredictedX = targetCurrentXY.x + targetVx * timeToCurrentFire;
+        const float targetPredictedY = targetCurrentXY.y + targetVy * timeToCurrentFire;
 
         // 4. Перерахувати балістику до прогнозованої позиції
         Coord predictedFire = getFirePoint({targetPredictedX, targetPredictedY}, sim.CURRENT_POS, h);
-
         const float timeToPredictedFire = calcDistance(predictedFire, sim.CURRENT_POS) / dc.v0 + bombFlightTime;
 
         float totalTime = timeToPredictedFire;
@@ -510,6 +488,11 @@ int main(){
   }
 
   writeSimulation(droneXHistory, droneYHistory, droneDirHistory, droneStateHistory, droneSelectedTargetHistory, sim.step);
+
+  for (int i = 0; i < TARGETS_COUNT; i++){
+    delete[] targetsInTime[i];
+  }
+  delete[] targetsInTime;
 
   return 0;
 }

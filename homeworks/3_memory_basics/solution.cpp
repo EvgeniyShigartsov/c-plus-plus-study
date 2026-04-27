@@ -22,9 +22,7 @@
 
 using json = nlohmann::json;
 
-const int BOMBS_COUNT = 5;
 const int BOMB_CHAR_COUNT = 12;
-
 const int MAX_STEPS = 10000;
 
 enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
@@ -191,6 +189,43 @@ bool readBombParams (const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bomb
   return found;
 }
 
+Coord** readTargets(int& out_TARGETS_COUNT, int& out_TARGET_MOVES_COUNT){
+  std::ifstream targetsFile("targets.json");
+
+  if(!targetsFile.is_open()){
+    LOG("targets.json was not found.");
+    return nullptr;
+  }
+
+  json targetsData; targetsFile >> targetsData;
+
+  out_TARGETS_COUNT = targetsData["targetCount"];
+  out_TARGET_MOVES_COUNT = targetsData["timeSteps"];
+
+  Coord** targetsInTime = new Coord*[out_TARGETS_COUNT];
+
+  try {
+    for(int target = 0; target < out_TARGETS_COUNT; target++){
+      targetsInTime[target] = new Coord[out_TARGET_MOVES_COUNT];
+      for(int move = 0; move < out_TARGET_MOVES_COUNT; move++){
+        targetsInTime[target][move].x = targetsData["targets"][target]["positions"][move]["x"];
+        targetsInTime[target][move].y = targetsData["targets"][target]["positions"][move]["y"];
+      }
+    }
+  } catch(const json::exception& parseError){
+    LOG("targets.json parse error: " << parseError.what());
+    
+    for (int i = 0; i < out_TARGETS_COUNT; i++){
+      delete[] targetsInTime[i];
+    }
+    delete[] targetsInTime;
+
+    targetsInTime = nullptr;
+  }
+
+  return targetsInTime;
+}
+
 bool setBombFlightTime (
   const float d, const float g, const float m,
   const float l, const float v0, const float zd,
@@ -327,51 +362,18 @@ void writeSimulationJson (const int totalSteps, const SimStep* steps){
 }
 
 int main(){
-  std::ifstream targetsFile("targets.json");
-  if(!targetsFile.is_open()){
-    LOG("targets.json was not found.");
-    return 1;
-  }
-
-  json targetsData; targetsFile >> targetsData;
-
-  const int TARGETS_COUNT = targetsData["targetCount"];
-  const int TARGET_MOVES_COUNT = targetsData["timeSteps"];
-
-  Coord** targetsInTime = new Coord*[TARGETS_COUNT];
-  bool targetsParseOK = false;
-
-  try {
-    for(int target = 0; target < TARGETS_COUNT; target++){
-      targetsInTime[target] = new Coord[TARGET_MOVES_COUNT];
-      for(int move = 0; move < TARGET_MOVES_COUNT; move++){
-        targetsInTime[target][move].x = targetsData["targets"][target]["positions"][move]["x"];
-        targetsInTime[target][move].y = targetsData["targets"][target]["positions"][move]["y"];
-      }
-    }
-
-    targetsParseOK = true;
-  } catch(const json::exception& parseError){
-    LOG("targets.json parse error: " << parseError.what());
-    
-    for (int i = 0; i < TARGETS_COUNT; i++){
-      delete[] targetsInTime[i];
-    }
-    delete[] targetsInTime;
-    targetsInTime = nullptr;
-  }
-
-
-
   const float g = 9.81f; // gravity
   float bombFlightTime;
 
+  int TARGETS_COUNT = 0;
+  int TARGET_MOVES_COUNT = 0;
+  Coord** targetsInTime = readTargets(TARGETS_COUNT, TARGET_MOVES_COUNT);
   DroneConfig dc;
   BombParams bp;
 
   if(!readDroneConfig(dc)
       || !readBombParams(dc.ammoName, bp)
-      || !targetsParseOK
+      || targetsInTime == nullptr
       || !setBombFlightTime(bp.drag, g, bp.mass, bp.lift, dc.v0, dc.altitude, bombFlightTime)
     ){
     return 1;

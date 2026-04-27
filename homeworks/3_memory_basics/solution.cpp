@@ -94,6 +94,7 @@ struct Simulation {
   DroneState CURRENT_STATE = STOPPED;
   Coord maneuverPoint = { 0.0f, 0.0f };
   float turningTimeLeft = 0.0f;
+  float simulationTimeStep;
 
   int selectedTargetIndex = 0;
   int prevSelectedTargetIndex = 0;
@@ -102,9 +103,14 @@ struct Simulation {
   bool needsManeuver = false;
   bool reachedManeuverPoint = false;
  
-  Simulation(const Coord initialPos, const float initialDir){
+  Simulation(const Coord initialPos, const float initialDir, const float simTimeStep){
       CURRENT_POS = initialPos;
       CURRENT_DIR = initialDir;
+      simulationTimeStep = simTimeStep;
+  }
+
+  void updateDroneXY (){
+    CURRENT_POS = CURRENT_POS + Coord{cos(CURRENT_DIR), sin(CURRENT_DIR)} * CURRENT_SPEED * simulationTimeStep;
   }
 };
 
@@ -240,10 +246,7 @@ float get_h(const float t, const float d, const float g, const float l, const fl
 }
 
 Coord interpolatePos (const float frac, const Coord& currentTargetPos, const Coord& nextTargetPos){
-  const float x = currentTargetPos.x + (nextTargetPos.x - currentTargetPos.x) * frac;
-  const float y = currentTargetPos.y + (nextTargetPos.y - currentTargetPos.y) * frac;
-
-   return {x, y};
+  return currentTargetPos + (nextTargetPos - currentTargetPos) * frac;
 }
 
 float length(const Coord& coord){
@@ -265,14 +268,6 @@ InterpolationIndex getInterpolationIndex (const float t, const float arrayTimeSt
 Coord getFirePoint (const Coord targetCoord, const Coord droneCoord, const float h){
   const Coord delta = targetCoord - droneCoord;
   return targetCoord - normalizeCoord(delta) * h;
-}
-
-void updateDroneXY (
-  const float CURRENT_DIR, const float CURRENT_SPEED, const float simTimeStep,
-  Coord& out_dronePosition
-  ){
-    out_dronePosition.x += cos(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
-    out_dronePosition.y += sin(CURRENT_DIR) * CURRENT_SPEED * simTimeStep;
 }
 
 float getDirectionFromTo (const Coord& from, const Coord& to){
@@ -333,6 +328,11 @@ void writeSimulationJson (const int totalSteps, const SimStep* steps){
 
 int main(){
   std::ifstream targetsFile("targets.json");
+  if(!targetsFile.is_open()){
+    LOG("targets.json was not found.");
+    return 1;
+  }
+
   json targetsData; targetsFile >> targetsData;
 
   const int TARGETS_COUNT = targetsData["targetCount"];
@@ -364,7 +364,7 @@ int main(){
   const float h = get_h(bombFlightTime, bp.drag, g, bp.lift, bp.mass, dc.v0);
   const float droneAcceleration = pow(dc.v0, 2) / (2 * dc.accelerationPath); // (a)
 
-  Simulation sim = Simulation(dc.startPos, dc.initialDir);
+  Simulation sim = Simulation(dc.startPos, dc.initialDir, dc.simTimeStep);
 
   float droneXHistory[MAX_STEPS] = {};
   float droneYHistory[MAX_STEPS] = {};
@@ -490,7 +490,7 @@ int main(){
       // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
       if(sim.CURRENT_STATE == DECELERATING){
         sim.CURRENT_SPEED -= droneAcceleration * dc.simTimeStep;
-        updateDroneXY(sim.CURRENT_DIR, sim.CURRENT_SPEED, dc.simTimeStep, sim.CURRENT_POS);        
+        sim.updateDroneXY();
 
         if(sim.CURRENT_SPEED <= 0){
           sim.CURRENT_SPEED = 0;
@@ -521,10 +521,10 @@ int main(){
           sim.CURRENT_SPEED = dc.v0;
           sim.CURRENT_STATE = MOVING;
         }
-        updateDroneXY(sim.CURRENT_DIR, sim.CURRENT_SPEED, dc.simTimeStep, sim.CURRENT_POS);
+        sim.updateDroneXY();
 
       } else if(sim.CURRENT_STATE == MOVING){
-        updateDroneXY(sim.CURRENT_DIR, sim.CURRENT_SPEED, dc.simTimeStep, sim.CURRENT_POS);
+         sim.updateDroneXY();
       }
 
       if(length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {

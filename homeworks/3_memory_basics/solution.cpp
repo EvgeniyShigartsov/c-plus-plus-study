@@ -40,6 +40,14 @@ struct Coord {
   }
 };
 
+float length(const Coord& coord){
+  return std::hypot(coord.x, coord.y);
+}
+
+Coord normalizeCoord (const Coord& coord){
+  return coord / length(coord);
+}
+
 struct DroneConfig {
   char ammoName[BOMB_CHAR_COUNT];
   Coord startPos;
@@ -223,18 +231,9 @@ InterpolationIndex getInterpolationIndex (const float t, const float arrayTimeSt
   return {frac, idx, next};
 }
 
-float calcDistance (const Coord object, const Coord target){
-  return sqrt(pow(object.x - target.x, 2) + pow(object.y - target.y, 2));
-}
-
 Coord getFirePoint (const Coord targetCoord, const Coord droneCoord, const float h){
-  float D = calcDistance(targetCoord, droneCoord);
-  float ratio = (D - h) / D;
-
-  const float x = droneCoord.x + (targetCoord.x - droneCoord.x) * ratio;
-  const float y = droneCoord.y + (targetCoord.y - droneCoord.y) * ratio;
-
-  return {x, y};
+  const Coord delta = targetCoord - droneCoord;
+  return targetCoord - normalizeCoord(delta) * h;
 }
 
 void writeSimulation (
@@ -327,7 +326,7 @@ int main(){
 
         // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
         Coord currentFire = getFirePoint(targetCurrentXY, sim.CURRENT_POS, h);
-        const float timeToCurrentFire = calcDistance(currentFire, sim.CURRENT_POS) / dc.v0 + bombFlightTime;
+        const float timeToCurrentFire = length(currentFire - sim.CURRENT_POS) / dc.v0 + bombFlightTime;
         
         // 2. Обчислити швидкість цілі (targetVx, targetVy) через кінцеві різниці
         const InterpolationIndex nextIndex = getInterpolationIndex(sim.CURRENT_TIME + dc.simTimeStep, dc.arrayTimeStep);
@@ -340,7 +339,7 @@ int main(){
 
         // 4. Перерахувати балістику до прогнозованої позиції
         Coord predictedFire = getFirePoint(targetPredictedXY, sim.CURRENT_POS, h);
-        const float timeToPredictedFire = calcDistance(predictedFire, sim.CURRENT_POS) / dc.v0 + bombFlightTime;
+        const float timeToPredictedFire = length(predictedFire - sim.CURRENT_POS) / dc.v0 + bombFlightTime;
 
         float totalTime = timeToPredictedFire;
 
@@ -392,8 +391,8 @@ int main(){
       if(sim.selectedTargetIndex != sim.prevSelectedTargetIndex || sim.step == 0){
         sim.reachedManeuverPoint = false;
 
-        float distDroneToTarget = calcDistance(sim.CURRENT_POS, bestTargetCoord);
-        float distFireToTarget = calcDistance(bestFire, bestTargetCoord);
+        float distDroneToTarget = length(sim.CURRENT_POS - bestTargetCoord);
+        float distFireToTarget = length(bestFire - bestTargetCoord);
 
         if(distFireToTarget > distDroneToTarget){
           // дрон між ціллю і точкою скиду - треба відлетіти далі
@@ -406,7 +405,7 @@ int main(){
 
       actualDist = sim.needsManeuver && !sim.reachedManeuverPoint ? sim.maneuverPoint : bestFire;
 
-      if(!sim.reachedManeuverPoint && calcDistance(sim.CURRENT_POS, actualDist) <= dc.hitRadius){
+      if(!sim.reachedManeuverPoint && length(sim.CURRENT_POS - actualDist) <= dc.hitRadius){
         sim.reachedManeuverPoint = true;
         sim.needsManeuver = false;
         actualDist = bestFire;
@@ -466,7 +465,7 @@ int main(){
         updateDroneXY(sim.CURRENT_DIR, sim.CURRENT_SPEED, dc.simTimeStep, sim.CURRENT_POS);
       }
 
-      if(calcDistance(sim.CURRENT_POS, bestFire) <= dc.hitRadius && !sim.needsManeuver) {
+      if(length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {
         sim.reachedFirePoint = true;
       }
 

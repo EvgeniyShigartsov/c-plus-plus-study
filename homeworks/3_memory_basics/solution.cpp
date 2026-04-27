@@ -4,6 +4,22 @@
 #include <cmath>
 #include "json.hpp"
 
+#define ENABLE_LOG	1
+#define ENABLE_DEBUG  0
+
+#if ENABLE_LOG
+  #define LOG(msg) std::cout << "[LOG]: " << msg << std::endl
+#else
+  #define LOG(msg)
+#endif
+
+#if ENABLE_DEBUG
+  #define DEBUG(msg) std::cout << "[DEBUG]" << msg << std::endl;
+#else
+  #define DEBUG(msg)
+#endif
+
+
 using json = nlohmann::json;
 
 const int BOMBS_COUNT = 5;
@@ -38,14 +54,6 @@ struct Coord {
     return abs(x - other.x) < 1e-6f && abs(y - other.y) < 1e-6f;
   }
 };
-
-float length(const Coord& coord){
-  return std::hypot(coord.x, coord.y);
-}
-
-Coord normalizeCoord (const Coord& coord){
-  return coord / length(coord);
-}
 
 struct DroneConfig {
   char ammoName[BOMB_CHAR_COUNT];
@@ -110,7 +118,7 @@ bool readDroneConfig (DroneConfig& out_config) {
   std::ifstream config("config.json");
 
   if (!config.is_open()) {
-    std::cout << "config.json not found." << std::endl;
+    LOG("config.json not found.");
     return false;
   }
 
@@ -134,7 +142,7 @@ bool readDroneConfig (DroneConfig& out_config) {
     out_config.turnThreshold = data["drone"]["turnThreshold"];
     
   } catch(const json::exception& parseError){
-    std::cout << "config.json parse error: " << parseError.what() << std::endl;
+    LOG("config.json parse error: " << parseError.what());
     return false;
   }
   config.close();
@@ -232,6 +240,14 @@ Coord interpolatePos (const float frac, const Coord& currentTargetPos, const Coo
   const float y = currentTargetPos.y + (nextTargetPos.y - currentTargetPos.y) * frac;
 
    return {x, y};
+}
+
+float length(const Coord& coord){
+  return std::hypot(coord.x, coord.y);
+}
+
+Coord normalizeCoord (const Coord& coord){
+  return coord / length(coord);
 }
 
 InterpolationIndex getInterpolationIndex (const float t, const float arrayTimeStep, const int targetMovesCount){
@@ -546,6 +562,9 @@ int main(){
   }
   delete[] targetsInTime;
   targetsInTime = nullptr;
+
+  delete[] stepsLog;
+  stepsLog = nullptr;
 
   return 0;
 }

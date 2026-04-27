@@ -10,7 +10,6 @@ const int BOMBS_COUNT = 5;
 const int BOMB_CHAR_COUNT = 12;
 
 const int MAX_STEPS = 10000;
-const int __OLD__TARGET_MOVES_COUNT = 60;
 
 enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
 
@@ -68,7 +67,18 @@ struct BombParams {
   float drag;
   float lift;
 };
+
 struct SimStep {
+  Coord pos;
+  Coord dropPoint;
+  Coord aimPoint;
+  Coord predictedTarget;
+  float direction;
+  DroneState state;
+  int targetIdx;
+};
+
+struct Simulation {
   Coord CURRENT_POS;
   float CURRENT_TIME = 0.0f;
   float CURRENT_SPEED = 0.0f;
@@ -84,7 +94,7 @@ struct SimStep {
   bool needsManeuver = false;
   bool reachedManeuverPoint = false;
  
-  SimStep(const Coord initialPos, const float initialDir){
+  Simulation(const Coord initialPos, const float initialDir){
       CURRENT_POS = initialPos;
       CURRENT_DIR = initialDir;
   }
@@ -137,7 +147,7 @@ bool readBombParams (const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bomb
   json ammoData; ammoFile >> ammoData;
 
   const int ammoCount = ammoData.size();
-  BombParams* const ammoList = new BombParams[ammoCount];
+  BombParams* ammoList = new BombParams[ammoCount];
 
   for(int i = 0; i < ammoCount; i++){
     strncpy(ammoList[i].name, ammoData[i]["name"].get<std::string>().c_str(), BOMB_CHAR_COUNT);
@@ -159,6 +169,7 @@ bool readBombParams (const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bomb
  if(!found) std::cerr << "Invalid ammo_name: " << ammo_name << std::endl;
 
   delete[] ammoList;
+  ammoList = nullptr;
   return found;
 }
 
@@ -223,9 +234,9 @@ Coord interpolatePos (const float frac, const Coord& currentTargetPos, const Coo
    return {x, y};
 }
 
-InterpolationIndex getInterpolationIndex (const float t, const float arrayTimeStep){
-  const int idx = (int)(floor(t / arrayTimeStep)) % __OLD__TARGET_MOVES_COUNT;
-  const int next = (idx + 1) % __OLD__TARGET_MOVES_COUNT;
+InterpolationIndex getInterpolationIndex (const float t, const float arrayTimeStep, const int targetMovesCount){
+  const int idx = (int)(floor(t / arrayTimeStep)) % targetMovesCount;
+  const int next = (idx + 1) % targetMovesCount;
   const float frac = (t - idx * arrayTimeStep) / arrayTimeStep;
   
   return {frac, idx, next};
@@ -304,7 +315,7 @@ int main(){
   const float h = get_h(bombFlightTime, bp.drag, g, bp.lift, bp.mass, dc.v0);
   const float droneAcceleration = pow(dc.v0, 2) / (2 * dc.accelerationPath); // (a)
 
-  SimStep sim = SimStep(dc.startPos, dc.initialDir);
+  Simulation sim = Simulation(dc.startPos, dc.initialDir);
 
   float droneXHistory[MAX_STEPS] = {};
   float droneYHistory[MAX_STEPS] = {};
@@ -312,8 +323,10 @@ int main(){
   DroneState droneStateHistory[MAX_STEPS] = {};
   int droneSelectedTargetHistory[MAX_STEPS] = {};
 
+  SimStep* stepsLog = new SimStep[MAX_STEPS];
+
   while (sim.step <= MAX_STEPS && !sim.reachedFirePoint){
-      const InterpolationIndex currentIndex = getInterpolationIndex(sim.CURRENT_TIME, dc.arrayTimeStep);
+      const InterpolationIndex currentIndex = getInterpolationIndex(sim.CURRENT_TIME, dc.arrayTimeStep, TARGET_MOVES_COUNT);
 
       int bestTarget = 0;
       float bestTime = -1.0f;
@@ -329,7 +342,7 @@ int main(){
         const float timeToCurrentFire = length(currentFire - sim.CURRENT_POS) / dc.v0 + bombFlightTime;
         
         // 2. Обчислити швидкість цілі (targetVx, targetVy) через кінцеві різниці
-        const InterpolationIndex nextIndex = getInterpolationIndex(sim.CURRENT_TIME + dc.simTimeStep, dc.arrayTimeStep);
+        const InterpolationIndex nextIndex = getInterpolationIndex(sim.CURRENT_TIME + dc.simTimeStep, dc.arrayTimeStep, TARGET_MOVES_COUNT);
 
         const Coord targetNextXY = interpolatePos(nextIndex.frac, targetsInTime[i][nextIndex.idx], targetsInTime[i][nextIndex.next]);
         const Coord targetVelocity = (targetNextXY - targetCurrentXY) / dc.simTimeStep;
@@ -475,6 +488,15 @@ int main(){
       droneStateHistory[sim.step] = sim.CURRENT_STATE;
       droneSelectedTargetHistory[sim.step] = sim.selectedTargetIndex;
 
+      const Coord dir = {cos(sim.CURRENT_DIR),  sin(sim.CURRENT_DIR)};
+
+      stepsLog[sim.step].pos = sim.CURRENT_POS;
+      stepsLog[sim.step].direction = sim.CURRENT_DIR;
+      stepsLog[sim.step].state = sim.CURRENT_STATE;
+      stepsLog[sim.step].targetIdx = sim.selectedTargetIndex;
+      stepsLog[sim.step].dropPoint = bestFire;
+      // stepsLog[sim.step].aimPoint = sim.CURRENT_POS + dir *
+
       sim.prevSelectedTargetIndex = sim.selectedTargetIndex;
       sim.CURRENT_TIME += dc.simTimeStep;
       sim.step++;
@@ -486,6 +508,7 @@ int main(){
     delete[] targetsInTime[i];
   }
   delete[] targetsInTime;
+  targetsInTime = nullptr;
 
   return 0;
 }

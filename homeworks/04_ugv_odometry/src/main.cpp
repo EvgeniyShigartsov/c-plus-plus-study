@@ -13,36 +13,50 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  std::ifstream file(argv[1]);
+  std::ifstream inputFile(argv[1]);
+
+  const float distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
 
   long prev_timestamp_ms;
   long prev_fl_ticks, prev_fr_ticks;
   long prev_bl_ticks, prev_br_ticks;
-  file >> prev_timestamp_ms >> prev_fl_ticks >> prev_fr_ticks >> prev_bl_ticks >> prev_br_ticks;
+  inputFile >> prev_timestamp_ms >> prev_fl_ticks >> prev_fr_ticks >> prev_bl_ticks >> prev_br_ticks;
 
   long timestamp_ms;
   long fl_ticks, fr_ticks;
   long bl_ticks, br_ticks;
 
-  bool endOfFile = false;
+  float x = 0.0f;
+  float y = 0.0f;
+  float theta = 0.0f;
 
-  while (file >> timestamp_ms >> fl_ticks >> fr_ticks >> bl_ticks >> br_ticks) {
-    long delta_fl = fl_ticks - prev_fl_ticks;
-    long delta_fr = fr_ticks - prev_fr_ticks;
+  while (inputFile >> timestamp_ms >> fl_ticks >> fr_ticks >> bl_ticks >> br_ticks) {
+    float delta_fl = fl_ticks - prev_fl_ticks;
+    float delta_fr = fr_ticks - prev_fr_ticks;
 
-    long delta_bl = bl_ticks - prev_bl_ticks;
-    long delta_br = br_ticks - prev_br_ticks;
+    float delta_bl = bl_ticks - prev_bl_ticks;
+    float delta_br = br_ticks - prev_br_ticks;
 
-    long delta_left = (delta_fl + delta_bl) / 2;
-    long delta_right = (delta_fr + delta_br) / 2;
+    float delta_left = (delta_fl + delta_bl) / 2;
+    float delta_right = (delta_fr + delta_br) / 2;
 
-    long distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
+    float delta_left_in_meters = delta_left * distance_per_tick;
+    float delta_right_in_meters = delta_right * distance_per_tick;
 
-    long delta_left_in_meters = delta_left * distance_per_tick;
-    long delta_right_in_meters = delta_right * distance_per_tick;
+    float distance = (delta_left_in_meters + delta_right_in_meters) / 2;
+    float dTheta = (delta_right_in_meters - delta_left_in_meters) / wheelbase_m;
 
-    long distance = (delta_left_in_meters + delta_right_in_meters) / 2;
-    long dTheta = (delta_right_in_meters - delta_left_in_meters) / wheelbase_m;
+    x += distance * cos(theta + dTheta / 2);
+    y += distance * sin(theta + dTheta / 2);
+    theta += dTheta;
+
+    prev_timestamp_ms = timestamp_ms;
+    prev_fl_ticks = fl_ticks;
+    prev_fr_ticks = fr_ticks;
+    prev_bl_ticks = bl_ticks;
+    prev_br_ticks = br_ticks;
+
+    std::cout << timestamp_ms << ' ' << x << ' ' << y << ' ' << theta << std::endl;
   }
 
   return 0;

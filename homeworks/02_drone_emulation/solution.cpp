@@ -18,7 +18,7 @@ bool readInput(float& out_xd,
                float& out_initialDir,
                float& out_v0,
                float& out_accelerationPath,
-               char out_ammo_name[BOMB_CHAR_COUNT],
+               char* out_ammo_name,
                float& out_arrayTimeStep,
                float& out_simTimeStep,
                float& out_hitRadius,
@@ -32,8 +32,11 @@ bool readInput(float& out_xd,
     return false;
   }
 
-  input >> out_xd >> out_yd >> out_zd >> out_initialDir >> out_v0 >> out_accelerationPath >> out_ammo_name >> out_arrayTimeStep >>
-    out_simTimeStep >> out_hitRadius >> out_angularSpeed >> out_turnThreshold;
+  char temp[BOMB_CHAR_COUNT];
+  input >> out_xd >> out_yd >> out_zd >> out_initialDir >> out_v0 >> out_accelerationPath >> temp >> out_arrayTimeStep >> out_simTimeStep >>
+    out_hitRadius >> out_angularSpeed >> out_turnThreshold;
+
+  strcpy(out_ammo_name, temp);
 
   if (input.fail()) {
     std::cout << "input.txt has incorrect data format." << std::endl;

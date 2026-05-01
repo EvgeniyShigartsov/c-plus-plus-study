@@ -6,4 +6,4 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Домашні роботи. По мірі появи додаємо кожну окремим add_subdirectory.
-add_subdirectory(homework_04)
+add_subdirectory(homeworks/04_ugv_odometry)

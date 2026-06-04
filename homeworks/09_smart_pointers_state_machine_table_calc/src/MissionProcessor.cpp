@@ -10,14 +10,14 @@
 const int MAX_STEPS = 10000;
 const float GRAVITY = 9.81f;  // gravity
 
-MissionProcessor::MissionProcessor(ITargetProvider* provider, IBallisticSolver* solver)
-  : targetProvider(provider)
-  , ballisticSolver(solver)
+MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver)
+  : targetProvider(std::move(provider))
+  , ballisticSolver(std::move(solver))
 {
   stepsLog.reserve(MAX_STEPS);
 }
 
-[[nodiscard]] bool MissionProcessor::init(IConfigLoader* configLoader)
+[[nodiscard]] bool MissionProcessor::init(std::unique_ptr<IConfigLoader> configLoader)
 {
   dc = configLoader->getConfig();
   const BombParams bp = configLoader->getAmmoParams();
@@ -222,9 +222,9 @@ SimStep MissionProcessor::step()
   return stepResult;
 }
 
-void MissionProcessor::changeSolver(IBallisticSolver* solver)
+void MissionProcessor::changeSolver(std::unique_ptr<IBallisticSolver> solver)
 {
-  ballisticSolver = solver;
+  ballisticSolver = std::move(solver);
 }
 
 void MissionProcessor::reset()

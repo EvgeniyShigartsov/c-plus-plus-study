@@ -1,6 +1,9 @@
 #include <iostream>
 #include <fstream>
+#include <memory>
+#include <string>
 #include <vector>
+#include "interfaces/IBallisticSolver.hpp"
 #include "third_party/json.hpp"
 #include "types.hpp"
 #include "Logger.hpp"
@@ -9,38 +12,9 @@
 
 using json = nlohmann::json;
 
-void writeSimulation(const std::vector<float>& droneXHistory,
-                     const std::vector<float>& droneYHistory,
-                     const std::vector<float>& droneDirHistory,
-                     const std::vector<DroneState>& droneStateHistory,
-                     const std::vector<int>& droneSelectedTargetHistory,
-                     const size_t steps)
-{
-  std::ofstream simulation("simulation.txt");
-  simulation << steps << std::endl;
-
-  for (size_t i = 0; i < steps; i++) {
-    simulation << droneXHistory[i] << ' ' << droneYHistory[i] << ' ';
-  }
-  simulation << std::endl;
-
-  for (size_t i = 0; i < steps; i++) {
-    simulation << droneDirHistory[i] << ' ';
-  }
-  simulation << std::endl;
-
-  for (size_t i = 0; i < steps; i++) {
-    simulation << droneStateHistory[i] << ' ';
-  }
-  simulation << std::endl;
-
-  for (size_t i = 0; i < steps; i++) {
-    simulation << droneSelectedTargetHistory[i] << ' ';
-  }
-  simulation << std::endl;
-
-  simulation.close();
-}
+const std::string CONFIG_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/config.json";
+const std::string AMMO_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/ammo.json";
+const std::string TARGETS_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/targets.json";
 
 json toJsonXY(const Coord& coord)
 {
@@ -74,56 +48,30 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
 
 int main()
 {
-  IConfigLoader* configLoader = createLoader(LoaderType::FILE);
-  const bool isConfigLoadSuccess =
-    configLoader->load("homeworks/08_introduction_to_stl/data/config.json", "homeworks/08_introduction_to_stl/data/ammo.json");
+  std::unique_ptr<IConfigLoader> configLoader = createLoader(LoaderType::FILE);
+  const bool isConfigLoadSuccess = configLoader->load(CONFIG_FILE_PATH, AMMO_FILE_PATH);
 
-  ITargetProvider* targetProvider =
-    createProvider(ProviderType::JSON, "homeworks/08_introduction_to_stl/data/targets.json", configLoader->getConfig());
-  IBallisticSolver* solver = createSolver(SolverType::ANALYTICAL);
+  std::shared_ptr<ITargetProvider> targetProvider = createProvider(ProviderType::JSON, TARGETS_FILE_PATH, configLoader->getConfig());
+  std::unique_ptr<IBallisticSolver> solver = createSolver(SolverType::ANALYTICAL);
 
-  MissionProcessor missionProcessor{targetProvider, solver};
-  const bool isInitSucces = missionProcessor.init(configLoader);
+  MissionProcessor missionProcessor{targetProvider, std::move(solver)};
+
+  const bool isInitSucces = missionProcessor.init(std::move(configLoader));
   if (!isConfigLoadSuccess || !targetProvider->isLoadSucces() || !isInitSucces) {
     return 1;
   }
 
-  // Історія для зворотньої сумісності з .txt результатом симуляції.
-  std::vector<float> droneXHistory;
-  std::vector<float> droneYHistory;
-  std::vector<float> droneDirHistory;
-  std::vector<DroneState> droneStateHistory;
-  std::vector<int> droneSelectedTargetHistory;
-
   while (missionProcessor.hasNext()) {
-    const SimStep stepResult = missionProcessor.step();
-
-    droneXHistory.push_back(stepResult.pos.x);
-    droneYHistory.push_back(stepResult.pos.y);
-    droneDirHistory.push_back(stepResult.direction);
-    droneStateHistory.push_back(stepResult.state);
-    droneSelectedTargetHistory.push_back(stepResult.targetIdx);
+    missionProcessor.step();
   }
 
   const std::vector<SimStep> stepsLog = missionProcessor.getStepsLog();
-
-  writeSimulation(droneXHistory, droneYHistory, droneDirHistory, droneStateHistory, droneSelectedTargetHistory, stepsLog.size());
 
   writeSimulationJson(stepsLog);
 
   LOG("Simulation complete. Steps: " << stepsLog.size());
 
   missionProcessor.reset();
-
-  // Rule are turned off because some thigs is not learned at this point.
-  // NOLINTBEGIN(cppcoreguidelines-owning-memory)
-  delete configLoader;
-  delete targetProvider;
-  delete solver;
-  // NOLINTEND(cppcoreguidelines-owning-memory)
-  configLoader = nullptr;
-  targetProvider = nullptr;
-  solver = nullptr;
 
   return 0;
 }

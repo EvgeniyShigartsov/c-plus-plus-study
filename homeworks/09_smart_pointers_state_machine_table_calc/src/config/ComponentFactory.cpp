@@ -1,40 +1,39 @@
 #include "config/ComponentFactory.hpp"
+#include <memory>
 #include <string>
 #include "config/FileConfigLoader.hpp"
+#include "interfaces/IBallisticSolver.hpp"
+#include "interfaces/ITargetProvider.hpp"
 #include "types.hpp"
 #include "providers/JsonTargetProvider.hpp"
 #include "solvers/AnalyticalSolver.hpp"
 
-// NOLINTBEGIN(cppcoreguidelines-owning-memory)
-
-IConfigLoader* createLoader(LoaderType type)
+std::unique_ptr<IConfigLoader> createLoader(LoaderType type)
 {
   switch (type) {
     case LoaderType::FILE:
-      return new FileConfigLoader;
+      return std::make_unique<FileConfigLoader>();
     default:
       return nullptr;
   }
 }
 
-IBallisticSolver* createSolver(SolverType type)
+std::unique_ptr<IBallisticSolver> createSolver(SolverType type)
 {
   switch (type) {
     case SolverType::ANALYTICAL:
-      return new AnalyticalSolver;
+      return std::make_unique<AnalyticalSolver>();
     default:
       return nullptr;
   }
 }
 
-ITargetProvider* createProvider(ProviderType type, const std::string& pathToConfig, const DroneConfig& droneConfig)
+std::shared_ptr<ITargetProvider> createProvider(ProviderType type, const std::string& pathToConfig, const DroneConfig& droneConfig)
 {
   switch (type) {
     case ProviderType::JSON:
-      return new JsonTargetProvider{pathToConfig, droneConfig};
+      return std::make_shared<JsonTargetProvider>(pathToConfig, droneConfig);
     default:
       return nullptr;
   }
 }
-
-// NOLINTEND(cppcoreguidelines-owning-memory)

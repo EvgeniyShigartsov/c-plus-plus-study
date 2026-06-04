@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <vector>
 #include "types.hpp"
 #include "interfaces/IBallisticSolver.hpp"
@@ -9,8 +10,8 @@
 class MissionProcessor {
 private:
   Simulation sim;
-  ITargetProvider* targetProvider;
-  IBallisticSolver* ballisticSolver;
+  std::shared_ptr<ITargetProvider> targetProvider;
+  std::unique_ptr<IBallisticSolver> ballisticSolver;
 
   DroneConfig dc{};
   float bombFlightTime = 0.0f;
@@ -21,11 +22,11 @@ private:
   std::vector<SimStep> stepsLog;
 
 public:
-  MissionProcessor(ITargetProvider* provider, IBallisticSolver* solver);
-  [[nodiscard]] bool init(IConfigLoader* configLoader);
+  MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver);
+  [[nodiscard]] bool init(std::unique_ptr<IConfigLoader> configLoader);
   [[nodiscard]] bool hasNext() const;
   SimStep step();
-  void changeSolver(IBallisticSolver* solver);
+  void changeSolver(std::unique_ptr<IBallisticSolver> solver);
   void reset();
   std::vector<SimStep> getStepsLog();
   virtual ~MissionProcessor();

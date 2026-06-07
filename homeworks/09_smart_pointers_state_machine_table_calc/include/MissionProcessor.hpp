@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <vector>
+#include "interfaces/IDroneState.hpp"
 #include "types.hpp"
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
@@ -16,8 +17,9 @@ private:
   DroneConfig dc{};
   float bombFlightTime = 0.0f;
   float h = 0.0f;
-  float droneAcceleration = 0.0f;
+  float droneAcceleration = 0.0f;  // TODO: Remove it when sim.droneAcceleration used
   int targetsCount = 0;
+  std::unique_ptr<IDroneState> currentState;
 
   std::vector<SimStep> stepsLog;
 

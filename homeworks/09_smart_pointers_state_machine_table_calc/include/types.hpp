@@ -82,12 +82,21 @@ struct Simulation {
   bool needsManeuver = false;
   bool reachedManeuverPoint = false;
 
-  Simulation() = default;
+  // new fields
+  float deltaAngle = 0.0f;
+  float dirToFire = 0.0f;
+  DroneConfig dc = {};
+  float droneAcceleration = 0.0f;
+
+  Simulation() = default;  // TODO: Check is possible to remove this case, because now I need to compute new fields
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-  Simulation(const Coord initialPos, const float initialDir, const float simTimeStep)
-    : CURRENT_POS(initialPos)
-    , CURRENT_DIR(initialDir)
-    , simulationTimeStep(simTimeStep){};
+  Simulation(DroneConfig& droneConfig)
+    : CURRENT_POS(droneConfig.startPos)
+    , CURRENT_DIR(droneConfig.initialDir)
+    , simulationTimeStep(droneConfig.simTimeStep)  // TODO: Remove it later & use sim.dc.simTimeStep
+    , dc(droneConfig)
+    , droneAcceleration(powf(dc.v0, 2) / (2 * dc.accelerationPath))  // (a)
+    {};
 
   void updateDroneXY()
   {

@@ -46,6 +46,39 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
   outJsonFile << out.dump(2);
 }
 
+void writeSimulation(const std::vector<float>& droneXHistory,
+                     const std::vector<float>& droneYHistory,
+                     const std::vector<float>& droneDirHistory,
+                     const std::vector<DroneState>& droneStateHistory,
+                     const std::vector<int>& droneSelectedTargetHistory,
+                     const size_t steps)
+{
+  std::ofstream simulation("simulation.txt");
+  simulation << steps << std::endl;
+
+  for (size_t i = 0; i < steps; i++) {
+    simulation << droneXHistory[i] << ' ' << droneYHistory[i] << ' ';
+  }
+  simulation << std::endl;
+
+  for (size_t i = 0; i < steps; i++) {
+    simulation << droneDirHistory[i] << ' ';
+  }
+  simulation << std::endl;
+
+  for (size_t i = 0; i < steps; i++) {
+    simulation << droneStateHistory[i] << ' ';
+  }
+  simulation << std::endl;
+
+  for (size_t i = 0; i < steps; i++) {
+    simulation << droneSelectedTargetHistory[i] << ' ';
+  }
+  simulation << std::endl;
+
+  simulation.close();
+}
+
 int main()
 {
   std::unique_ptr<IConfigLoader> configLoader = createLoader(LoaderType::FILE);
@@ -61,11 +94,26 @@ int main()
     return 1;
   }
 
+  // Історія для зворотньої сумісності з .txt результатом симуляції.
+  std::vector<float> droneXHistory;
+  std::vector<float> droneYHistory;
+  std::vector<float> droneDirHistory;
+  std::vector<DroneState> droneStateHistory;
+  std::vector<int> droneSelectedTargetHistory;
+
   while (missionProcessor.hasNext()) {
-    missionProcessor.step();
+    const SimStep stepResult = missionProcessor.step();
+
+    droneXHistory.push_back(stepResult.pos.x);
+    droneYHistory.push_back(stepResult.pos.y);
+    droneDirHistory.push_back(stepResult.direction);
+    droneStateHistory.push_back(stepResult.state);
+    droneSelectedTargetHistory.push_back(stepResult.targetIdx);
   }
 
   const std::vector<SimStep> stepsLog = missionProcessor.getStepsLog();
+
+  writeSimulation(droneXHistory, droneYHistory, droneDirHistory, droneStateHistory, droneSelectedTargetHistory, stepsLog.size());
 
   writeSimulationJson(stepsLog);
 

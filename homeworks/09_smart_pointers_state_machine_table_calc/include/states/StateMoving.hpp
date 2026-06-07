@@ -4,11 +4,11 @@
 
 class StateMoving : public IDroneState {
 public:
-  std::unique_ptr<IDroneState> execute(Simulation& simulation) override
+  std::unique_ptr<IDroneState> execute(Simulation& sim) override
   {
-    //
+    sim.updateDroneXY();
 
-    return std::make_unique<StateMoving>();
+    return nullptr;
   }
   [[nodiscard]] const char* name() const override { return "Moving"; }
 };

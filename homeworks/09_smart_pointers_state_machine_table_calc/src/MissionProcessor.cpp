@@ -1,3 +1,5 @@
+#include <iostream>
+#include <memory>
 #include <vector>
 #include "types.hpp"
 #include "MathUtils.hpp"
@@ -5,6 +7,7 @@
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
 #include "interfaces/IConfigLoader.hpp"
+#include "states/StateStopped.hpp"
 #include "MissionProcessor.hpp"
 
 const int MAX_STEPS = 10000;
@@ -24,10 +27,12 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
 
   const bool IS_BOMB_OK = setBombFlightTime(bp.drag, GRAVITY, bp.mass, bp.lift, dc.v0, dc.altitude, bombFlightTime);
 
-  sim = Simulation(dc.startPos, dc.initialDir, dc.simTimeStep);
+  sim = Simulation(dc);
   h = get_h(bombFlightTime, bp.drag, GRAVITY, bp.lift, bp.mass, dc.v0);
   droneAcceleration = powf(dc.v0, 2) / (2 * dc.accelerationPath);  // (a)
   targetsCount = targetProvider->getTargetCount();
+
+  currentState = std::make_unique<StateStopped>();
 
   return IS_BOMB_OK;
 }
@@ -133,63 +138,27 @@ SimStep MissionProcessor::step()
   }
 
   // Перевірено кут повороту та змінено стан відповідно вибраної цілі
-  const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
-  const float deltaAngle = fabsf(dirToFire - sim.CURRENT_DIR);
+  sim.dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
+  sim.deltaAngle = fabsf(sim.dirToFire - sim.CURRENT_DIR);
 
-  if (deltaAngle > dc.turnThreshold) {
+  if (sim.deltaAngle > dc.turnThreshold) {
     if (sim.CURRENT_STATE == MOVING || sim.CURRENT_STATE == ACCELERATING) {
       sim.CURRENT_STATE = DECELERATING;
     }
 
     else if (sim.CURRENT_STATE == STOPPED) {
       sim.CURRENT_STATE = TURNING;
-      sim.turningTimeLeft = deltaAngle / dc.angularSpeed;
+      sim.turningTimeLeft = sim.deltaAngle / dc.angularSpeed;
     }
   }
   else {
-    sim.CURRENT_DIR = dirToFire;
+    sim.CURRENT_DIR = sim.dirToFire;
   }
 
   // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
-  if (sim.CURRENT_STATE == DECELERATING) {
-    sim.CURRENT_SPEED -= droneAcceleration * dc.simTimeStep;
-    sim.updateDroneXY();
-
-    if (sim.CURRENT_SPEED <= 0) {
-      sim.CURRENT_SPEED = 0;
-      sim.CURRENT_STATE = STOPPED;
-      sim.turningTimeLeft = deltaAngle / dc.angularSpeed;
-    }
-  }
-  else if (sim.CURRENT_STATE == STOPPED) {
-    if (deltaAngle > dc.turnThreshold) {
-      sim.CURRENT_STATE = TURNING;
-    }
-    else {
-      sim.CURRENT_STATE = ACCELERATING;
-    }
-  }
-  else if (sim.CURRENT_STATE == TURNING) {
-    dirToFire > sim.CURRENT_DIR ? sim.CURRENT_DIR += dc.angularSpeed* dc.simTimeStep : sim.CURRENT_DIR -= dc.angularSpeed * dc.simTimeStep;
-
-    sim.turningTimeLeft -= dc.simTimeStep;
-
-    if (sim.turningTimeLeft <= 0) {
-      sim.CURRENT_DIR = dirToFire;
-      sim.CURRENT_STATE = ACCELERATING;
-    }
-  }
-  else if (sim.CURRENT_STATE == ACCELERATING) {
-    sim.CURRENT_SPEED += droneAcceleration * dc.simTimeStep;
-
-    if (sim.CURRENT_SPEED >= dc.v0) {
-      sim.CURRENT_SPEED = dc.v0;
-      sim.CURRENT_STATE = MOVING;
-    }
-    sim.updateDroneXY();
-  }
-  else if (sim.CURRENT_STATE == MOVING) {
-    sim.updateDroneXY();
+  auto next = currentState->execute(sim);
+  if (next) {
+    currentState = std::move(next);
   }
 
   if (length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {
@@ -229,7 +198,7 @@ void MissionProcessor::changeSolver(std::unique_ptr<IBallisticSolver> solver)
 
 void MissionProcessor::reset()
 {
-  sim = Simulation(dc.startPos, dc.initialDir, dc.simTimeStep);
+  sim = Simulation(dc);
 }
 
 std::vector<SimStep> MissionProcessor::getStepsLog()

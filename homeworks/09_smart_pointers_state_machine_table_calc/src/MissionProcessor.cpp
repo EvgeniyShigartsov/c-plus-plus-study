@@ -1,6 +1,7 @@
-#include <iostream>
 #include <memory>
 #include <vector>
+#include "states/StateDecelerating.hpp"
+#include "states/StateTurning.hpp"
 #include "types.hpp"
 #include "MathUtils.hpp"
 #include "Logger.hpp"
@@ -144,11 +145,12 @@ SimStep MissionProcessor::step()
   if (sim.deltaAngle > dc.turnThreshold) {
     if (sim.CURRENT_STATE == MOVING || sim.CURRENT_STATE == ACCELERATING) {
       sim.CURRENT_STATE = DECELERATING;
+      currentState = std::make_unique<StateDecelerating>();
     }
-
     else if (sim.CURRENT_STATE == STOPPED) {
       sim.CURRENT_STATE = TURNING;
       sim.turningTimeLeft = sim.deltaAngle / dc.angularSpeed;
+      currentState = std::make_unique<StateTurning>();
     }
   }
   else {

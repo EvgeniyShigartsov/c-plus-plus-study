@@ -10,5 +10,6 @@ public:
 
     return nullptr;
   }
+  float getManeuverReadyTime(const Simulation& sim) override { return sim.dc.v0 / sim.droneAcceleration; }
   [[nodiscard]] const char* name() const override { return "Moving"; }
 };

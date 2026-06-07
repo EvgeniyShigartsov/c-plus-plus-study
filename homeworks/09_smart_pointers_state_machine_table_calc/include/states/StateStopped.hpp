@@ -16,5 +16,6 @@ public:
     sim.CURRENT_STATE = ACCELERATING;
     return std::make_unique<StateAccelerating>();
   }
+  float getManeuverReadyTime(const Simulation& /* sim */) override { return 0.0f; }
   [[nodiscard]] const char* name() const override { return "Stopped"; }
 };

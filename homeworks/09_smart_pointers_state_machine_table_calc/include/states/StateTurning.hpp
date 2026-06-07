@@ -21,5 +21,6 @@ public:
 
     return nullptr;
   }
+  float getManeuverReadyTime(const Simulation& sim) override { return sim.turningTimeLeft; }
   [[nodiscard]] const char* name() const override { return "Turning"; }
 };

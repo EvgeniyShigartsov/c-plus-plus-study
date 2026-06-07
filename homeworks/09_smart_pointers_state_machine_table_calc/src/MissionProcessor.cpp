@@ -77,25 +77,12 @@ SimStep MissionProcessor::step()
       const float deltaAngle = fabsf(dirToFire - sim.CURRENT_DIR);
 
       if (deltaAngle > dc.turnThreshold) {
-        const float turningTime = deltaAngle / dc.angularSpeed;
+        // Додавання часу повороту
+        timeToChangeTarget += deltaAngle / dc.angularSpeed;
 
         // Додавання часу залежно від поточної дії дрону
-        switch (sim.CURRENT_STATE) {
-          case ACCELERATING:
-          case DECELERATING:
-            timeToChangeTarget += sim.CURRENT_SPEED / droneAcceleration;
-            break;
-          case MOVING:
-            timeToChangeTarget += dc.v0 / droneAcceleration;
-            break;
-          case TURNING:
-            timeToChangeTarget += sim.turningTimeLeft;
-            break;
-          case STOPPED:  // Немає потреби додавати час
-            break;
-        }
-        // Додавання часу повороту
-        timeToChangeTarget += turningTime;
+        timeToChangeTarget += currentState->getManeuverReadyTime(sim);
+
         // Додавання часу на розгін
         timeToChangeTarget += dc.v0 / droneAcceleration;
       }

@@ -11,7 +11,6 @@ public:
 
     if (sim.CURRENT_SPEED >= sim.dc.v0) {
       sim.CURRENT_SPEED = sim.dc.v0;
-      sim.CURRENT_STATE = MOVING;
       sim.updateDroneXY();
       return std::make_unique<StateMoving>();
     }

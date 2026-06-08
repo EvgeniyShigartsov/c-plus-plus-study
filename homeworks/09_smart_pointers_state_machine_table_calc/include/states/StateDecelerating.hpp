@@ -12,7 +12,6 @@ public:
 
     if (sim.CURRENT_SPEED <= 0) {
       sim.CURRENT_SPEED = 0.0f;
-      sim.CURRENT_STATE = STOPPED;
       sim.turningTimeLeft = sim.deltaAngle / sim.dc.angularSpeed;
 
       return std::make_unique<StateStopped>();

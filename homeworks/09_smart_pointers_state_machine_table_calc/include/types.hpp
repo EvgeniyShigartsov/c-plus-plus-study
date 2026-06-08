@@ -3,8 +3,6 @@
 #include <cstring>
 #include <string>
 
-enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
-
 struct Coord {
   float x;
   float y;
@@ -60,7 +58,7 @@ struct SimStep {
   Coord aimPoint;
   Coord predictedTarget;
   float direction;
-  DroneState state;
+  std::string state;
   int targetIdx;
   int step;
 };
@@ -70,7 +68,6 @@ struct Simulation {
   float CURRENT_TIME = 0.0f;
   float CURRENT_SPEED = 0.0f;
   float CURRENT_DIR = 0.0f;
-  DroneState CURRENT_STATE = STOPPED;
   Coord maneuverPoint = {0.0f, 0.0f};
   float turningTimeLeft = 0.0f;
   float simulationTimeStep = 0.0f;

@@ -9,11 +9,9 @@ public:
   std::unique_ptr<IDroneState> execute(Simulation& sim) override
   {
     if (sim.deltaAngle > sim.dc.turnThreshold) {
-      sim.CURRENT_STATE = TURNING;
       return std::make_unique<StateTurning>();
     }
 
-    sim.CURRENT_STATE = ACCELERATING;
     return std::make_unique<StateAccelerating>();
   }
   float getManeuverReadyTime(const Simulation& /* sim */) override { return 0.0f; }

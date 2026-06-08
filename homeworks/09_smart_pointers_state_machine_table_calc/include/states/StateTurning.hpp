@@ -15,7 +15,6 @@ public:
 
     if (sim.turningTimeLeft <= 0) {
       sim.CURRENT_DIR = sim.dirToFire;
-      sim.CURRENT_STATE = ACCELERATING;
       return std::make_unique<StateAccelerating>();
     }
 

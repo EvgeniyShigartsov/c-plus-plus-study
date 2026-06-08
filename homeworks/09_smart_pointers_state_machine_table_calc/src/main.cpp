@@ -49,7 +49,7 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
 void writeSimulation(const std::vector<float>& droneXHistory,
                      const std::vector<float>& droneYHistory,
                      const std::vector<float>& droneDirHistory,
-                     const std::vector<DroneState>& droneStateHistory,
+                     const std::vector<int>& droneStateHistory,
                      const std::vector<int>& droneSelectedTargetHistory,
                      const size_t steps)
 {
@@ -98,8 +98,15 @@ int main()
   std::vector<float> droneXHistory;
   std::vector<float> droneYHistory;
   std::vector<float> droneDirHistory;
-  std::vector<DroneState> droneStateHistory;
   std::vector<int> droneSelectedTargetHistory;
+  std::vector<int> droneStateHistory;
+  const std::map<std::string, int> stateNameToOldDroneStateInt = {
+    {"Stopped", 0},
+    {"Accelerating", 1},
+    {"Decelerating", 2},
+    {"Turning", 3},
+    {"Moving", 4},
+  };
 
   while (missionProcessor.hasNext()) {
     const SimStep stepResult = missionProcessor.step();
@@ -107,8 +114,15 @@ int main()
     droneXHistory.push_back(stepResult.pos.x);
     droneYHistory.push_back(stepResult.pos.y);
     droneDirHistory.push_back(stepResult.direction);
-    droneStateHistory.push_back(stepResult.state);
     droneSelectedTargetHistory.push_back(stepResult.targetIdx);
+    const auto it = stateNameToOldDroneStateInt.find(stepResult.state);
+
+    if (it != stateNameToOldDroneStateInt.end()) {
+      droneStateHistory.push_back(it->second);
+    }
+    else {
+      LOG("Unknown state name: " << stepResult.state);
+    }
   }
 
   const std::vector<SimStep> stepsLog = missionProcessor.getStepsLog();

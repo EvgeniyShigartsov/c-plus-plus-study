@@ -1,6 +1,8 @@
 #include <memory>
 #include <vector>
+#include "states/StateAccelerating.hpp"
 #include "states/StateDecelerating.hpp"
+#include "states/StateMoving.hpp"
 #include "states/StateTurning.hpp"
 #include "types.hpp"
 #include "MathUtils.hpp"
@@ -130,12 +132,12 @@ SimStep MissionProcessor::step()
   sim.deltaAngle = fabsf(sim.dirToFire - sim.CURRENT_DIR);
 
   if (sim.deltaAngle > dc.turnThreshold) {
-    if (sim.CURRENT_STATE == MOVING || sim.CURRENT_STATE == ACCELERATING) {
-      sim.CURRENT_STATE = DECELERATING;
+    auto *rawPtr = currentState.get();
+
+    if (dynamic_cast<StateMoving *>(rawPtr) != nullptr || dynamic_cast<StateAccelerating *>(rawPtr) != nullptr) {
       currentState = std::make_unique<StateDecelerating>();
     }
-    else if (sim.CURRENT_STATE == STOPPED) {
-      sim.CURRENT_STATE = TURNING;
+    else if (dynamic_cast<StateStopped *>(rawPtr) != nullptr) {
       sim.turningTimeLeft = sim.deltaAngle / dc.angularSpeed;
       currentState = std::make_unique<StateTurning>();
     }
@@ -155,7 +157,7 @@ SimStep MissionProcessor::step()
   }
 
   DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");
-  DEBUG("  target=" << sim.selectedTargetIndex << " state=" << sim.CURRENT_STATE);
+  DEBUG("  target=" << sim.selectedTargetIndex << " state=" << currentState->name());
 
   const Coord dir = {cosf(sim.CURRENT_DIR), sinf(sim.CURRENT_DIR)};
   const Target predictedTarget = targetProvider->getTarget(sim.CURRENT_TIME + bombFlightTime, sim.selectedTargetIndex);
@@ -166,7 +168,7 @@ SimStep MissionProcessor::step()
     .aimPoint = sim.CURRENT_POS + dir * h,
     .predictedTarget = predictedTarget.pos,
     .direction = sim.CURRENT_DIR,
-    .state = sim.CURRENT_STATE,
+    .state = currentState->name(),
     .targetIdx = sim.selectedTargetIndex,
     .step = sim.step,
   };

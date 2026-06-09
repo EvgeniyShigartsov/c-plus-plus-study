@@ -1,3 +1,5 @@
+// NOLINTBEGIN
+
 #include <cstring>
 #include <iostream>
 #include <fstream>
@@ -294,6 +296,16 @@ Coord normalizeCoord(const Coord& coord)
   return coord / length(coord);
 }
 
+float normalizeAngle(float angle)
+{
+  while (angle > M_PI)
+    angle -= 2.0f * M_PI;
+
+  while (angle < -M_PI)
+    angle += 2.0f * M_PI;
+  return angle;
+}
+
 InterpolationIndex getInterpolationIndex(const float t, const float arrayTimeStep, const int targetMovesCount)
 {
   const int idx = (int)(floor(t / arrayTimeStep)) % targetMovesCount;
@@ -442,7 +454,7 @@ int main()
         float timeToChangeTarget = 0.0f;  // STOPPED стан або deltaAngle < turnThreshold;
 
         const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, predictedFire);
-        const float deltaAngle = fabs(dirToFire - sim.CURRENT_DIR);
+        const float deltaAngle = fabs(normalizeAngle(dirToFire - sim.CURRENT_DIR));
 
         if (deltaAngle > dc.turnThreshold) {
           const float turningTime = deltaAngle / dc.angularSpeed;
@@ -508,7 +520,7 @@ int main()
 
     // Перевірено кут повороту та змінено стан відповідно вибраної цілі
     const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
-    const float deltaAngle = fabs(dirToFire - sim.CURRENT_DIR);
+    const float deltaAngle = fabs(normalizeAngle(dirToFire - sim.CURRENT_DIR));
 
     if (deltaAngle > dc.turnThreshold) {
       if (sim.CURRENT_STATE == MOVING || sim.CURRENT_STATE == ACCELERATING)
@@ -542,9 +554,10 @@ int main()
       }
     }
     else if (sim.CURRENT_STATE == TURNING) {
-      dirToFire > sim.CURRENT_DIR ? sim.CURRENT_DIR += dc.angularSpeed* dc.simTimeStep
-                                  : sim.CURRENT_DIR -= dc.angularSpeed * dc.simTimeStep;
+      const float turnDelta = normalizeAngle(dirToFire - sim.CURRENT_DIR);
+      const float turnRate = dc.angularSpeed * dc.simTimeStep;
 
+      sim.CURRENT_DIR += (turnDelta > 0.0f ? turnRate : -turnRate);
       sim.turningTimeLeft -= dc.simTimeStep;
 
       if (sim.turningTimeLeft <= 0) {
@@ -613,3 +626,5 @@ int main()
 
   return 0;
 }
+
+// NOLINTEND

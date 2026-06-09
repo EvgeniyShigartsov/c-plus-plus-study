@@ -14,7 +14,7 @@ private:
   std::shared_ptr<ITargetProvider> targetProvider;
   std::unique_ptr<IBallisticSolver> ballisticSolver;
 
-  DroneConfig dc{};
+  DroneConfig droneInitialConfig{};
   float bombFlightTime = 0.0f;
   float h = 0.0f;
   float droneAcceleration = 0.0f;  // TODO: Remove it when sim.droneAcceleration used

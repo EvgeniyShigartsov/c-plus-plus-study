@@ -26,14 +26,14 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
 
 [[nodiscard]] bool MissionProcessor::init(std::unique_ptr<IConfigLoader> configLoader)
 {
-  dc = configLoader->getConfig();
+  droneInitialConfig = configLoader->getConfig();
+  sim = Simulation(droneInitialConfig);
   const BombParams bp = configLoader->getAmmoParams();
 
-  const bool IS_BOMB_OK = setBombFlightTime(bp.drag, GRAVITY, bp.mass, bp.lift, dc.v0, dc.altitude, bombFlightTime);
+  const bool IS_BOMB_OK = setBombFlightTime(bp.drag, GRAVITY, bp.mass, bp.lift, sim.dc.v0, sim.dc.altitude, bombFlightTime);
 
-  sim = Simulation(dc);
-  h = get_h(bombFlightTime, bp.drag, GRAVITY, bp.lift, bp.mass, dc.v0);
-  droneAcceleration = powf(dc.v0, 2) / (2 * dc.accelerationPath);  // (a)
+  h = get_h(bombFlightTime, bp.drag, GRAVITY, bp.lift, bp.mass, sim.dc.v0);
+  droneAcceleration = powf(sim.dc.v0, 2) / (2 * sim.dc.accelerationPath);  // (a)
   targetsCount = targetProvider->getTargetCount();
 
   currentState = std::make_unique<StateStopped>();
@@ -59,7 +59,7 @@ SimStep MissionProcessor::step()
 
     // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
     Coord currentFire = ballisticSolver->solve(target.pos, sim.CURRENT_POS, h);
-    const float timeToCurrentFire = length(currentFire - sim.CURRENT_POS) / dc.v0 + bombFlightTime;
+    const float timeToCurrentFire = length(currentFire - sim.CURRENT_POS) / sim.dc.v0 + bombFlightTime;
 
     // 2. Обчислити швидкість цілі (targetVx, targetVy) через кінцеві різниці
     // Дані вже у target.velocity
@@ -69,7 +69,7 @@ SimStep MissionProcessor::step()
 
     // 4. Перерахувати балістику до прогнозованої позиції
     Coord predictedFire = ballisticSolver->solve(targetPredictedXY, sim.CURRENT_POS, h);
-    const float timeToPredictedFire = length(predictedFire - sim.CURRENT_POS) / dc.v0 + bombFlightTime;
+    const float timeToPredictedFire = length(predictedFire - sim.CURRENT_POS) / sim.dc.v0 + bombFlightTime;
 
     float totalTime = timeToPredictedFire;
 
@@ -79,15 +79,15 @@ SimStep MissionProcessor::step()
       const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, predictedFire);
       const float deltaAngle = fabsf(dirToFire - sim.CURRENT_DIR);
 
-      if (deltaAngle > dc.turnThreshold) {
+      if (deltaAngle > sim.dc.turnThreshold) {
         // Додавання часу повороту
-        timeToChangeTarget += deltaAngle / dc.angularSpeed;
+        timeToChangeTarget += deltaAngle / sim.dc.angularSpeed;
 
         // Додавання часу залежно від поточної дії дрону
         timeToChangeTarget += currentState->getManeuverReadyTime(sim);
 
         // Додавання часу на розгін
-        timeToChangeTarget += dc.v0 / droneAcceleration;
+        timeToChangeTarget += sim.dc.v0 / droneAcceleration;
       }
       totalTime += timeToChangeTarget;
     }
@@ -115,14 +115,14 @@ SimStep MissionProcessor::step()
       // дрон між ціллю і точкою скиду - треба відлетіти далі
       const float dirAwayFromTarget = getDirectionFromTo(bestTargetPredictedXY, sim.CURRENT_POS);
       sim.needsManeuver = true;
-      sim.maneuverPoint.x = sim.CURRENT_POS.x + (cosf(dirAwayFromTarget) * (h + dc.accelerationPath) * 2);
-      sim.maneuverPoint.y = sim.CURRENT_POS.y + (sinf(dirAwayFromTarget) * (h + dc.accelerationPath) * 2);
+      sim.maneuverPoint.x = sim.CURRENT_POS.x + (cosf(dirAwayFromTarget) * (h + sim.dc.accelerationPath) * 2);
+      sim.maneuverPoint.y = sim.CURRENT_POS.y + (sinf(dirAwayFromTarget) * (h + sim.dc.accelerationPath) * 2);
     }
   }
 
   actualDist = sim.needsManeuver && !sim.reachedManeuverPoint ? sim.maneuverPoint : bestFire;
 
-  if (!sim.reachedManeuverPoint && length(sim.CURRENT_POS - actualDist) <= dc.hitRadius) {
+  if (!sim.reachedManeuverPoint && length(sim.CURRENT_POS - actualDist) <= sim.dc.hitRadius) {
     sim.reachedManeuverPoint = true;
     sim.needsManeuver = false;
     actualDist = bestFire;
@@ -132,14 +132,14 @@ SimStep MissionProcessor::step()
   sim.dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
   sim.deltaAngle = fabsf(sim.dirToFire - sim.CURRENT_DIR);
 
-  if (sim.deltaAngle > dc.turnThreshold) {
+  if (sim.deltaAngle > sim.dc.turnThreshold) {
     auto *rawPtr = currentState.get();
 
     if (dynamic_cast<StateMoving *>(rawPtr) != nullptr || dynamic_cast<StateAccelerating *>(rawPtr) != nullptr) {
       currentState = std::make_unique<StateDecelerating>();
     }
     else if (dynamic_cast<StateStopped *>(rawPtr) != nullptr) {
-      sim.turningTimeLeft = sim.deltaAngle / dc.angularSpeed;
+      sim.turningTimeLeft = sim.deltaAngle / sim.dc.angularSpeed;
       currentState = std::make_unique<StateTurning>();
     }
   }
@@ -153,7 +153,7 @@ SimStep MissionProcessor::step()
     currentState = std::move(next);
   }
 
-  if (length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {
+  if (length(sim.CURRENT_POS - bestFire) <= sim.dc.hitRadius && !sim.needsManeuver) {
     sim.reachedFirePoint = true;
   }
 
@@ -177,7 +177,7 @@ SimStep MissionProcessor::step()
   stepsLog.push_back(stepResult);
 
   sim.prevSelectedTargetIndex = sim.selectedTargetIndex;
-  sim.CURRENT_TIME += dc.simTimeStep;
+  sim.CURRENT_TIME += sim.dc.simTimeStep;
   sim.step++;
 
   return stepResult;
@@ -190,7 +190,7 @@ void MissionProcessor::changeSolver(std::unique_ptr<IBallisticSolver> solver)
 
 void MissionProcessor::reset()
 {
-  sim = Simulation(dc);
+  sim = Simulation(droneInitialConfig);
 }
 
 std::vector<SimStep> MissionProcessor::getStepsLog()

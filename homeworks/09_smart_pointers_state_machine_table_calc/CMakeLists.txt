@@ -13,6 +13,11 @@ add_executable(
     src/providers/JsonTargetProvider.cpp
     src/solvers/AnalyticalSolver.cpp
     src/utils/MathUtils.cpp
+    src/states/StateAccelerating.cpp
+    src/states/StateDecelerating.cpp
+    src/states/StateMoving.cpp
+    src/states/StateStopped.cpp
+    src/states/StateTurning.cpp
     src/MissionProcessor.cpp)
 
 target_include_directories(smart_pointers_state_machine_table_calc PRIVATE include)

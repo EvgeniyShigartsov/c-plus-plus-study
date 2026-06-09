@@ -1,5 +1,6 @@
 #include <memory>
 #include <vector>
+
 #include "states/StateAccelerating.hpp"
 #include "states/StateDecelerating.hpp"
 #include "states/StateMoving.hpp"
@@ -131,22 +132,20 @@ SimStep MissionProcessor::step()
   sim.dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
   sim.deltaAngle = fabsf(sim.dirToFire - sim.CURRENT_DIR);
 
-  // if (sim.deltaAngle > dc.turnThreshold) {
-  //   auto *rawPtr = currentState.get();
+  if (sim.deltaAngle > dc.turnThreshold) {
+    auto *rawPtr = currentState.get();
 
-  //   LOG(currentState->name());
-
-  //   if (dynamic_cast<StateMoving *>(rawPtr) != nullptr || dynamic_cast<StateAccelerating *>(rawPtr) != nullptr) {
-  //     currentState = std::make_unique<StateDecelerating>();
-  //   }
-  //   else if (dynamic_cast<StateStopped *>(rawPtr) != nullptr) {
-  //     sim.turningTimeLeft = sim.deltaAngle / dc.angularSpeed;
-  //     currentState = std::make_unique<StateTurning>();
-  //   }
-  // }
-  // else {
-  //   sim.CURRENT_DIR = sim.dirToFire;
-  // }
+    if (dynamic_cast<StateMoving *>(rawPtr) != nullptr || dynamic_cast<StateAccelerating *>(rawPtr) != nullptr) {
+      currentState = std::make_unique<StateDecelerating>();
+    }
+    else if (dynamic_cast<StateStopped *>(rawPtr) != nullptr) {
+      sim.turningTimeLeft = sim.deltaAngle / dc.angularSpeed;
+      currentState = std::make_unique<StateTurning>();
+    }
+  }
+  else {
+    sim.CURRENT_DIR = sim.dirToFire;
+  }
 
   // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
   auto next = currentState->execute(sim);

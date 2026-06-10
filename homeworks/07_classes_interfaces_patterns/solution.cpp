@@ -759,16 +759,48 @@ ITargetProvider* createProvider(ProviderType type, const char* param, const Dron
 int main()
 {
   IConfigLoader* configLoader = createLoader(LoaderType::FILE);
+
+  if (configLoader == nullptr) {
+    LOG("Config loader was not found.");
+    return 1;
+  }
+
   const bool isConfigLoadSuccess =
     configLoader->load("homeworks/07_classes_interfaces_patterns/config.json", "homeworks/07_classes_interfaces_patterns/ammo.json");
 
   ITargetProvider* targetProvider =
     createProvider(ProviderType::JSON, "homeworks/07_classes_interfaces_patterns/targets.json", configLoader->getConfig());
+
+  if (targetProvider == nullptr) {
+    LOG("Target provider was not found.");
+
+    delete configLoader;
+    configLoader = nullptr;
+    return 1;
+  }
+
   IBallisticSolver* solver = createSolver(SolverType::ANALYTICAL);
+
+  if (solver == nullptr) {
+    LOG("Ballistic solver was not found.");
+
+    delete configLoader;
+    delete targetProvider;
+    configLoader = nullptr;
+    targetProvider = nullptr;
+    return 1;
+  }
 
   MissionProcessor missionProcessor{targetProvider, solver};
   const bool isInitSucces = missionProcessor.init(configLoader);
   if (!isConfigLoadSuccess || !targetProvider->isLoadSucces() || !isInitSucces) {
+    delete configLoader;
+    delete targetProvider;
+    delete solver;
+    configLoader = nullptr;
+    targetProvider = nullptr;
+    solver = nullptr;
+
     return 1;
   }
 

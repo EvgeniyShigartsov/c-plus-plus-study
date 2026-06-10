@@ -63,6 +63,18 @@ Coord normalizeCoord(const Coord& coord)
   return coord / length(coord);
 }
 
+float normalizeAngle(float angle)
+{
+  while (angle > M_PI) {
+    angle -= 2.0f * M_PI;
+  }
+
+  while (angle < -M_PI) {
+    angle += 2.0f * M_PI;
+  }
+  return angle;
+};
+
 InterpolationIndex getInterpolationIndex(const float t, const float arrayTimeStep, const int targetMovesCount)
 {
   const int idx = (int)(floorf(t / arrayTimeStep)) % targetMovesCount;

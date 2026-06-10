@@ -18,4 +18,6 @@ InterpolationIndex getInterpolationIndex(const float t, const float arrayTimeSte
 
 float getDirectionFromTo(const Coord& from, const Coord& to);
 
+float normalizeAngle(float angle);
+
 // NOLINTEND(readability-identifier-length)

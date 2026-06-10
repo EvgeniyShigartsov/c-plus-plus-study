@@ -77,7 +77,7 @@ SimStep MissionProcessor::step()
       float timeToChangeTarget = 0.0f;  // STOPPED стан або deltaAngle < turnThreshold;
 
       const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, predictedFire);
-      const float deltaAngle = fabsf(dirToFire - sim.CURRENT_DIR);
+      const float deltaAngle = fabsf(normalizeAngle(dirToFire - sim.CURRENT_DIR));
 
       if (deltaAngle > sim.dc.turnThreshold) {
         // Додавання часу повороту
@@ -130,7 +130,7 @@ SimStep MissionProcessor::step()
 
   // Перевірено кут повороту та змінено стан відповідно вибраної цілі
   sim.dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
-  sim.deltaAngle = fabsf(sim.dirToFire - sim.CURRENT_DIR);
+  sim.deltaAngle = fabsf(normalizeAngle(sim.dirToFire - sim.CURRENT_DIR));
 
   if (sim.deltaAngle > sim.dc.turnThreshold) {
     auto *rawPtr = currentState.get();

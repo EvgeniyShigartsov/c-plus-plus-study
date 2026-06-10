@@ -9,6 +9,8 @@ Checks: >
   modernize-*,
   performance-*,
   readability-*,
+  -readability-uppercase-literal-suffix,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-avoid-magic-numbers,
   -modernize-use-trailing-return-type,
   -readability-avoid-const-params-in-decls,

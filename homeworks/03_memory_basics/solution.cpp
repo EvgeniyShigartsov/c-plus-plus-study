@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <string>
 #include "./third_party/json.hpp"
 
 #define ENABLE_LOG 1
@@ -25,6 +26,10 @@ using json = nlohmann::json;
 
 const int BOMB_CHAR_COUNT = 12;
 const int MAX_STEPS = 10000;
+
+const std::string CONFIG_FILE_PATH = "homeworks/03_memory_basics/config.json";
+const std::string AMMO_FILE_PATH = "homeworks/03_memory_basics/ammo.json";
+const std::string TARGETS_FILE_PATH = "homeworks/03_memory_basics/targets.json";
 
 enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
 
@@ -125,10 +130,10 @@ struct InterpolationIndex {
 
 bool readDroneConfig(DroneConfig& out_config)
 {
-  std::ifstream config("config.json");
+  std::ifstream config(CONFIG_FILE_PATH);
 
   if (!config.is_open()) {
-    LOG("config.json not found.");
+    LOG(CONFIG_FILE_PATH << " not found.");
     return false;
   }
 
@@ -162,7 +167,13 @@ bool readDroneConfig(DroneConfig& out_config)
 
 bool readBombParams(const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bombParams)
 {
-  std::ifstream ammoFile("ammo.json");
+  std::ifstream ammoFile(AMMO_FILE_PATH);
+
+  if (!ammoFile.is_open()) {
+    LOG(AMMO_FILE_PATH << " was not found.");
+    return false;
+  }
+
   json ammoData;
   ammoFile >> ammoData;
 
@@ -201,10 +212,10 @@ bool readBombParams(const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bombP
 
 Coord** readTargets(int& out_TARGETS_COUNT, int& out_TARGET_MOVES_COUNT)
 {
-  std::ifstream targetsFile("targets.json");
+  std::ifstream targetsFile(TARGETS_FILE_PATH);
 
   if (!targetsFile.is_open()) {
-    LOG("targets.json was not found.");
+    LOG(TARGETS_FILE_PATH << " was not found.");
     return nullptr;
   }
 
@@ -226,7 +237,7 @@ Coord** readTargets(int& out_TARGETS_COUNT, int& out_TARGET_MOVES_COUNT)
     }
   }
   catch (const json::exception& parseError) {
-    LOG("targets.json parse error: " << parseError.what());
+    LOG(TARGETS_FILE_PATH << " parse error: " << parseError.what());
 
     for (int i = 0; i < out_TARGETS_COUNT; i++) {
       delete[] targetsInTime[i];

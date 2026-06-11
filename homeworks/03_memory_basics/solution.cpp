@@ -8,7 +8,7 @@
 #include "./third_party/json.hpp"
 
 #define ENABLE_LOG 1
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 
 #if ENABLE_LOG
 #define LOG(msg) std::cout << "[LOG]: " << msg << std::endl
@@ -533,22 +533,11 @@ int main()
     const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
     const float deltaAngle = fabs(normalizeAngle(dirToFire - sim.CURRENT_DIR));
 
-    if (deltaAngle > dc.turnThreshold) {
-      if (sim.CURRENT_STATE == MOVING || sim.CURRENT_STATE == ACCELERATING)
-        sim.CURRENT_STATE = DECELERATING;
-      else if (sim.CURRENT_STATE == STOPPED) {
-        sim.CURRENT_STATE = TURNING;
-        sim.turningTimeLeft = deltaAngle / dc.angularSpeed;
-      }
-    }
-    else {
-      sim.CURRENT_DIR = dirToFire;
-    }
-
     // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
     if (sim.CURRENT_STATE == DECELERATING) {
-      sim.CURRENT_SPEED -= droneAcceleration * dc.simTimeStep;
+      // під час гальмування не реагуємо на кут — чекаємо зупинки
       sim.updateDroneXY();
+      sim.CURRENT_SPEED -= droneAcceleration * dc.simTimeStep;
 
       if (sim.CURRENT_SPEED <= 0) {
         sim.CURRENT_SPEED = 0;
@@ -558,13 +547,16 @@ int main()
     }
     else if (sim.CURRENT_STATE == STOPPED) {
       if (deltaAngle > dc.turnThreshold) {
+        sim.turningTimeLeft = deltaAngle / dc.angularSpeed;
         sim.CURRENT_STATE = TURNING;
       }
       else {
+        sim.CURRENT_DIR = dirToFire;
         sim.CURRENT_STATE = ACCELERATING;
       }
     }
     else if (sim.CURRENT_STATE == TURNING) {
+      // під час повороту теж не реагуємо на кут — чекаємо завершення
       const float turnDelta = normalizeAngle(dirToFire - sim.CURRENT_DIR);
       const float turnRate = dc.angularSpeed * dc.simTimeStep;
 
@@ -577,16 +569,30 @@ int main()
       }
     }
     else if (sim.CURRENT_STATE == ACCELERATING) {
-      sim.CURRENT_SPEED += droneAcceleration * dc.simTimeStep;
-
-      if (sim.CURRENT_SPEED >= dc.v0) {
-        sim.CURRENT_SPEED = dc.v0;
-        sim.CURRENT_STATE = MOVING;
+      if (deltaAngle > dc.turnThreshold) {
+        sim.updateDroneXY();  // ← рухаємось перед переходом
+        sim.CURRENT_STATE = DECELERATING;
       }
-      sim.updateDroneXY();
+      else {
+        sim.CURRENT_DIR = dirToFire;
+        sim.CURRENT_SPEED += droneAcceleration * dc.simTimeStep;
+
+        if (sim.CURRENT_SPEED >= dc.v0) {
+          sim.CURRENT_SPEED = dc.v0;
+          sim.CURRENT_STATE = MOVING;
+        }
+        sim.updateDroneXY();
+      }
     }
     else if (sim.CURRENT_STATE == MOVING) {
-      sim.updateDroneXY();
+      if (deltaAngle > dc.turnThreshold) {
+        sim.updateDroneXY();  // ← рухаємось з поточною швидкістю перед гальмуванням
+        sim.CURRENT_STATE = DECELERATING;
+      }
+      else {
+        sim.CURRENT_DIR = dirToFire;
+        sim.updateDroneXY();
+      }
     }
 
     if (length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {

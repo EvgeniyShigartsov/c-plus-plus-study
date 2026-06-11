@@ -8,7 +8,7 @@
 #include "./third_party/json.hpp"
 
 #define ENABLE_LOG 1
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 
 #if ENABLE_LOG
 #define LOG(msg) std::cout << "[LOG]: " << msg << std::endl
@@ -529,13 +529,16 @@ int main()
       actualDist = bestFire;
     }
 
+    if (length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {
+      sim.reachedFirePoint = true;
+    }
+
     // Перевірено кут повороту та змінено стан відповідно вибраної цілі
     const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
     const float deltaAngle = fabs(normalizeAngle(dirToFire - sim.CURRENT_DIR));
 
     // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
     if (sim.CURRENT_STATE == DECELERATING) {
-      // під час гальмування не реагуємо на кут — чекаємо зупинки
       sim.updateDroneXY();
       sim.CURRENT_SPEED -= droneAcceleration * dc.simTimeStep;
 
@@ -556,7 +559,6 @@ int main()
       }
     }
     else if (sim.CURRENT_STATE == TURNING) {
-      // під час повороту теж не реагуємо на кут — чекаємо завершення
       const float turnDelta = normalizeAngle(dirToFire - sim.CURRENT_DIR);
       const float turnRate = dc.angularSpeed * dc.simTimeStep;
 
@@ -570,7 +572,7 @@ int main()
     }
     else if (sim.CURRENT_STATE == ACCELERATING) {
       if (deltaAngle > dc.turnThreshold) {
-        sim.updateDroneXY();  // ← рухаємось перед переходом
+        sim.updateDroneXY();
         sim.CURRENT_STATE = DECELERATING;
       }
       else {
@@ -586,17 +588,13 @@ int main()
     }
     else if (sim.CURRENT_STATE == MOVING) {
       if (deltaAngle > dc.turnThreshold) {
-        sim.updateDroneXY();  // ← рухаємось з поточною швидкістю перед гальмуванням
+        sim.updateDroneXY();
         sim.CURRENT_STATE = DECELERATING;
       }
       else {
         sim.CURRENT_DIR = dirToFire;
         sim.updateDroneXY();
       }
-    }
-
-    if (length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {
-      sim.reachedFirePoint = true;
     }
 
     DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");

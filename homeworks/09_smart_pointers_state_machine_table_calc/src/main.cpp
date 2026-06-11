@@ -94,40 +94,11 @@ int main()
     return 1;
   }
 
-  // Історія для зворотньої сумісності з .txt результатом симуляції.
-  std::vector<float> droneXHistory;
-  std::vector<float> droneYHistory;
-  std::vector<float> droneDirHistory;
-  std::vector<int> droneSelectedTargetHistory;
-  std::vector<int> droneStateHistory;
-  const std::map<std::string, int> stateNameToOldDroneStateInt = {
-    {"Stopped", 0},
-    {"Accelerating", 1},
-    {"Decelerating", 2},
-    {"Turning", 3},
-    {"Moving", 4},
-  };
-
   while (missionProcessor.hasNext()) {
-    const SimStep stepResult = missionProcessor.step();
-
-    droneXHistory.push_back(stepResult.pos.x);
-    droneYHistory.push_back(stepResult.pos.y);
-    droneDirHistory.push_back(stepResult.direction);
-    droneSelectedTargetHistory.push_back(stepResult.targetIdx);
-    const auto it = stateNameToOldDroneStateInt.find(stepResult.state);
-
-    if (it != stateNameToOldDroneStateInt.end()) {
-      droneStateHistory.push_back(it->second);
-    }
-    else {
-      LOG("Unknown state name: " << stepResult.state);
-    }
+    missionProcessor.step();
   }
 
   const std::vector<SimStep> stepsLog = missionProcessor.getStepsLog();
-
-  writeSimulation(droneXHistory, droneYHistory, droneDirHistory, droneStateHistory, droneSelectedTargetHistory, stepsLog.size());
 
   writeSimulationJson(stepsLog);
 

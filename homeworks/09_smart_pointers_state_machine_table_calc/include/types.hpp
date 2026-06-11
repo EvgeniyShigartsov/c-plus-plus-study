@@ -70,7 +70,6 @@ struct Simulation {
   float CURRENT_DIR = 0.0f;
   Coord maneuverPoint = {0.0f, 0.0f};
   float turningTimeLeft = 0.0f;
-  float simulationTimeStep = 0.0f;
 
   int selectedTargetIndex = 0;
   int prevSelectedTargetIndex = 0;
@@ -85,20 +84,16 @@ struct Simulation {
   DroneConfig dc = {};
   float droneAcceleration = 0.0f;
 
-  Simulation() = default;  // TODO: Check is possible to remove this case, because now I need to compute new fields
+  Simulation() = default;
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   Simulation(DroneConfig& droneConfig)
     : CURRENT_POS(droneConfig.startPos)
     , CURRENT_DIR(droneConfig.initialDir)
-    , simulationTimeStep(droneConfig.simTimeStep)  // TODO: Remove it later & use sim.dc.simTimeStep
     , dc(droneConfig)
     , droneAcceleration(powf(dc.v0, 2) / (2 * dc.accelerationPath))  // (a)
     {};
 
-  void updateDroneXY()
-  {
-    CURRENT_POS = CURRENT_POS + Coord{float(cosf(CURRENT_DIR)), sinf(CURRENT_DIR)} * CURRENT_SPEED * simulationTimeStep;
-  }
+  void updateDroneXY() { CURRENT_POS = CURRENT_POS + Coord{float(cosf(CURRENT_DIR)), sinf(CURRENT_DIR)} * CURRENT_SPEED * dc.simTimeStep; }
 };
 
 struct InterpolationIndex {

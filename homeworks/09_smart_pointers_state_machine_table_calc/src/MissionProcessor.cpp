@@ -11,7 +11,7 @@
 #include "MissionProcessor.hpp"
 
 const int MAX_STEPS = 10000;
-const float GRAVITY = 9.81f;  // gravity
+const float GRAVITY = 9.81f;
 
 MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver)
   : targetProvider(std::move(provider))

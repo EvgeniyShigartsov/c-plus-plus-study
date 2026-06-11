@@ -1,3 +1,4 @@
+#include <memory>
 #include "states/StateDecelerating.hpp"
 #include "interfaces/IDroneState.hpp"
 #include "states/StateStopped.hpp"
@@ -5,6 +6,7 @@
 
 std::unique_ptr<IDroneState> StateDecelerating::execute(Simulation& sim)
 {
+  sim.updateDroneXY();
   sim.CURRENT_SPEED -= sim.droneAcceleration * sim.dc.simTimeStep;
 
   if (sim.CURRENT_SPEED <= 0) {
@@ -13,8 +15,6 @@ std::unique_ptr<IDroneState> StateDecelerating::execute(Simulation& sim)
 
     return std::make_unique<StateStopped>();
   }
-
-  sim.updateDroneXY();
 
   return nullptr;
 }

@@ -1,3 +1,4 @@
+#include <memory>
 #include "states/StateStopped.hpp"
 #include "interfaces/IDroneState.hpp"
 #include "types.hpp"

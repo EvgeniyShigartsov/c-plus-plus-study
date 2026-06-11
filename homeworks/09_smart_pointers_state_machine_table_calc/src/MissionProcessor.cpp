@@ -1,10 +1,6 @@
 #include <memory>
 #include <vector>
 
-#include "states/StateAccelerating.hpp"
-#include "states/StateDecelerating.hpp"
-#include "states/StateMoving.hpp"
-#include "states/StateTurning.hpp"
 #include "types.hpp"
 #include "MathUtils.hpp"
 #include "Logger.hpp"
@@ -128,33 +124,18 @@ SimStep MissionProcessor::step()
     actualDist = bestFire;
   }
 
+  if (length(sim.CURRENT_POS - bestFire) <= sim.dc.hitRadius && !sim.needsManeuver) {
+    sim.reachedFirePoint = true;
+  }
+
   // Перевірено кут повороту та змінено стан відповідно вибраної цілі
   sim.dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
   sim.deltaAngle = fabsf(normalizeAngle(sim.dirToFire - sim.CURRENT_DIR));
-
-  if (sim.deltaAngle > sim.dc.turnThreshold) {
-    auto *rawPtr = currentState.get();
-
-    if (dynamic_cast<StateMoving *>(rawPtr) != nullptr || dynamic_cast<StateAccelerating *>(rawPtr) != nullptr) {
-      currentState = std::make_unique<StateDecelerating>();
-    }
-    else if (dynamic_cast<StateStopped *>(rawPtr) != nullptr) {
-      sim.turningTimeLeft = sim.deltaAngle / sim.dc.angularSpeed;
-      currentState = std::make_unique<StateTurning>();
-    }
-  }
-  else {
-    sim.CURRENT_DIR = sim.dirToFire;
-  }
 
   // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
   auto next = currentState->execute(sim);
   if (next) {
     currentState = std::move(next);
-  }
-
-  if (length(sim.CURRENT_POS - bestFire) <= sim.dc.hitRadius && !sim.needsManeuver) {
-    sim.reachedFirePoint = true;
   }
 
   DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");

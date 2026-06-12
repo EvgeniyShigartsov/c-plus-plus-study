@@ -1,6 +1,7 @@
 #include "config/ComponentFactory.hpp"
 #include <memory>
 #include <string>
+#include "Logger.hpp"
 #include "config/FileConfigLoader.hpp"
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
@@ -27,8 +28,16 @@ std::unique_ptr<IBallisticSolver> createSolver(SolverType type,
   switch (type) {
     case SolverType::ANALYTICAL:
       return std::make_unique<AnalyticalSolver>();
-    case SolverType::TABLE:
-      return std::make_unique<TableSolver>(tableFilePath, bomb, droneConfig);
+    case SolverType::TABLE: {
+      auto solver = std::make_unique<TableSolver>(tableFilePath, bomb, droneConfig);
+
+      if (!solver->isLoadedSucces()) {
+        LOG("TableSolver load error, tableFilePath path: " << tableFilePath);
+        return nullptr;
+      }
+
+      return solver;
+    }
     default:
       return nullptr;
   }

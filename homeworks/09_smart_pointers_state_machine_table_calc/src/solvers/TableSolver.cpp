@@ -5,8 +5,8 @@
 TableSolver::TableSolver(const std::string& tablePath, BombParams bomb, DroneConfig droneConfig)
   : ammo(std::move(bomb))
   , droneConfig(std::move(droneConfig))
+  , isLoadedSuccesful(table.load(tablePath))
 {
-  table.load(tablePath);
 }
 
 Coord TableSolver::solve(const Coord targetCoord, const Coord droneCoord, const float /* hDist */)
@@ -16,6 +16,11 @@ Coord TableSolver::solve(const Coord targetCoord, const Coord droneCoord, const 
   const Coord delta = targetCoord - droneCoord;
 
   return targetCoord - normalizeCoord(delta) * result.hDist;
+}
+
+bool TableSolver::isLoadedSucces() const
+{
+  return isLoadedSuccesful;
 }
 
 TableSolver::~TableSolver() = default;

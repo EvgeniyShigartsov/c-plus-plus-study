@@ -95,6 +95,7 @@ struct BallisticTable {
     // V0: 4 → 2
     Result s[2];
     for (int a = 0; a < 2; a++)
+      // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
       s[a] = lerp(u[a * 2], u[a * 2 + 1], iv.frac);
 
     // Z0: 2 → 1

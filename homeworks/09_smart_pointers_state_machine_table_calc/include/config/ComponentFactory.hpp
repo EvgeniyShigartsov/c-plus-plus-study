@@ -4,7 +4,7 @@
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
 
-enum class SolverType { ANALYTICAL };
+enum class SolverType { ANALYTICAL, TABLE };
 enum class ProviderType { JSON };
 enum class LoaderType { FILE };
 

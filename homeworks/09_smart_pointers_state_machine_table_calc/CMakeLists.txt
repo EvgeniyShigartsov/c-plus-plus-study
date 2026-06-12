@@ -18,6 +18,7 @@ add_executable(
     src/states/StateMoving.cpp
     src/states/StateStopped.cpp
     src/states/StateTurning.cpp
+    src/solvers/TableSolver.cpp
     src/MissionProcessor.cpp)
 
 target_include_directories(smart_pointers_state_machine_table_calc PRIVATE include)

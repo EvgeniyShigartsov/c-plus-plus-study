@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <vector>
 #include <fstream>
 
@@ -103,7 +104,7 @@ struct BallisticTable {
   }
 
   // Завантаження з текстового файлу
-  bool load(const char* path)
+  bool load(const std::string& path)
   {
     std::ifstream file(path);
     if (!file.is_open()) {

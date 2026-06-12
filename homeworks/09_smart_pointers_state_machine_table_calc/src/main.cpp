@@ -15,6 +15,7 @@ using json = nlohmann::json;
 const std::string CONFIG_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/config.json";
 const std::string AMMO_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/ammo.json";
 const std::string TARGETS_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/targets.json";
+const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/ballistic_table.txt";
 
 json toJsonXY(const Coord& coord)
 {
@@ -57,14 +58,17 @@ int main()
 
   const bool isConfigLoadSuccess = configLoader->load(CONFIG_FILE_PATH, AMMO_FILE_PATH);
 
-  std::shared_ptr<ITargetProvider> targetProvider = createProvider(ProviderType::JSON, TARGETS_FILE_PATH, configLoader->getConfig());
+  const DroneConfig droneConfig = configLoader->getConfig();
+  const BombParams bombParams = configLoader->getAmmoParams();
+
+  std::shared_ptr<ITargetProvider> targetProvider = createProvider(ProviderType::JSON, TARGETS_FILE_PATH, droneConfig);
 
   if (targetProvider == nullptr) {
     LOG("Target provider was not found.");
     return 1;
   }
 
-  std::unique_ptr<IBallisticSolver> solver = createSolver(SolverType::ANALYTICAL);
+  std::unique_ptr<IBallisticSolver> solver = createSolver(SolverType::TABLE, BALLISTIC_TABLE_FILE_PATH, bombParams, droneConfig);
 
   if (solver == nullptr) {
     LOG("Ballistic solver was not found.");

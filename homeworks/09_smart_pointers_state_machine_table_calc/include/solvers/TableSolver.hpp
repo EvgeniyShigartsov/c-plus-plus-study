@@ -7,11 +7,10 @@
 class TableSolver : public IBallisticSolver {
   BallisticTable table;
   BombParams ammo;
-  float v0;
-  float altitude;
+  DroneConfig droneConfig;
 
 public:
-  TableSolver(const char* tablePath, BombParams& bomb, const float v0, const float alt);
+  TableSolver(const std::string& tablePath, BombParams bomb, DroneConfig droneConfig);
 
   Coord solve(const Coord targetCoord, const Coord droneCoord, const float hDist) override;
   virtual ~TableSolver();

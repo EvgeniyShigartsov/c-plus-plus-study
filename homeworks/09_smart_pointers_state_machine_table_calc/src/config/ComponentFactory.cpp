@@ -4,6 +4,7 @@
 #include "config/FileConfigLoader.hpp"
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
+#include "solvers/TableSolver.hpp"
 #include "types.hpp"
 #include "providers/JsonTargetProvider.hpp"
 #include "solvers/AnalyticalSolver.hpp"
@@ -18,11 +19,16 @@ std::unique_ptr<IConfigLoader> createLoader(LoaderType type)
   }
 }
 
-std::unique_ptr<IBallisticSolver> createSolver(SolverType type)
+std::unique_ptr<IBallisticSolver> createSolver(SolverType type,
+                                               const std::string& tableFilePath,
+                                               const BombParams& bomb,
+                                               const DroneConfig& droneConfig)
 {
   switch (type) {
     case SolverType::ANALYTICAL:
       return std::make_unique<AnalyticalSolver>();
+    case SolverType::TABLE:
+      return std::make_unique<TableSolver>(tableFilePath, bomb, droneConfig);
     default:
       return nullptr;
   }

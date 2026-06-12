@@ -46,46 +46,30 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
   outJsonFile << out.dump(2);
 }
 
-void writeSimulation(const std::vector<float>& droneXHistory,
-                     const std::vector<float>& droneYHistory,
-                     const std::vector<float>& droneDirHistory,
-                     const std::vector<int>& droneStateHistory,
-                     const std::vector<int>& droneSelectedTargetHistory,
-                     const size_t steps)
-{
-  std::ofstream simulation("simulation.txt");
-  simulation << steps << std::endl;
-
-  for (size_t i = 0; i < steps; i++) {
-    simulation << droneXHistory[i] << ' ' << droneYHistory[i] << ' ';
-  }
-  simulation << std::endl;
-
-  for (size_t i = 0; i < steps; i++) {
-    simulation << droneDirHistory[i] << ' ';
-  }
-  simulation << std::endl;
-
-  for (size_t i = 0; i < steps; i++) {
-    simulation << droneStateHistory[i] << ' ';
-  }
-  simulation << std::endl;
-
-  for (size_t i = 0; i < steps; i++) {
-    simulation << droneSelectedTargetHistory[i] << ' ';
-  }
-  simulation << std::endl;
-
-  simulation.close();
-}
-
 int main()
 {
   std::unique_ptr<IConfigLoader> configLoader = createLoader(LoaderType::FILE);
+
+  if (configLoader == nullptr) {
+    LOG("Config loader was not found.");
+    return 1;
+  }
+
   const bool isConfigLoadSuccess = configLoader->load(CONFIG_FILE_PATH, AMMO_FILE_PATH);
 
   std::shared_ptr<ITargetProvider> targetProvider = createProvider(ProviderType::JSON, TARGETS_FILE_PATH, configLoader->getConfig());
+
+  if (targetProvider == nullptr) {
+    LOG("Target provider was not found.");
+    return 1;
+  }
+
   std::unique_ptr<IBallisticSolver> solver = createSolver(SolverType::ANALYTICAL);
+
+  if (solver == nullptr) {
+    LOG("Ballistic solver was not found.");
+    return 1;
+  }
 
   MissionProcessor missionProcessor{targetProvider, std::move(solver)};
 

@@ -12,10 +12,10 @@
 
 using json = nlohmann::json;
 
-const std::string CONFIG_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/config.json";
-const std::string AMMO_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/ammo.json";
-const std::string TARGETS_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/targets.json";
-const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/09_smart_pointers_state_machine_table_calc/data/ballistic_table.txt";
+const std::string CONFIG_FILE_PATH = "homeworks/10_multithreading/data/config.json";
+const std::string AMMO_FILE_PATH = "homeworks/10_multithreading/data/ammo.json";
+const std::string TARGETS_FILE_PATH = "homeworks/10_multithreading/data/targets.json";
+const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/10_multithreading/data/ballistic_table.txt";
 
 json toJsonXY(const Coord& coord)
 {

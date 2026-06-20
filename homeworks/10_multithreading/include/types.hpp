@@ -43,6 +43,8 @@ struct DroneConfig {
   float hitRadius;
   float angularSpeed;
   float turnThreshold;
+  float physicsTimeStep;
+  float timeScale;
 };
 
 struct BombParams {

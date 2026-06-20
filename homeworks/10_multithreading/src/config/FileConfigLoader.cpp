@@ -32,6 +32,8 @@ bool FileConfigLoader::readDroneConfig(const std::string& pathToConfig)
     droneConfig.hitRadius = data["simulation"]["hitRadius"];
     droneConfig.angularSpeed = data["drone"]["angularSpeed"];
     droneConfig.turnThreshold = data["drone"]["turnThreshold"];
+    droneConfig.physicsTimeStep = data["simulation"].value<float>("physicsTimeStep", 0.01);
+    droneConfig.timeScale = data["simulation"].value<float>("timeScale", 1);
   }
   catch (const json::exception& parseError) {
     LOG("config.json parse error: " << parseError.what());

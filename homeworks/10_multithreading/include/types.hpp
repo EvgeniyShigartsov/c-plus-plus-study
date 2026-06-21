@@ -108,3 +108,18 @@ struct Target {
   Coord pos;
   Coord velocity;
 };
+
+enum DroneState { Stopped, Turning, Accelerating, Moving, Decelerating };
+
+struct DroneCommand {
+  DroneState state;
+  float angleSpeed;
+  float targetDir;
+};
+
+struct DroneTelemetry {
+  Coord pos;
+  float speed;
+  float dir;
+  float timeSinceStart;
+};

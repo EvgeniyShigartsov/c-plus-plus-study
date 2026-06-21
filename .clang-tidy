@@ -19,6 +19,7 @@ Checks: >
   -readability-identifier-length,
   -readability-magic-numbers,
   -bugprone-easily-swappable-parameters,
+  -modernize-use-nodiscard,
   misc-unused-using-decls,
 
 CheckOptions:

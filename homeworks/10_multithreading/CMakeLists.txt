@@ -10,7 +10,7 @@ add_executable(
     src/main.cpp
     src/config/ComponentFactory.cpp
     src/config/FileConfigLoader.cpp
-    src/providers/JsonTargetProvider.cpp
+    src/providers/ThreadSafeTargetProvider.cpp
     src/solvers/AnalyticalSolver.cpp
     src/utils/MathUtils.cpp
     src/states/StateAccelerating.cpp

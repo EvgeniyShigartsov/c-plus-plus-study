@@ -7,8 +7,8 @@
 #include "interfaces/ITargetProvider.hpp"
 #include "solvers/TableSolver.hpp"
 #include "types.hpp"
-#include "providers/JsonTargetProvider.hpp"
 #include "solvers/AnalyticalSolver.hpp"
+#include "providers/ThreadSafeTargetProvider.hpp"
 
 std::unique_ptr<IConfigLoader> createLoader(LoaderType type)
 {
@@ -47,7 +47,7 @@ std::shared_ptr<ITargetProvider> createProvider(ProviderType type, const std::st
 {
   switch (type) {
     case ProviderType::JSON:
-      return std::make_shared<JsonTargetProvider>(pathToConfig, droneConfig);
+      return std::make_shared<ThreadSafeTargetProvider>(pathToConfig, droneConfig);
     default:
       return nullptr;
   }

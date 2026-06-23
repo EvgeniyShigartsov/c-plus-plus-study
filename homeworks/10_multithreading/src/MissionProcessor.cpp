@@ -54,7 +54,7 @@ SimStep MissionProcessor::step()
   Coord actualDist{};
 
   for (int i = 0; i < targetsCount; i++) {
-    const Target target = targetProvider->getTarget(sim.CURRENT_TIME, i);
+    const Target target = targetProvider->getTarget(i);
 
     // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
     Coord currentFire = ballisticSolver->solve(target.pos, sim.CURRENT_POS, h);
@@ -150,7 +150,7 @@ SimStep MissionProcessor::step()
   DEBUG("  target=" << sim.selectedTargetIndex << " state=" << currentState->name());
 
   const Coord dir = {cosf(sim.CURRENT_DIR), sinf(sim.CURRENT_DIR)};
-  const Target predictedTarget = targetProvider->getTarget(sim.CURRENT_TIME + bombFlightTime, sim.selectedTargetIndex);
+  const Target predictedTarget = targetProvider->getTarget(sim.selectedTargetIndex);
 
   const SimStep stepResult = {
     .pos = sim.CURRENT_POS,
@@ -168,6 +168,8 @@ SimStep MissionProcessor::step()
   sim.prevSelectedTargetIndex = sim.selectedTargetIndex;
   sim.CURRENT_TIME += sim.dc.simTimeStep;
   sim.step++;
+
+  targetProvider->advance();
 
   return stepResult;
 }

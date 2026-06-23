@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <vector>
+#include "DronePhysics.hpp"
 #include "interfaces/IDroneState.hpp"
 #include "types.hpp"
 #include "interfaces/IBallisticSolver.hpp"
@@ -13,6 +14,7 @@ private:
   Simulation sim;
   std::shared_ptr<ITargetProvider> targetProvider;
   std::unique_ptr<IBallisticSolver> ballisticSolver;
+  std::unique_ptr<DronePhysics> dronePhysics;
 
   DroneConfig droneInitialConfig{};
   float bombFlightTime = 0.0f;
@@ -22,6 +24,8 @@ private:
   std::unique_ptr<IDroneState> currentState;
 
   std::vector<SimStep> stepsLog;
+
+  void syncSimulationWithDronePhysics();
 
 public:
   MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver);

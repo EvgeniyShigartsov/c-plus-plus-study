@@ -1,6 +1,7 @@
 #include <memory>
 #include <vector>
 
+#include "DronePhysics.hpp"
 #include "types.hpp"
 #include "MathUtils.hpp"
 #include "Logger.hpp"
@@ -32,6 +33,8 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
   droneAcceleration = powf(sim.dc.v0, 2) / (2 * sim.dc.accelerationPath);  // (a)
   targetsCount = targetProvider->getTargetCount();
 
+  dronePhysics = std::make_unique<DronePhysics>(droneInitialConfig);
+  syncSimulationWithDronePhysics();
   currentState = std::make_unique<StateStopped>();
 
   return IS_BOMB_OK;
@@ -133,10 +136,15 @@ SimStep MissionProcessor::step()
   sim.deltaAngle = fabsf(normalizeAngle(sim.dirToFire - sim.CURRENT_DIR));
 
   // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
-  auto next = currentState->execute(sim);
-  if (next) {
-    currentState = std::move(next);
+  auto [nextState, cmd] = currentState->execute(sim);
+  if (nextState) {
+    currentState = std::move(nextState);
   }
+
+  dronePhysics->pushCommand(cmd);
+  dronePhysics->stepPhysics(sim.dc.simTimeStep);
+
+  syncSimulationWithDronePhysics();
 
   DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");
   DEBUG("  target=" << sim.selectedTargetIndex << " state=" << currentState->name());
@@ -172,10 +180,22 @@ void MissionProcessor::changeSolver(std::unique_ptr<IBallisticSolver> solver)
 void MissionProcessor::reset()
 {
   sim = Simulation(droneInitialConfig);
+  dronePhysics = std::make_unique<DronePhysics>(droneInitialConfig);
+  syncSimulationWithDronePhysics();
 }
 
 std::vector<SimStep> MissionProcessor::getStepsLog()
 {
   return stepsLog;
 };
+
+void MissionProcessor::syncSimulationWithDronePhysics()
+{
+  const DroneTelemetry actualTelemetry = dronePhysics->getTelemetry();
+
+  sim.CURRENT_POS = actualTelemetry.pos;
+  sim.CURRENT_DIR = actualTelemetry.dir;
+  sim.CURRENT_SPEED = actualTelemetry.speed;
+}
+
 MissionProcessor::~MissionProcessor() = default;

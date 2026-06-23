@@ -20,6 +20,7 @@ add_executable(
     src/states/StateTurning.cpp
     src/solvers/TableSolver.cpp
     src/BallisticTable.cpp
+    src/DronePhysics.cpp
     src/MissionProcessor.cpp)
 
 target_include_directories(multithreading PRIVATE include)

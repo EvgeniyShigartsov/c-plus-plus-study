@@ -1,21 +1,24 @@
 #include <memory>
+#include <utility>
 #include "interfaces/IDroneState.hpp"
 #include "states/StateDecelerating.hpp"
 #include "types.hpp"
 #include "states/StateMoving.hpp"
 
-std::unique_ptr<IDroneState> StateMoving::execute(Simulation &sim)
+std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateMoving::execute(Simulation &sim)
 {
-  if (sim.deltaAngle > sim.dc.turnThreshold) {
-    sim.updateDroneXY();
+  DroneCommand command{
+    .state = DroneState::Moving,
+    .angleSpeed = 0.0f,
+    .targetDir = sim.dirToFire,
+  };
 
-    return std::make_unique<StateDecelerating>();
+  if (sim.deltaAngle > sim.dc.turnThreshold) {
+    command.state = DroneState::Decelerating;
+    return {std::make_unique<StateDecelerating>(), command};
   }
 
-  sim.CURRENT_DIR = sim.dirToFire;
-  sim.updateDroneXY();
-
-  return nullptr;
+  return {nullptr, command};
 }
 
 float StateMoving::getManeuverReadyTime(const Simulation &sim)

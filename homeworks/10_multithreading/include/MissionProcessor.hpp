@@ -1,5 +1,7 @@
 #pragma once
+#include <atomic>
 #include <memory>
+#include <thread>
 #include <vector>
 #include "DronePhysics.hpp"
 #include "interfaces/IDroneState.hpp"
@@ -25,6 +27,11 @@ private:
 
   std::vector<SimStep> stepsLog;
 
+  std::atomic<bool> startFlag{false};
+  std::atomic<bool> stopFlag{false};
+  std::atomic<bool> threadReady{false};
+  std::thread thread;
+
   void syncSimulationWithDronePhysics();
 
 public:
@@ -35,5 +42,12 @@ public:
   void changeSolver(std::unique_ptr<IBallisticSolver> solver);
   void reset();
   std::vector<SimStep> getStepsLog();
+
+  void run();
+  void start();
+  void stop();
+  bool isThreadReady() const;
+  void setThread(std::thread t);
+
   virtual ~MissionProcessor();
 };

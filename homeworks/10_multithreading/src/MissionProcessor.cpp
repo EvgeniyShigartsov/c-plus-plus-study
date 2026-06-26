@@ -47,6 +47,8 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
 
 SimStep MissionProcessor::step()
 {
+  syncSimulationWithDronePhysics();
+
   int bestTarget = 0;
   float bestTime = -1.0f;
   Coord bestFire{};
@@ -142,9 +144,6 @@ SimStep MissionProcessor::step()
   }
 
   dronePhysics->pushCommand(cmd);
-  dronePhysics->stepPhysics(sim.dc.simTimeStep);
-
-  syncSimulationWithDronePhysics();
 
   DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");
   DEBUG("  target=" << sim.selectedTargetIndex << " state=" << currentState->name());
@@ -169,8 +168,6 @@ SimStep MissionProcessor::step()
   sim.CURRENT_TIME += sim.dc.simTimeStep;
   sim.step++;
 
-  targetProvider->advance();
-
   return stepResult;
 }
 
@@ -190,6 +187,41 @@ std::vector<SimStep> MissionProcessor::getStepsLog()
 {
   return stepsLog;
 };
+
+void MissionProcessor::run()
+{
+  threadReady = true;
+
+  while (!startFlag) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  while (hasNext() && !stopFlag) {
+    step();
+    std::this_thread::sleep_for(std::chrono::duration<float>(sim.dc.simTimeStep / sim.dc.timeScale));
+  }
+}
+
+void MissionProcessor::start()
+{
+  startFlag = true;
+}
+
+void MissionProcessor::stop()
+{
+  stopFlag = true;
+  thread.join();
+}
+
+bool MissionProcessor::isThreadReady() const
+{
+  return threadReady;
+}
+
+void MissionProcessor::setThread(std::thread t)
+{
+  thread = std::move(t);
+}
 
 void MissionProcessor::syncSimulationWithDronePhysics()
 {

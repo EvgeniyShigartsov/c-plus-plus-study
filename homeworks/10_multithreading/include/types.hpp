@@ -63,6 +63,7 @@ struct SimStep {
   std::string state;
   int targetIdx;
   int step;
+  float timeSecSinceStart;
 };
 
 struct Simulation {
@@ -85,6 +86,7 @@ struct Simulation {
   float dirToFire = 0.0f;
   DroneConfig dc = {};
   float droneAcceleration = 0.0f;
+  float timeSecSinceStart = 0.0f;
 
   Simulation() = default;
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)

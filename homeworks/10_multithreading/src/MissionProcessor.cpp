@@ -49,6 +49,7 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider,
 
 SimStep MissionProcessor::step()
 {
+  LOG("Mission step " << sim.step);
   syncSimulationWithDronePhysics();
 
   int bestTarget = 0;
@@ -162,6 +163,7 @@ SimStep MissionProcessor::step()
     .state = currentState->name(),
     .targetIdx = sim.selectedTargetIndex,
     .step = sim.step,
+    .timeSecSinceStart = sim.timeSecSinceStart,
   };
 
   stepsLog.push_back(stepResult);
@@ -193,14 +195,20 @@ void MissionProcessor::run()
 {
   threadReady = true;
 
+  LOG("MissionProcessor thread ready");
+
   while (!startFlag) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
+
+  LOG("MissionProcessor started");
 
   while (hasNext() && !stopFlag) {
     step();
     std::this_thread::sleep_for(std::chrono::duration<float>(sim.dc.simTimeStep / sim.dc.timeScale));
   }
+
+  LOG("MissionProcessor stopped");
 }
 
 void MissionProcessor::start()
@@ -225,6 +233,7 @@ void MissionProcessor::syncSimulationWithDronePhysics()
   sim.CURRENT_POS = actualTelemetry.pos;
   sim.CURRENT_DIR = actualTelemetry.dir;
   sim.CURRENT_SPEED = actualTelemetry.speed;
+  sim.timeSecSinceStart = actualTelemetry.timeSinceStart;
 }
 
 MissionProcessor::~MissionProcessor() = default;

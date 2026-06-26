@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include "types.hpp"
+#include "Logger.hpp"
 
 DronePhysics::DronePhysics(const DroneConfig& config)
   : CURRENT_POS(config.startPos)
@@ -69,15 +70,20 @@ void DronePhysics::stepPhysics(const float deltaTime)
 void DronePhysics::run()
 {
   threadReady = true;
+  LOG("DronePhysics thread ready");
 
   while (!startFlag) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));  // чекаємо start()
   }
 
+  LOG("DronePhysics started");
+
   while (!stopFlag) {
     stepPhysics(config.physicsTimeStep);
     std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
   }
+
+  LOG("DronePhysics stopped");
 }
 void DronePhysics::start()
 {

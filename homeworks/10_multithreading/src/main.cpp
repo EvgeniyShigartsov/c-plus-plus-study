@@ -42,6 +42,7 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
     outStep["dropPoint"] = toJsonXY(step.dropPoint);
     outStep["aimPoint"] = toJsonXY(step.aimPoint);
     outStep["predictedTarget"] = toJsonXY(step.predictedTarget);
+    outStep["timeSecSinceStart"] = step.timeSecSinceStart;
 
     out["steps"].push_back(outStep);
   }

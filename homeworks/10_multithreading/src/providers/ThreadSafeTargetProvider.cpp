@@ -101,14 +101,20 @@ void ThreadSafeTargetProvider::run()
 {
   threadReady = true;
 
+  LOG("TargetProvider thread ready");
+
   while (!startFlag) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
+
+  LOG("TargetProvider started");
 
   while (!stopFlag) {
     advance();
     std::this_thread::sleep_for(std::chrono::duration<float>(arrayTimeStep / timeScale));
   }
+
+  LOG("TargetProvider stopped");
 }
 
 int ThreadSafeTargetProvider::getTargetCount()

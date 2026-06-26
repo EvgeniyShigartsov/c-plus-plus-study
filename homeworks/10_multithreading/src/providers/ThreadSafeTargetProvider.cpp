@@ -96,7 +96,6 @@ void ThreadSafeTargetProvider::start()
 void ThreadSafeTargetProvider::stop()
 {
   stopFlag = true;
-  thread.join();
 }
 void ThreadSafeTargetProvider::run()
 {
@@ -112,13 +111,9 @@ void ThreadSafeTargetProvider::run()
   }
 }
 
-void ThreadSafeTargetProvider::setThread(std::thread t)
-{
-  thread = std::move(t);
-}
-
 int ThreadSafeTargetProvider::getTargetCount()
 {
+  std::lock_guard<std::mutex> lock(targetsMutex);
   return TARGETS_COUNT;
 }
 

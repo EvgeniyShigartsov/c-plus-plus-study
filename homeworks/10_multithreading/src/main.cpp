@@ -2,8 +2,11 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
+#include "DronePhysics.hpp"
 #include "interfaces/IBallisticSolver.hpp"
+#include "interfaces/ITargetProvider.hpp"
 #include "third_party/json.hpp"
 #include "types.hpp"
 #include "Logger.hpp"
@@ -75,24 +78,40 @@ int main()
     return 1;
   }
 
-  MissionProcessor missionProcessor{targetProvider, std::move(solver)};
+  auto physics = std::make_shared<DronePhysics>(droneConfig);
+  auto missionProcessor = std::make_shared<MissionProcessor>(targetProvider, physics, std::move(solver));
 
-  const bool isInitSucces = missionProcessor.init(std::move(configLoader));
+  const bool isInitSucces = missionProcessor->init(std::move(configLoader));
+
   if (!isConfigLoadSuccess || !targetProvider->isLoadSucces() || !isInitSucces) {
     return 1;
   }
 
-  while (missionProcessor.hasNext()) {
-    missionProcessor.step();
+  std::thread providerThread(&ITargetProvider::run, targetProvider);
+  std::thread physicsThread(&DronePhysics::run, physics);
+  std::thread missionThread(&MissionProcessor::run, missionProcessor);
+
+  while (!targetProvider->isThreadReady() || !physics->isThreadReady() || !missionProcessor->isThreadReady()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
-  const std::vector<SimStep> stepsLog = missionProcessor.getStepsLog();
+  targetProvider->start();
+  physics->start();
+  missionProcessor->start();
+
+  missionThread.join();
+
+  physics->stop();
+  targetProvider->stop();
+
+  providerThread.join();
+  physicsThread.join();
+
+  const std::vector<SimStep> stepsLog = missionProcessor->getStepsLog();
 
   writeSimulationJson(stepsLog);
 
   LOG("Simulation complete. Steps: " << stepsLog.size());
-
-  missionProcessor.reset();
 
   return 0;
 }

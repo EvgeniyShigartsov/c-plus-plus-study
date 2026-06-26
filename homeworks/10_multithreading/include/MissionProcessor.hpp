@@ -16,7 +16,7 @@ private:
   Simulation sim;
   std::shared_ptr<ITargetProvider> targetProvider;
   std::unique_ptr<IBallisticSolver> ballisticSolver;
-  std::unique_ptr<DronePhysics> dronePhysics;
+  std::shared_ptr<DronePhysics> dronePhysics;
 
   DroneConfig droneInitialConfig{};
   float bombFlightTime = 0.0f;
@@ -30,12 +30,13 @@ private:
   std::atomic<bool> startFlag{false};
   std::atomic<bool> stopFlag{false};
   std::atomic<bool> threadReady{false};
-  std::thread thread;
 
   void syncSimulationWithDronePhysics();
 
 public:
-  MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver);
+  MissionProcessor(std::shared_ptr<ITargetProvider> provider,
+                   std::shared_ptr<DronePhysics> dronePhysics,
+                   std::unique_ptr<IBallisticSolver> solver);
   [[nodiscard]] bool init(std::unique_ptr<IConfigLoader> configLoader);
   [[nodiscard]] bool hasNext() const;
   SimStep step();
@@ -47,7 +48,6 @@ public:
   void start();
   void stop();
   bool isThreadReady() const;
-  void setThread(std::thread t);
 
   virtual ~MissionProcessor();
 };

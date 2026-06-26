@@ -15,7 +15,6 @@ public:
   void run();
   void start();
   void stop();
-  void setThread(std::thread t);
   bool isThreadReady() const;
 
   DroneTelemetry getTelemetry();
@@ -35,7 +34,6 @@ private:
   std::atomic<bool> stopFlag{false};
   std::atomic<bool> startFlag{false};
   std::atomic<bool> threadReady{false};
-  std::thread thread;
 
   void updateDroneXY(const float deltaTime);
 };

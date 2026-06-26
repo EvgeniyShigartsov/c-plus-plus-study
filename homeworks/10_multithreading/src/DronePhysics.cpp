@@ -86,15 +86,6 @@ void DronePhysics::start()
 void DronePhysics::stop()
 {
   stopFlag = true;
-
-  if (thread.joinable()) {
-    thread.join();
-  }
-}
-
-void DronePhysics::setThread(std::thread t)
-{
-  thread = std::move(t);
 }
 
 bool DronePhysics::isThreadReady() const

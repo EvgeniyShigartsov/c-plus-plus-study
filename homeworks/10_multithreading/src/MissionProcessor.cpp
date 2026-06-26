@@ -14,9 +14,12 @@
 const int MAX_STEPS = 10000;
 const float GRAVITY = 9.81f;
 
-MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver)
+MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider,
+                                   std::shared_ptr<DronePhysics> dronePhysics,
+                                   std::unique_ptr<IBallisticSolver> solver)
   : targetProvider(std::move(provider))
   , ballisticSolver(std::move(solver))
+  , dronePhysics(std::move(dronePhysics))
 {
   stepsLog.reserve(MAX_STEPS);
 }
@@ -33,7 +36,6 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
   droneAcceleration = powf(sim.dc.v0, 2) / (2 * sim.dc.accelerationPath);  // (a)
   targetsCount = targetProvider->getTargetCount();
 
-  dronePhysics = std::make_unique<DronePhysics>(droneInitialConfig);
   syncSimulationWithDronePhysics();
   currentState = std::make_unique<StateStopped>();
 
@@ -179,7 +181,6 @@ void MissionProcessor::changeSolver(std::unique_ptr<IBallisticSolver> solver)
 void MissionProcessor::reset()
 {
   sim = Simulation(droneInitialConfig);
-  dronePhysics = std::make_unique<DronePhysics>(droneInitialConfig);
   syncSimulationWithDronePhysics();
 }
 
@@ -210,17 +211,11 @@ void MissionProcessor::start()
 void MissionProcessor::stop()
 {
   stopFlag = true;
-  thread.join();
 }
 
 bool MissionProcessor::isThreadReady() const
 {
   return threadReady;
-}
-
-void MissionProcessor::setThread(std::thread t)
-{
-  thread = std::move(t);
 }
 
 void MissionProcessor::syncSimulationWithDronePhysics()

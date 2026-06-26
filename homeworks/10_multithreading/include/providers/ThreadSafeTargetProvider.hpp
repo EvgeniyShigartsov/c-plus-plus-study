@@ -22,7 +22,6 @@ public:
   void start() override;
   void stop() override;
   void run() override;
-  void setThread(std::thread t);
 
   virtual ~ThreadSafeTargetProvider();
 
@@ -44,5 +43,4 @@ private:
   std::atomic<bool> threadReady{false};
 
   std::mutex targetsMutex;
-  std::thread thread;
 };

@@ -1,5 +1,7 @@
 #include "DronePhysics.hpp"
 #include <cmath>
+#include <mutex>
+#include <thread>
 #include "types.hpp"
 
 DronePhysics::DronePhysics(const DroneConfig& config)
@@ -7,17 +9,23 @@ DronePhysics::DronePhysics(const DroneConfig& config)
   , CURRENT_DIR(config.initialDir)
   , config(config)
   , droneAcceleration(powf(config.v0, 2) / (2 * config.accelerationPath))
-
 {
 }
 
 void DronePhysics::pushCommand(const DroneCommand& cmd)
 {
-  currentCommand = cmd;
+  commandQueue.push(cmd);
 }
 
 void DronePhysics::stepPhysics(const float deltaTime)
 {
+  const auto cmd = commandQueue.tryPop();
+
+  if (cmd.has_value()) {
+    currentCommand = cmd.value();
+  }
+
+  std::lock_guard<std::mutex> lock(stateMutex);
   switch (currentCommand.state) {
     case DroneState::Stopped:
       CURRENT_DIR = currentCommand.targetDir;
@@ -58,8 +66,46 @@ void DronePhysics::stepPhysics(const float deltaTime)
   }
 }
 
-DroneTelemetry DronePhysics::getTelemetry() const
+void DronePhysics::run()
 {
+  threadReady = true;
+
+  while (!startFlag) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));  // чекаємо start()
+  }
+
+  while (!stopFlag) {
+    stepPhysics(config.physicsTimeStep);
+    std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
+  }
+}
+void DronePhysics::start()
+{
+  startFlag = true;
+}
+void DronePhysics::stop()
+{
+  stopFlag = true;
+
+  if (thread.joinable()) {
+    thread.join();
+  }
+}
+
+void DronePhysics::setThread(std::thread t)
+{
+  thread = std::move(t);
+}
+
+bool DronePhysics::isThreadReady() const
+{
+  return threadReady;
+}
+
+DroneTelemetry DronePhysics::getTelemetry()
+{
+  std::lock_guard<std::mutex> lock(stateMutex);
+
   return {
     .pos = CURRENT_POS,
     .speed = CURRENT_SPEED,

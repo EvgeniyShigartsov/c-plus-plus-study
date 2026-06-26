@@ -9,11 +9,9 @@ class DronePhysics {
 public:
   DronePhysics(const DroneConfig& config);
 
-  // Фаза 1
   void pushCommand(const DroneCommand& cmd);
   void stepPhysics(const float deltaTime);
 
-  // Фаза 2
   void run();
   void start();
   void stop();
@@ -31,7 +29,6 @@ private:
   DroneConfig config;
   float droneAcceleration = 0.0f;
 
-  // Фаза 2
   ThreadSafeQueue<DroneCommand> commandQueue;
   DroneCommand currentCommand{};
   std::mutex stateMutex;

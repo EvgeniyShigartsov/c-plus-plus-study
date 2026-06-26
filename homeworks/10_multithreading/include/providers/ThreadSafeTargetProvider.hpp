@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <atomic>
+#include <thread>
 #include <vector>
 #include "types.hpp"
 #include "interfaces/ITargetProvider.hpp"
@@ -21,6 +22,7 @@ public:
   void start() override;
   void stop() override;
   void run() override;
+  void setThread(std::thread t);
 
   virtual ~ThreadSafeTargetProvider();
 
@@ -35,8 +37,12 @@ private:
   int currentNodeIndex = 0;
 
   float arrayTimeStep = 0.0f;
+  float timeScale = 1;
 
   std::atomic<bool> startFlag{false};
   std::atomic<bool> stopFlag{false};
   std::atomic<bool> threadReady{false};
+
+  std::mutex targetsMutex;
+  std::thread thread;
 };

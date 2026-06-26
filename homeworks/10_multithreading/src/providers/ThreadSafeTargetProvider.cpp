@@ -1,14 +1,15 @@
 #include <fstream>
+#include <thread>
 #include "third_party/json.hpp"
 #include "types.hpp"
 #include "Logger.hpp"
 #include "providers/ThreadSafeTargetProvider.hpp"
-#include "MathUtils.hpp"
 
 using json = nlohmann::json;
 
 ThreadSafeTargetProvider::ThreadSafeTargetProvider(const std::string& pathToTargets, const DroneConfig& droneConfig)
   : arrayTimeStep(droneConfig.arrayTimeStep)
+  , timeScale(droneConfig.timeScale)
 {
   std::ifstream targetsFile(pathToTargets);
 
@@ -59,6 +60,7 @@ ThreadSafeTargetProvider::ThreadSafeTargetProvider(const std::string& pathToTarg
 
 Target ThreadSafeTargetProvider::getTarget(const int targetIndex)
 {
+  std::lock_guard<std::mutex> lock(targetsMutex);
   return currentTargets[targetIndex];
 }
 
@@ -66,6 +68,7 @@ void ThreadSafeTargetProvider::advance()
 {
   currentNodeIndex = (currentNodeIndex + 1) % TARGET_MOVES_COUNT;
 
+  std::lock_guard<std::mutex> lock(targetsMutex);
   for (int i = 0; i < TARGETS_COUNT; i++) {
     const int nextIndex = (currentNodeIndex + 1) % TARGET_MOVES_COUNT;
 
@@ -86,9 +89,33 @@ bool ThreadSafeTargetProvider::isThreadReady() const
   return threadReady;
 }
 
-void ThreadSafeTargetProvider::start() {}
-void ThreadSafeTargetProvider::stop() {}
-void ThreadSafeTargetProvider::run() {}
+void ThreadSafeTargetProvider::start()
+{
+  startFlag = true;
+}
+void ThreadSafeTargetProvider::stop()
+{
+  stopFlag = true;
+  thread.join();
+}
+void ThreadSafeTargetProvider::run()
+{
+  threadReady = true;
+
+  while (!startFlag) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  while (!stopFlag) {
+    advance();
+    std::this_thread::sleep_for(std::chrono::duration<float>(arrayTimeStep / timeScale));
+  }
+}
+
+void ThreadSafeTargetProvider::setThread(std::thread t)
+{
+  thread = std::move(t);
+}
 
 int ThreadSafeTargetProvider::getTargetCount()
 {

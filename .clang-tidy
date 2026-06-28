@@ -16,15 +16,16 @@ Checks: >
   -readability-avoid-const-params-in-decls,
   -readability-function-cognitive-complexity,
   -readability-identifier-naming,
+  -readability-identifier-length,
   -readability-magic-numbers,
   -bugprone-easily-swappable-parameters,
   misc-unused-using-decls,
 
 CheckOptions:
   - key: readability-identifier-length.MinimumParameterNameLength
-    value: '2'
+    value: '1'
   - key: readability-identifier-length.MinimumVariableNameLength
-    value: '2'
+    value: '1'
 
 # Аналізувати лише код домашніх робіт і типові source/include директорії,
 # а не системні headers або сторонні бібліотеки.

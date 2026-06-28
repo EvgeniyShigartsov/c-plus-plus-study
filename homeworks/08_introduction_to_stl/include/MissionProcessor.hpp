@@ -1,9 +1,10 @@
 #pragma once
 #include <vector>
 #include "types.hpp"
-#include "interfaces/IBallisticSolver.hpp"
-#include "interfaces/ITargetProvider.hpp"
-#include "interfaces/IConfigLoader.hpp"
+
+class IConfigLoader;
+class IBallisticSolver;
+class ITargetProvider;
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class MissionProcessor {

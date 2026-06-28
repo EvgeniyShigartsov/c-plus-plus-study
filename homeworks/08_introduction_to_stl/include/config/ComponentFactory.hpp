@@ -1,7 +1,10 @@
 #pragma once
-#include "interfaces/IConfigLoader.hpp"
-#include "interfaces/IBallisticSolver.hpp"
-#include "interfaces/ITargetProvider.hpp"
+#include <string>
+#include "types.hpp"
+
+class IConfigLoader;
+class IBallisticSolver;
+class ITargetProvider;
 
 enum class SolverType { ANALYTICAL };
 enum class ProviderType { JSON };

@@ -6,6 +6,9 @@
 #include "Logger.hpp"
 #include "config/ComponentFactory.hpp"
 #include "MissionProcessor.hpp"
+#include "interfaces/IConfigLoader.hpp"
+#include "interfaces/ITargetProvider.hpp"
+#include "interfaces/IBallisticSolver.hpp"
 
 using json = nlohmann::json;
 

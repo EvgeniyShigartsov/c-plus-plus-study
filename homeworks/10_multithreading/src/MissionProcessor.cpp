@@ -49,7 +49,6 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider,
 
 SimStep MissionProcessor::step()
 {
-  LOG("Mission step " << sim.step);
   syncSimulationWithDronePhysics();
 
   int bestTarget = 0;

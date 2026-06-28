@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <atomic>
-#include <thread>
 #include <vector>
 #include "types.hpp"
 #include "interfaces/ITargetProvider.hpp"
@@ -14,9 +13,6 @@ public:
   int getTargetCount() override;
   Target getTarget(const int targetIndex) override;
   bool isLoadSucces() override;
-
-  // Фаза 1: викликається вручну, потім має бути видалено
-  void advance() override;
 
   bool isThreadReady() const override;
   void start() override;
@@ -43,4 +39,6 @@ private:
   std::atomic<bool> threadReady{false};
 
   std::mutex targetsMutex;
+
+  void advance();
 };

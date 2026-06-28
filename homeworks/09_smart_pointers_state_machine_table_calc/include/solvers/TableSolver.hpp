@@ -14,6 +14,9 @@ public:
   TableSolver(const std::string& tablePath, BombParams bomb, DroneConfig droneConfig);
 
   Coord solve(const Coord targetCoord, const Coord droneCoord, const float hDist) override;
+  float getBombFlightTime() override { return 0.0f; }
+  float get_h() override { return 0.0f; }
+  bool isLoadSuccess() override { return isLoadedSuccesful; }
   [[nodiscard]] bool isLoadedSucces() const;
   virtual ~TableSolver();
 };

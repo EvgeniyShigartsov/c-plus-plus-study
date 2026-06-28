@@ -4,6 +4,7 @@
 #include "types.hpp"
 #include "providers/JsonTargetProvider.hpp"
 #include "solvers/AnalyticalSolver.hpp"
+#include "Logger.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-owning-memory)
 
@@ -17,11 +18,18 @@ IConfigLoader* createLoader(LoaderType type)
   }
 }
 
-IBallisticSolver* createSolver(SolverType type)
+IBallisticSolver* createSolver(SolverType type, const BombParams& bp, const DroneConfig& dc)
 {
   switch (type) {
-    case SolverType::ANALYTICAL:
-      return new AnalyticalSolver;
+    case SolverType::ANALYTICAL: {
+      auto* solver = new AnalyticalSolver{bp, dc};
+
+      if (solver->isLoadSuccess()) {
+        LOG("AnalyticalSolver load error.");
+        return solver;
+      }
+      return nullptr;
+    }
     default:
       return nullptr;
   }

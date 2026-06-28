@@ -8,7 +8,6 @@
 #include "MissionProcessor.hpp"
 
 const int MAX_STEPS = 10000;
-const float GRAVITY = 9.81f;  // gravity
 
 MissionProcessor::MissionProcessor(ITargetProvider* provider, IBallisticSolver* solver)
   : targetProvider(provider)
@@ -22,14 +21,14 @@ MissionProcessor::MissionProcessor(ITargetProvider* provider, IBallisticSolver* 
   dc = configLoader->getConfig();
   const BombParams bp = configLoader->getAmmoParams();
 
-  const bool IS_BOMB_OK = setBombFlightTime(bp.drag, GRAVITY, bp.mass, bp.lift, dc.v0, dc.altitude, bombFlightTime);
+  bombFlightTime = ballisticSolver->getBombFlightTime();
 
   sim = Simulation(dc.startPos, dc.initialDir, dc.simTimeStep);
-  h = get_h(bombFlightTime, bp.drag, GRAVITY, bp.lift, bp.mass, dc.v0);
+  h = ballisticSolver->get_h();
   droneAcceleration = powf(dc.v0, 2) / (2 * dc.accelerationPath);  // (a)
   targetsCount = targetProvider->getTargetCount();
 
-  return IS_BOMB_OK;
+  return true;
 }
 
 [[nodiscard]] bool MissionProcessor::hasNext() const

@@ -6,6 +6,9 @@
 #include "Logger.hpp"
 #include "config/ComponentFactory.hpp"
 #include "MissionProcessor.hpp"
+#include "interfaces/IConfigLoader.hpp"
+#include "interfaces/ITargetProvider.hpp"
+#include "interfaces/IBallisticSolver.hpp"
 
 using json = nlohmann::json;
 
@@ -80,7 +83,7 @@ int main()
 
   ITargetProvider* targetProvider =
     createProvider(ProviderType::JSON, "homeworks/08_introduction_to_stl/data/targets.json", configLoader->getConfig());
-  IBallisticSolver* solver = createSolver(SolverType::ANALYTICAL);
+  IBallisticSolver* solver = createSolver(SolverType::ANALYTICAL, configLoader->getAmmoParams(), configLoader->getConfig());
 
   MissionProcessor missionProcessor{targetProvider, solver};
   const bool isInitSucces = missionProcessor.init(configLoader);

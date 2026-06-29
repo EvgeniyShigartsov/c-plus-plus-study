@@ -27,8 +27,7 @@ bool FileConfigLoader::readDroneConfig(const std::string& pathToConfig)
     droneConfig.initialDir = data["drone"]["initialDirection"];
     droneConfig.v0 = data["drone"]["attackSpeed"];
     droneConfig.accelerationPath = data["drone"]["accelerationPath"];
-    // droneConfig.arrayTimeStep = data["targetArrayTimeStep"];
-    droneConfig.arrayTimeStep = data["simulation"].value<float>("targetTimeStep", 0.05f);
+    droneConfig.arrayTimeStep = data.value<float>("targetArrayTimeStep", 10.0f);
     droneConfig.simTimeStep = data["simulation"]["timeStep"];
     droneConfig.hitRadius = data["simulation"]["hitRadius"];
     droneConfig.angularSpeed = data["drone"]["angularSpeed"];

@@ -16,9 +16,7 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateTurning::execute(Simu
     .targetDir = sim.dirToFire,
   };
 
-  sim.turningTimeLeft -= sim.dc.simTimeStep;
-
-  if (sim.turningTimeLeft <= 0.0f) {
+  if (sim.deltaAngle <= sim.dc.turnThreshold) {
     command.state = DroneState::Accelerating;
     command.angleSpeed = 0.0f;
 
@@ -30,7 +28,7 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateTurning::execute(Simu
 
 float StateTurning::getManeuverReadyTime(const Simulation& sim)
 {
-  return sim.turningTimeLeft;
+  return sim.deltaAngle / sim.dc.angularSpeed;
 }
 
 const char* StateTurning::name() const

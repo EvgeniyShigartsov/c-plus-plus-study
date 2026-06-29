@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include "types.hpp"
+#include "MathUtils.hpp"
 #include "Logger.hpp"
 
 DronePhysics::DronePhysics(const DroneConfig& config)
@@ -29,7 +30,7 @@ void DronePhysics::stepPhysics(const float deltaTime)
   std::lock_guard<std::mutex> lock(stateMutex);
   switch (currentCommand.state) {
     case DroneState::Stopped:
-      CURRENT_DIR = currentCommand.targetDir;
+      rotateTowards(currentCommand.targetDir, deltaTime);
       timeSinceStart += deltaTime;
       break;
 
@@ -41,7 +42,7 @@ void DronePhysics::stepPhysics(const float deltaTime)
     case DroneState::Accelerating:
       updateDroneXY(deltaTime);
 
-      CURRENT_DIR = currentCommand.targetDir;
+      rotateTowards(currentCommand.targetDir, deltaTime);
       CURRENT_SPEED += droneAcceleration * deltaTime;
       if (CURRENT_SPEED >= config.v0) {
         CURRENT_SPEED = config.v0;
@@ -50,7 +51,7 @@ void DronePhysics::stepPhysics(const float deltaTime)
       break;
 
     case DroneState::Moving:
-      CURRENT_DIR = currentCommand.targetDir;
+      rotateTowards(currentCommand.targetDir, deltaTime);
       updateDroneXY(deltaTime);
       timeSinceStart += deltaTime;
       break;
@@ -114,4 +115,21 @@ DroneTelemetry DronePhysics::getTelemetry()
 void DronePhysics::updateDroneXY(const float deltaTime)
 {
   CURRENT_POS = CURRENT_POS + Coord{cosf(CURRENT_DIR), sinf(CURRENT_DIR)} * CURRENT_SPEED * deltaTime;
+}
+
+// Плавна зміна курсу, не швидше за angularSpeed.
+void DronePhysics::rotateTowards(const float targetDir, const float deltaTime)
+{
+  const float diff = normalizeAngle(targetDir - CURRENT_DIR);
+  const float maxStep = config.angularSpeed * deltaTime;
+
+  if (diff > maxStep) {
+    CURRENT_DIR += maxStep;
+  }
+  else if (diff < -maxStep) {
+    CURRENT_DIR -= maxStep;
+  }
+  else {
+    CURRENT_DIR = targetDir;
+  }
 }

@@ -1,7 +1,6 @@
 #pragma once
 #include <atomic>
 #include <mutex>
-#include <thread>
 #include "types.hpp"
 #include "ThreadSafeQueue.hpp"
 
@@ -36,4 +35,5 @@ private:
   std::atomic<bool> threadReady{false};
 
   void updateDroneXY(const float deltaTime);
+  void rotateTowards(const float targetDir, const float deltaTime);
 };

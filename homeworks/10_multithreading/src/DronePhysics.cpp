@@ -1,5 +1,6 @@
 #include "DronePhysics.hpp"
 #include <cmath>
+#include <chrono>
 #include <mutex>
 #include <thread>
 #include "types.hpp"
@@ -79,8 +80,16 @@ void DronePhysics::run()
 
   LOG("DronePhysics started");
 
+  // Інтеграція фактично минулого реального часу × timeScale, замість фіксованого
+  // physicsTimeStep. Це знадобилось щоб прибрати дрейф годинника дрона від неточних коротких снів,
+  // timeSinceStart стає більш точним (реальний час × timeScale) і збігається з ритмом провайдера.
+  auto last = std::chrono::steady_clock::now();
   while (!stopFlag) {
-    stepPhysics(config.physicsTimeStep);
+    const auto now = std::chrono::steady_clock::now();
+    const float dt = std::chrono::duration<float>(now - last).count() * config.timeScale;
+    last = now;
+
+    stepPhysics(dt);
     std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
   }
 

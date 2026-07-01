@@ -110,8 +110,8 @@ void ThreadSafeTargetProvider::run()
   LOG("TargetProvider started");
 
   while (!stopFlag) {
-    advance();
     std::this_thread::sleep_for(std::chrono::duration<float>(arrayTimeStep / timeScale));
+    advance();
   }
 
   LOG("TargetProvider stopped");

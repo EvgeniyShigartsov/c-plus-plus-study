@@ -87,3 +87,5 @@ targets.json
 output.txt
 config.json
 simulation.json
+
+/tmp

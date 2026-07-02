@@ -3,12 +3,14 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "interfaces/IBallisticSolver.hpp"
 #include "third_party/json.hpp"
 #include "types.hpp"
 #include "Logger.hpp"
 #include "config/ComponentFactory.hpp"
 #include "MissionProcessor.hpp"
+#include "interfaces/IBallisticSolver.hpp"
+#include "interfaces/ITargetProvider.hpp"
+#include "interfaces/IConfigLoader.hpp"
 
 using json = nlohmann::json;
 

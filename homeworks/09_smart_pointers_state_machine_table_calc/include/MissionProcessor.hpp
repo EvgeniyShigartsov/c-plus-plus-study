@@ -3,9 +3,10 @@
 #include <vector>
 #include "interfaces/IDroneState.hpp"
 #include "types.hpp"
-#include "interfaces/IBallisticSolver.hpp"
-#include "interfaces/ITargetProvider.hpp"
-#include "interfaces/IConfigLoader.hpp"
+
+class IConfigLoader;
+class IBallisticSolver;
+class ITargetProvider;
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class MissionProcessor {

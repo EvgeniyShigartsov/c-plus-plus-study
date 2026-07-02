@@ -1,7 +1,10 @@
+// NOLINTBEGIN
+
 #include <cstring>
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <string>
 #include "./third_party/json.hpp"
 
 #define ENABLE_LOG 1
@@ -23,6 +26,10 @@ using json = nlohmann::json;
 
 const int BOMB_CHAR_COUNT = 12;
 const int MAX_STEPS = 10000;
+
+const std::string CONFIG_FILE_PATH = "homeworks/03_memory_basics/config.json";
+const std::string AMMO_FILE_PATH = "homeworks/03_memory_basics/ammo.json";
+const std::string TARGETS_FILE_PATH = "homeworks/03_memory_basics/targets.json";
 
 enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
 
@@ -123,10 +130,10 @@ struct InterpolationIndex {
 
 bool readDroneConfig(DroneConfig& out_config)
 {
-  std::ifstream config("config.json");
+  std::ifstream config(CONFIG_FILE_PATH);
 
   if (!config.is_open()) {
-    LOG("config.json not found.");
+    LOG(CONFIG_FILE_PATH << " not found.");
     return false;
   }
 
@@ -160,7 +167,13 @@ bool readDroneConfig(DroneConfig& out_config)
 
 bool readBombParams(const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bombParams)
 {
-  std::ifstream ammoFile("ammo.json");
+  std::ifstream ammoFile(AMMO_FILE_PATH);
+
+  if (!ammoFile.is_open()) {
+    LOG(AMMO_FILE_PATH << " was not found.");
+    return false;
+  }
+
   json ammoData;
   ammoFile >> ammoData;
 
@@ -199,10 +212,10 @@ bool readBombParams(const char ammo_name[BOMB_CHAR_COUNT], BombParams& out_bombP
 
 Coord** readTargets(int& out_TARGETS_COUNT, int& out_TARGET_MOVES_COUNT)
 {
-  std::ifstream targetsFile("targets.json");
+  std::ifstream targetsFile(TARGETS_FILE_PATH);
 
   if (!targetsFile.is_open()) {
-    LOG("targets.json was not found.");
+    LOG(TARGETS_FILE_PATH << " was not found.");
     return nullptr;
   }
 
@@ -224,7 +237,7 @@ Coord** readTargets(int& out_TARGETS_COUNT, int& out_TARGET_MOVES_COUNT)
     }
   }
   catch (const json::exception& parseError) {
-    LOG("targets.json parse error: " << parseError.what());
+    LOG(TARGETS_FILE_PATH << " parse error: " << parseError.what());
 
     for (int i = 0; i < out_TARGETS_COUNT; i++) {
       delete[] targetsInTime[i];
@@ -294,6 +307,16 @@ Coord normalizeCoord(const Coord& coord)
   return coord / length(coord);
 }
 
+float normalizeAngle(float angle)
+{
+  while (angle > M_PI)
+    angle -= 2.0f * M_PI;
+
+  while (angle < -M_PI)
+    angle += 2.0f * M_PI;
+  return angle;
+}
+
 InterpolationIndex getInterpolationIndex(const float t, const float arrayTimeStep, const int targetMovesCount)
 {
   const int idx = (int)(floor(t / arrayTimeStep)) % targetMovesCount;
@@ -312,35 +335,6 @@ Coord getFirePoint(const Coord targetCoord, const Coord droneCoord, const float 
 float getDirectionFromTo(const Coord& from, const Coord& to)
 {
   return atan2(to.y - from.y, to.x - from.x);
-}
-
-void writeSimulation(const float droneXHistory[MAX_STEPS],
-                     const float droneYHistory[MAX_STEPS],
-                     const float droneDirHistory[MAX_STEPS],
-                     const DroneState droneStateHistory[MAX_STEPS],
-                     const int droneSelectedTargetHistory[MAX_STEPS],
-                     const int steps)
-{
-  std::ofstream simulation("simulation.txt");
-  simulation << steps << std::endl;
-
-  for (int i = 0; i < steps; i++)
-    simulation << droneXHistory[i] << ' ' << droneYHistory[i] << ' ';
-  simulation << std::endl;
-
-  for (int i = 0; i < steps; i++)
-    simulation << droneDirHistory[i] << ' ';
-  simulation << std::endl;
-
-  for (int i = 0; i < steps; i++)
-    simulation << droneStateHistory[i] << ' ';
-  simulation << std::endl;
-
-  for (int i = 0; i < steps; i++)
-    simulation << droneSelectedTargetHistory[i] << ' ';
-  simulation << std::endl;
-
-  simulation.close();
 }
 
 json toJsonXY(const Coord& coord)
@@ -398,12 +392,6 @@ int main()
 
   Simulation sim = Simulation(dc.startPos, dc.initialDir, dc.simTimeStep);
 
-  float droneXHistory[MAX_STEPS] = {};
-  float droneYHistory[MAX_STEPS] = {};
-  float droneDirHistory[MAX_STEPS] = {};
-  DroneState droneStateHistory[MAX_STEPS] = {};
-  int droneSelectedTargetHistory[MAX_STEPS] = {};
-
   SimStep* stepsLog = new SimStep[MAX_STEPS];
 
   while (sim.step <= MAX_STEPS && !sim.reachedFirePoint) {
@@ -442,7 +430,7 @@ int main()
         float timeToChangeTarget = 0.0f;  // STOPPED стан або deltaAngle < turnThreshold;
 
         const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, predictedFire);
-        const float deltaAngle = fabs(dirToFire - sim.CURRENT_DIR);
+        const float deltaAngle = fabs(normalizeAngle(dirToFire - sim.CURRENT_DIR));
 
         if (deltaAngle > dc.turnThreshold) {
           const float turningTime = deltaAngle / dc.angularSpeed;
@@ -506,26 +494,18 @@ int main()
       actualDist = bestFire;
     }
 
+    if (length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {
+      sim.reachedFirePoint = true;
+    }
+
     // Перевірено кут повороту та змінено стан відповідно вибраної цілі
     const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
-    const float deltaAngle = fabs(dirToFire - sim.CURRENT_DIR);
-
-    if (deltaAngle > dc.turnThreshold) {
-      if (sim.CURRENT_STATE == MOVING || sim.CURRENT_STATE == ACCELERATING)
-        sim.CURRENT_STATE = DECELERATING;
-      else if (sim.CURRENT_STATE == STOPPED) {
-        sim.CURRENT_STATE = TURNING;
-        sim.turningTimeLeft = deltaAngle / dc.angularSpeed;
-      }
-    }
-    else {
-      sim.CURRENT_DIR = dirToFire;
-    }
+    const float deltaAngle = fabs(normalizeAngle(dirToFire - sim.CURRENT_DIR));
 
     // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
     if (sim.CURRENT_STATE == DECELERATING) {
-      sim.CURRENT_SPEED -= droneAcceleration * dc.simTimeStep;
       sim.updateDroneXY();
+      sim.CURRENT_SPEED -= droneAcceleration * dc.simTimeStep;
 
       if (sim.CURRENT_SPEED <= 0) {
         sim.CURRENT_SPEED = 0;
@@ -535,16 +515,19 @@ int main()
     }
     else if (sim.CURRENT_STATE == STOPPED) {
       if (deltaAngle > dc.turnThreshold) {
+        sim.turningTimeLeft = deltaAngle / dc.angularSpeed;
         sim.CURRENT_STATE = TURNING;
       }
       else {
+        sim.CURRENT_DIR = dirToFire;
         sim.CURRENT_STATE = ACCELERATING;
       }
     }
     else if (sim.CURRENT_STATE == TURNING) {
-      dirToFire > sim.CURRENT_DIR ? sim.CURRENT_DIR += dc.angularSpeed* dc.simTimeStep
-                                  : sim.CURRENT_DIR -= dc.angularSpeed * dc.simTimeStep;
+      const float turnDelta = normalizeAngle(dirToFire - sim.CURRENT_DIR);
+      const float turnRate = dc.angularSpeed * dc.simTimeStep;
 
+      sim.CURRENT_DIR += (turnDelta > 0.0f ? turnRate : -turnRate);
       sim.turningTimeLeft -= dc.simTimeStep;
 
       if (sim.turningTimeLeft <= 0) {
@@ -553,30 +536,34 @@ int main()
       }
     }
     else if (sim.CURRENT_STATE == ACCELERATING) {
-      sim.CURRENT_SPEED += droneAcceleration * dc.simTimeStep;
-
-      if (sim.CURRENT_SPEED >= dc.v0) {
-        sim.CURRENT_SPEED = dc.v0;
-        sim.CURRENT_STATE = MOVING;
+      if (deltaAngle > dc.turnThreshold) {
+        sim.updateDroneXY();
+        sim.CURRENT_STATE = DECELERATING;
       }
-      sim.updateDroneXY();
+      else {
+        sim.CURRENT_DIR = dirToFire;
+        sim.CURRENT_SPEED += droneAcceleration * dc.simTimeStep;
+
+        if (sim.CURRENT_SPEED >= dc.v0) {
+          sim.CURRENT_SPEED = dc.v0;
+          sim.CURRENT_STATE = MOVING;
+        }
+        sim.updateDroneXY();
+      }
     }
     else if (sim.CURRENT_STATE == MOVING) {
-      sim.updateDroneXY();
-    }
-
-    if (length(sim.CURRENT_POS - bestFire) <= dc.hitRadius && !sim.needsManeuver) {
-      sim.reachedFirePoint = true;
+      if (deltaAngle > dc.turnThreshold) {
+        sim.updateDroneXY();
+        sim.CURRENT_STATE = DECELERATING;
+      }
+      else {
+        sim.CURRENT_DIR = dirToFire;
+        sim.updateDroneXY();
+      }
     }
 
     DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");
     DEBUG("  target=" << sim.selectedTargetIndex << " state=" << sim.CURRENT_STATE);
-
-    droneXHistory[sim.step] = sim.CURRENT_POS.x;
-    droneYHistory[sim.step] = sim.CURRENT_POS.y;
-    droneDirHistory[sim.step] = sim.CURRENT_DIR;
-    droneStateHistory[sim.step] = sim.CURRENT_STATE;
-    droneSelectedTargetHistory[sim.step] = sim.selectedTargetIndex;
 
     const Coord dir = {cosf(sim.CURRENT_DIR), sinf(sim.CURRENT_DIR)};
     const InterpolationIndex bombDropIndex = getInterpolationIndex(sim.CURRENT_TIME + bombFlightTime, dc.arrayTimeStep, TARGET_MOVES_COUNT);
@@ -596,8 +583,6 @@ int main()
     sim.step++;
   }
 
-  writeSimulation(droneXHistory, droneYHistory, droneDirHistory, droneStateHistory, droneSelectedTargetHistory, sim.step);
-
   writeSimulationJson(sim.step, stepsLog);
 
   LOG("Simulation complete. Steps: " << sim.step);
@@ -613,3 +598,5 @@ int main()
 
   return 0;
 }
+
+// NOLINTEND

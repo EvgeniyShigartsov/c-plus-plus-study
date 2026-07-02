@@ -26,8 +26,14 @@ std::unique_ptr<IBallisticSolver> createSolver(SolverType type,
                                                const DroneConfig& droneConfig)
 {
   switch (type) {
-    case SolverType::ANALYTICAL:
-      return std::make_unique<AnalyticalSolver>();
+    case SolverType::ANALYTICAL: {
+      auto solver = std::make_unique<AnalyticalSolver>(bomb, droneConfig);
+      if (!solver->isLoadSuccess()) {
+        LOG("AnalyticalSolver load error.");
+        return nullptr;
+      }
+      return solver;
+    }
     case SolverType::TABLE: {
       auto solver = std::make_unique<TableSolver>(tableFilePath, bomb, droneConfig);
 

@@ -8,6 +8,7 @@
 #include "DronePhysics.hpp"
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
+#include "interfaces/IConfigLoader.hpp"
 #include "third_party/json.hpp"
 #include "types.hpp"
 #include "Logger.hpp"

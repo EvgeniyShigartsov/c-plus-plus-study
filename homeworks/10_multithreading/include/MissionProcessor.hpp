@@ -1,14 +1,14 @@
 #pragma once
 #include <atomic>
 #include <memory>
-#include <thread>
 #include <vector>
 #include "DronePhysics.hpp"
 #include "interfaces/IDroneState.hpp"
 #include "types.hpp"
-#include "interfaces/IBallisticSolver.hpp"
-#include "interfaces/ITargetProvider.hpp"
-#include "interfaces/IConfigLoader.hpp"
+
+class IConfigLoader;
+class IBallisticSolver;
+class ITargetProvider;
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class MissionProcessor {

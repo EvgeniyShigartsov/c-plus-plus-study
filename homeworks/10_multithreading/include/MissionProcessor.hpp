@@ -21,7 +21,6 @@ private:
   DroneConfig droneInitialConfig{};
   float bombFlightTime = 0.0f;
   float h = 0.0f;
-  float droneAcceleration = 0.0f;  // TODO: Remove it when sim.droneAcceleration used
   int targetsCount = 0;
   std::unique_ptr<IDroneState> currentState;
 
@@ -30,8 +29,6 @@ private:
   std::atomic<bool> startFlag{false};
   std::atomic<bool> stopFlag{false};
   std::atomic<bool> threadReady{false};
-
-  void syncSimulationWithDronePhysics();
 
 public:
   MissionProcessor(std::shared_ptr<ITargetProvider> provider,

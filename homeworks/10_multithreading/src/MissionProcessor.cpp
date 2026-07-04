@@ -33,10 +33,8 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider,
   h = ballisticSolver->get_h();
   ballisticSolver->isLoadSuccess();
 
-  droneAcceleration = powf(sim.dc.v0, 2) / (2 * sim.dc.accelerationPath);  // (a)
   targetsCount = targetProvider->getTargetCount();
 
-  syncSimulationWithDronePhysics();
   currentState = std::make_unique<StateStopped>();
 
   return true;
@@ -93,7 +91,7 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
         timeToChangeTarget += currentState->getManeuverReadyTime(sim);
 
         // Додавання часу на розгін
-        timeToChangeTarget += sim.dc.v0 / droneAcceleration;
+        timeToChangeTarget += sim.dc.v0 / sim.droneAcceleration;
       }
       totalTime += timeToChangeTarget;
     }
@@ -187,7 +185,6 @@ void MissionProcessor::changeSolver(std::unique_ptr<IBallisticSolver> solver)
 void MissionProcessor::reset()
 {
   sim = Simulation(droneInitialConfig);
-  syncSimulationWithDronePhysics();
 }
 
 std::vector<SimStep> MissionProcessor::getStepsLog()
@@ -227,16 +224,6 @@ void MissionProcessor::stop()
 bool MissionProcessor::isThreadReady() const
 {
   return threadReady;
-}
-
-void MissionProcessor::syncSimulationWithDronePhysics()
-{
-  const DroneTelemetry actualTelemetry = dronePhysics->getTelemetry();
-
-  sim.CURRENT_POS = actualTelemetry.pos;
-  sim.CURRENT_DIR = actualTelemetry.dir;
-  sim.CURRENT_SPEED = actualTelemetry.speed;
-  sim.timeSecSinceStart = actualTelemetry.timeSinceStart;
 }
 
 MissionProcessor::~MissionProcessor() = default;

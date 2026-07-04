@@ -15,8 +15,6 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateStopped::execute(Simu
   };
 
   if (sim.deltaAngle > sim.dc.turnThreshold) {
-    sim.turningTimeLeft = sim.deltaAngle / sim.dc.angularSpeed;
-
     command.state = DroneState::Turning;
     return {std::make_unique<StateTurning>(), command};
   }

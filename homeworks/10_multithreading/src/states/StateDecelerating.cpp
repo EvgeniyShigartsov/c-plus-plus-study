@@ -15,7 +15,6 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateDecelerating::execute
 
   if (sim.CURRENT_SPEED <= 0) {
     sim.CURRENT_SPEED = 0.0f;
-    sim.turningTimeLeft = sim.deltaAngle / sim.dc.angularSpeed;
 
     command.state = DroneState::Stopped;
     return {std::make_unique<StateStopped>(), command};

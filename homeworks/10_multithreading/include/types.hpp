@@ -72,7 +72,6 @@ struct Simulation {
   float CURRENT_SPEED = 0.0f;
   float CURRENT_DIR = 0.0f;
   Coord maneuverPoint = {0.0f, 0.0f};
-  float turningTimeLeft = 0.0f;
 
   int selectedTargetIndex = 0;
   int prevSelectedTargetIndex = 0;

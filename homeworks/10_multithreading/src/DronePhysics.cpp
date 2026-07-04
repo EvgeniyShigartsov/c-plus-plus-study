@@ -85,7 +85,7 @@ void DronePhysics::run()
   LOG("DronePhysics thread ready");
 
   while (!startFlag) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));  // чекаємо start()
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
   LOG("DronePhysics started");

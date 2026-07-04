@@ -1,7 +1,6 @@
 #pragma once
 #include <atomic>
 #include <mutex>
-#include <optional>
 #include "types.hpp"
 #include "ThreadSafeQueue.hpp"
 
@@ -18,7 +17,7 @@ public:
   bool isThreadReady() const;
 
   DroneTelemetry getTelemetry();
-  std::optional<DroneTelemetry> tryPopSnapshot();
+  DroneTelemetry waitSnapshot();
 
 private:
   Coord CURRENT_POS;

@@ -141,9 +141,17 @@ DroneTelemetry DronePhysics::getTelemetry()
   };
 }
 
-std::optional<DroneTelemetry> DronePhysics::tryPopSnapshot()
+DroneTelemetry DronePhysics::waitSnapshot()
 {
-  return snapshotQueue.tryPop();
+  while (true) {
+    const auto snapshot = snapshotQueue.tryPop();
+
+    if (snapshot.has_value()) {
+      return snapshot.value();
+    }
+
+    std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
+  }
 }
 
 void DronePhysics::updateDroneXY(const float deltaTime)

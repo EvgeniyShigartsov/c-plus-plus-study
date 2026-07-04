@@ -1,5 +1,4 @@
 #include <memory>
-#include <optional>
 #include <vector>
 #include <thread>
 
@@ -207,14 +206,7 @@ void MissionProcessor::run()
   LOG("MissionProcessor started");
 
   while (hasNext() && !stopFlag) {
-    const std::optional<DroneTelemetry> snapshot = dronePhysics->tryPopSnapshot();
-
-    if (snapshot.has_value()) {
-      step(snapshot.value());
-    }
-    else {
-      std::this_thread::sleep_for(std::chrono::duration<float>(sim.dc.physicsTimeStep / sim.dc.timeScale));
-    }
+    step(dronePhysics->waitSnapshot());
   }
 
   LOG("MissionProcessor stopped");

@@ -134,7 +134,9 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
     actualDist = bestFire;
   }
 
-  if (length(sim.CURRENT_POS - bestFire) <= sim.dc.hitRadius && !sim.needsManeuver) {
+  // Скид, коли відстань до точки скиду менша за один крок польоту або hitRadius
+  const float fireThreshold = fminf(sim.dc.hitRadius, sim.dc.v0 * sim.dc.simTimeStep);
+  if (length(sim.CURRENT_POS - bestFire) <= fireThreshold && !sim.needsManeuver) {
     sim.reachedFirePoint = true;
   }
 

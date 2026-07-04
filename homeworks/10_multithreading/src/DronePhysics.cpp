@@ -67,6 +67,16 @@ void DronePhysics::stepPhysics(const float deltaTime)
       timeSinceStart += deltaTime;
       break;
   }
+
+  if (timeSinceStart >= nextSnapshotTime - deltaTime * 0.5f) {
+    snapshotQueue.push({
+      .pos = CURRENT_POS,
+      .speed = CURRENT_SPEED,
+      .dir = CURRENT_DIR,
+      .timeSinceStart = timeSinceStart,
+    });
+    nextSnapshotTime += config.simTimeStep;
+  }
 }
 
 void DronePhysics::run()
@@ -80,16 +90,26 @@ void DronePhysics::run()
 
   LOG("DronePhysics started");
 
-  // Інтеграція фактично минулого реального часу × timeScale, замість фіксованого
-  // physicsTimeStep. Це знадобилось щоб прибрати дрейф годинника дрона від неточних коротких снів,
-  // timeSinceStart стає більш точним (реальний час × timeScale) і збігається з ритмом провайдера.
+  snapshotQueue.push(getTelemetry());
+  nextSnapshotTime = config.simTimeStep;
+
   auto last = std::chrono::steady_clock::now();
+  float accumulator = 0.0f;
   while (!stopFlag) {
     const auto now = std::chrono::steady_clock::now();
-    const float dt = std::chrono::duration<float>(now - last).count() * config.timeScale;
+    accumulator += std::chrono::duration<float>(now - last).count() * config.timeScale;
     last = now;
 
-    stepPhysics(dt);
+    const float maxCatchUp = 1.0f;
+    if (accumulator > maxCatchUp) {
+      accumulator = maxCatchUp;
+    }
+
+    while (accumulator >= config.physicsTimeStep) {
+      stepPhysics(config.physicsTimeStep);
+      accumulator -= config.physicsTimeStep;
+    }
+
     std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
   }
 
@@ -119,6 +139,11 @@ DroneTelemetry DronePhysics::getTelemetry()
     .dir = CURRENT_DIR,
     .timeSinceStart = timeSinceStart,
   };
+}
+
+std::optional<DroneTelemetry> DronePhysics::tryPopSnapshot()
+{
+  return snapshotQueue.tryPop();
 }
 
 void DronePhysics::updateDroneXY(const float deltaTime)

@@ -1,4 +1,5 @@
 #include <memory>
+#include <optional>
 #include <vector>
 #include <thread>
 
@@ -47,9 +48,12 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider,
   return sim.step <= MAX_STEPS && !sim.reachedFirePoint;
 }
 
-SimStep MissionProcessor::step()
+SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
 {
-  syncSimulationWithDronePhysics();
+  sim.CURRENT_POS = telemetry.pos;
+  sim.CURRENT_DIR = telemetry.dir;
+  sim.CURRENT_SPEED = telemetry.speed;
+  sim.timeSecSinceStart = telemetry.timeSinceStart;
 
   int bestTarget = 0;
   float bestTime = -1.0f;
@@ -203,8 +207,14 @@ void MissionProcessor::run()
   LOG("MissionProcessor started");
 
   while (hasNext() && !stopFlag) {
-    step();
-    std::this_thread::sleep_for(std::chrono::duration<float>(sim.dc.simTimeStep / sim.dc.timeScale));
+    const std::optional<DroneTelemetry> snapshot = dronePhysics->tryPopSnapshot();
+
+    if (snapshot.has_value()) {
+      step(snapshot.value());
+    }
+    else {
+      std::this_thread::sleep_for(std::chrono::duration<float>(sim.dc.physicsTimeStep / sim.dc.timeScale));
+    }
   }
 
   LOG("MissionProcessor stopped");

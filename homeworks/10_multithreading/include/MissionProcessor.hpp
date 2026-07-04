@@ -39,7 +39,7 @@ public:
                    std::unique_ptr<IBallisticSolver> solver);
   [[nodiscard]] bool init(std::unique_ptr<IConfigLoader> configLoader);
   [[nodiscard]] bool hasNext() const;
-  SimStep step();
+  SimStep step(const DroneTelemetry& telemetry);
   void changeSolver(std::unique_ptr<IBallisticSolver> solver);
   void reset();
   std::vector<SimStep> getStepsLog();

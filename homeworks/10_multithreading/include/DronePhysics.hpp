@@ -16,7 +16,7 @@ public:
   void stop();
   bool isThreadReady() const;
 
-  DroneTelemetry getTelemetry();
+  DroneTelemetry getTelemetry() const;
   DroneTelemetry waitSnapshot();
 
 private:
@@ -32,7 +32,7 @@ private:
   ThreadSafeQueue<DroneTelemetry> snapshotQueue;
   float nextSnapshotTime = 0.0f;
   DroneCommand currentCommand{};
-  std::mutex stateMutex;
+  mutable std::mutex stateMutex;
   std::atomic<bool> stopFlag{false};
   std::atomic<bool> startFlag{false};
   std::atomic<bool> threadReady{false};

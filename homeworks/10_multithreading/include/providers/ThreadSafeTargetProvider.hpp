@@ -10,9 +10,9 @@ class ThreadSafeTargetProvider : public ITargetProvider {
 public:
   ThreadSafeTargetProvider(const std::string& pathToTargets, const DroneConfig& config);
 
-  int getTargetCount() override;
-  Target getTarget(const int targetIndex) override;
-  bool isLoadSucces() override;
+  int getTargetCount() const override;
+  Target getTarget(const int targetIndex) const override;
+  bool isLoadSucces() const override;
 
   bool isThreadReady() const override;
   void start() override;
@@ -38,7 +38,8 @@ private:
   std::atomic<bool> stopFlag{false};
   std::atomic<bool> threadReady{false};
 
-  std::mutex targetsMutex;
+  mutable std::mutex targetsMutex;
 
   void advance();
+  void updateCurrentTargets(const int nodeIndex);
 };

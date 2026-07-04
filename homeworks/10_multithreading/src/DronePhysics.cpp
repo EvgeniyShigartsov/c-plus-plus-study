@@ -129,7 +129,7 @@ bool DronePhysics::isThreadReady() const
   return threadReady;
 }
 
-DroneTelemetry DronePhysics::getTelemetry()
+DroneTelemetry DronePhysics::getTelemetry() const
 {
   std::lock_guard<std::mutex> lock(stateMutex);
 

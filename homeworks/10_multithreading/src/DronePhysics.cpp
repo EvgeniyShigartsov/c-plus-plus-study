@@ -28,52 +28,51 @@ void DronePhysics::stepPhysics(const float deltaTime)
     currentCommand = cmd.value();
   }
 
-  std::lock_guard<std::mutex> lock(stateMutex);
+  Coord newPos = CURRENT_POS;
+  float newSpeed = CURRENT_SPEED;
+  float newDir = CURRENT_DIR;
+  const float newTime = timeSinceStart + deltaTime;
+
   switch (currentCommand.state) {
     case DroneState::Stopped:
-      rotateTowards(currentCommand.targetDir, deltaTime);
-      timeSinceStart += deltaTime;
+      newDir = rotateToward(CURRENT_DIR, currentCommand.targetDir, config.angularSpeed, deltaTime);
       break;
 
     case DroneState::Turning:
-      CURRENT_DIR += currentCommand.angleSpeed * deltaTime;
-      timeSinceStart += deltaTime;
+      newDir = CURRENT_DIR + currentCommand.angleSpeed * deltaTime;
       break;
 
     case DroneState::Accelerating:
-      updateDroneXY(deltaTime);
-
-      rotateTowards(currentCommand.targetDir, deltaTime);
-      CURRENT_SPEED += droneAcceleration * deltaTime;
-      if (CURRENT_SPEED >= config.v0) {
-        CURRENT_SPEED = config.v0;
-      }
-      timeSinceStart += deltaTime;
+      newPos = movePos(CURRENT_POS, CURRENT_DIR, CURRENT_SPEED, deltaTime);
+      newDir = rotateToward(CURRENT_DIR, currentCommand.targetDir, config.angularSpeed, deltaTime);
+      newSpeed = fminf(CURRENT_SPEED + droneAcceleration * deltaTime, config.v0);
       break;
 
     case DroneState::Moving:
-      rotateTowards(currentCommand.targetDir, deltaTime);
-      updateDroneXY(deltaTime);
-      timeSinceStart += deltaTime;
+      newDir = rotateToward(CURRENT_DIR, currentCommand.targetDir, config.angularSpeed, deltaTime);
+      newPos = movePos(CURRENT_POS, newDir, CURRENT_SPEED, deltaTime);
       break;
 
     case DroneState::Decelerating:
-      updateDroneXY(deltaTime);
-
-      CURRENT_SPEED -= droneAcceleration * deltaTime;
-      if (CURRENT_SPEED <= 0.0f) {
-        CURRENT_SPEED = 0.0f;
-      }
-      timeSinceStart += deltaTime;
+      newPos = movePos(CURRENT_POS, CURRENT_DIR, CURRENT_SPEED, deltaTime);
+      newSpeed = fmaxf(CURRENT_SPEED - droneAcceleration * deltaTime, 0.0f);
       break;
   }
 
-  if (timeSinceStart >= nextSnapshotTime - deltaTime * 0.5f) {
+  {
+    std::lock_guard<std::mutex> lock(stateMutex);
+    CURRENT_POS = newPos;
+    CURRENT_SPEED = newSpeed;
+    CURRENT_DIR = newDir;
+    timeSinceStart = newTime;
+  }
+
+  if (newTime >= nextSnapshotTime - deltaTime * 0.5f) {
     snapshotQueue.push({
-      .pos = CURRENT_POS,
-      .speed = CURRENT_SPEED,
-      .dir = CURRENT_DIR,
-      .timeSinceStart = timeSinceStart,
+      .pos = newPos,
+      .speed = newSpeed,
+      .dir = newDir,
+      .timeSinceStart = newTime,
     });
     nextSnapshotTime += config.simTimeStep;
   }
@@ -151,27 +150,5 @@ DroneTelemetry DronePhysics::waitSnapshot()
     }
 
     std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
-  }
-}
-
-void DronePhysics::updateDroneXY(const float deltaTime)
-{
-  CURRENT_POS = CURRENT_POS + Coord{cosf(CURRENT_DIR), sinf(CURRENT_DIR)} * CURRENT_SPEED * deltaTime;
-}
-
-// Плавна зміна курсу, не швидше за angularSpeed.
-void DronePhysics::rotateTowards(const float targetDir, const float deltaTime)
-{
-  const float diff = normalizeAngle(targetDir - CURRENT_DIR);
-  const float maxStep = config.angularSpeed * deltaTime;
-
-  if (diff > maxStep) {
-    CURRENT_DIR += maxStep;
-  }
-  else if (diff < -maxStep) {
-    CURRENT_DIR -= maxStep;
-  }
-  else {
-    CURRENT_DIR = targetDir;
   }
 }

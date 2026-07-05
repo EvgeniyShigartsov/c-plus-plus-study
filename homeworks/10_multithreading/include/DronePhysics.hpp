@@ -36,7 +36,4 @@ private:
   std::atomic<bool> stopFlag{false};
   std::atomic<bool> startFlag{false};
   std::atomic<bool> threadReady{false};
-
-  void updateDroneXY(const float deltaTime);
-  void rotateTowards(const float targetDir, const float deltaTime);
 };

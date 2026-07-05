@@ -44,4 +44,23 @@ float getDirectionFromTo(const Coord& from, const Coord& to)
   return atan2f(to.y - from.y, to.x - from.x);
 }
 
+Coord movePos(const Coord& pos, const float dir, const float speed, const float deltaTime)
+{
+  return pos + Coord{cosf(dir), sinf(dir)} * speed * deltaTime;
+}
+
+float rotateToward(const float currentDir, const float targetDir, const float angularSpeed, const float deltaTime)
+{
+  const float diff = normalizeAngle(targetDir - currentDir);
+  const float maxStep = angularSpeed * deltaTime;
+
+  if (diff > maxStep) {
+    return currentDir + maxStep;
+  }
+  if (diff < -maxStep) {
+    return currentDir - maxStep;
+  }
+  return targetDir;
+}
+
 // NOLINTEND(readability-identifier-length)

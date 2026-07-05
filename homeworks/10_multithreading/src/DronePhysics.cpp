@@ -28,6 +28,7 @@ void DronePhysics::stepPhysics(const float deltaTime)
     currentCommand = cmd.value();
   }
 
+  // Новий стан у локальних змінних, поза замком
   Coord newPos = CURRENT_POS;
   float newSpeed = CURRENT_SPEED;
   float newDir = CURRENT_DIR;
@@ -67,7 +68,11 @@ void DronePhysics::stepPhysics(const float deltaTime)
     timeSinceStart = newTime;
   }
 
-  if (newTime >= nextSnapshotTime - deltaTime * 0.5f) {
+  // Знімок фізики на кожній межі кратній simTimeStep, місія логуватиме саме їх,
+  // тож dt у логах буде рівним. halfStep - timeSinceStart через похибку float
+  // точно на межу не лягає — ловимо найближчий крок.
+  const float halfStep = deltaTime * 0.5f;
+  if (newTime >= nextSnapshotTime - halfStep) {
     snapshotQueue.push({
       .pos = newPos,
       .speed = newSpeed,
@@ -89,21 +94,28 @@ void DronePhysics::run()
 
   LOG("DronePhysics started");
 
+  // Початковий знімок, стартова позиція дрона.
   snapshotQueue.push(getTelemetry());
   nextSnapshotTime = config.simTimeStep;
 
   auto last = std::chrono::steady_clock::now();
+
+  // Модельний час який фізика має відкрокувати
   float accumulator = 0.0f;
   while (!stopFlag) {
+    // Додавання до модельного часу фактично минулий час (реальний час x timeScale),
+    // для захисту від неточних снів
     const auto now = std::chrono::steady_clock::now();
     accumulator += std::chrono::duration<float>(now - last).count() * config.timeScale;
     last = now;
 
+    // Максимально допустимий модельний час, щоб у випадку чого не наздоганяти "лавиною кроків"
     const float maxCatchUp = 1.0f;
     if (accumulator > maxCatchUp) {
       accumulator = maxCatchUp;
     }
 
+    // Крокуємо кроки фізики по заданому кроку фізики на весь модельний час який накопичився
     while (accumulator >= config.physicsTimeStep) {
       stepPhysics(config.physicsTimeStep);
       accumulator -= config.physicsTimeStep;
@@ -140,6 +152,7 @@ DroneTelemetry DronePhysics::getTelemetry() const
   };
 }
 
+// Безпечно чекаємо актуального знімку фізики, бо поки міся чекає фізика точно робить знімки
 DroneTelemetry DronePhysics::waitSnapshot()
 {
   while (true) {

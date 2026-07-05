@@ -3,11 +3,6 @@
 
 // NOLINTBEGIN(readability-identifier-length)
 
-Coord interpolatePos(const float frac, const Coord& currentTargetPos, const Coord& nextTargetPos)
-{
-  return currentTargetPos + (nextTargetPos - currentTargetPos) * frac;
-}
-
 float length(const Coord& coord)
 {
   return std::hypot(coord.x, coord.y);
@@ -29,15 +24,6 @@ float normalizeAngle(float angle)
   }
   return angle;
 };
-
-InterpolationIndex getInterpolationIndex(const float t, const float arrayTimeStep, const int targetMovesCount)
-{
-  const int idx = (int)(floorf(t / arrayTimeStep)) % targetMovesCount;
-  const int next = (idx + 1) % targetMovesCount;
-  const float frac = (t - static_cast<float>(idx) * arrayTimeStep) / arrayTimeStep;
-
-  return {frac, idx, next};
-}
 
 float getDirectionFromTo(const Coord& from, const Coord& to)
 {

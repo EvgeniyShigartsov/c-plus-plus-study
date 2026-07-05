@@ -95,14 +95,6 @@ struct Simulation {
     , dc(droneConfig)
     , droneAcceleration(powf(dc.v0, 2) / (2 * dc.accelerationPath))  // (a)
     {};
-
-  void updateDroneXY() { CURRENT_POS = CURRENT_POS + Coord{float(cosf(CURRENT_DIR)), sinf(CURRENT_DIR)} * CURRENT_SPEED * dc.simTimeStep; }
-};
-
-struct InterpolationIndex {
-  float frac;
-  int idx;
-  int next;
 };
 
 struct Target {

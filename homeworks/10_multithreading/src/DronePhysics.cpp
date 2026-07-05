@@ -69,8 +69,8 @@ void DronePhysics::stepPhysics(const float deltaTime)
   }
 
   // Знімок фізики на кожній межі кратній simTimeStep, місія логуватиме саме їх,
-  // тож dt у логах буде рівним. halfStep - timeSinceStart через похибку float
-  // точно на межу не лягає — ловимо найближчий крок.
+  // тож dt у логах буде рівним. halfStep: timeSinceStart через похибку float
+  // точно на межу не лягає, тому ловиться найближчий крок.
   const float halfStep = deltaTime * 0.5f;
   if (newTime >= nextSnapshotTime - halfStep) {
     snapshotQueue.push({

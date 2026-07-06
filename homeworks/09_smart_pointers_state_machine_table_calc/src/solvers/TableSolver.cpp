@@ -7,15 +7,33 @@ TableSolver::TableSolver(const std::string& tablePath, BombParams bomb, DroneCon
   , droneConfig(std::move(droneConfig))
   , isLoadedSuccesful(table.load(tablePath))
 {
+  if (isLoadedSuccesful) {
+    const auto result = table.lookup(droneConfig.altitude, droneConfig.v0, ammo.mass, ammo.drag, ammo.lift);
+    bombFlightTime = result.t;
+    h = result.hDist;
+  }
 }
 
 Coord TableSolver::solve(const Coord targetCoord, const Coord droneCoord, const float /* hDist */)
 {
-  const auto result = table.lookup(droneConfig.altitude, droneConfig.v0, ammo.mass, ammo.drag, ammo.lift);
-
   const Coord delta = targetCoord - droneCoord;
 
-  return targetCoord - normalizeCoord(delta) * result.hDist;
+  return targetCoord - normalizeCoord(delta) * h;
+}
+
+float TableSolver::getBombFlightTime()
+{
+  return bombFlightTime;
+}
+
+float TableSolver::get_h()
+{
+  return h;
+}
+
+bool TableSolver::isLoadSuccess()
+{
+  return isLoadedSuccesful;
 }
 
 bool TableSolver::isLoadedSucces() const

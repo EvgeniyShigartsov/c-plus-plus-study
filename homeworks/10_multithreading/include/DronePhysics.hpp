@@ -16,7 +16,8 @@ public:
   void stop();
   bool isThreadReady() const;
 
-  DroneTelemetry getTelemetry();
+  DroneTelemetry getTelemetry() const;
+  DroneTelemetry waitSnapshot();
 
 private:
   Coord CURRENT_POS;
@@ -28,12 +29,11 @@ private:
   float droneAcceleration = 0.0f;
 
   ThreadSafeQueue<DroneCommand> commandQueue;
+  ThreadSafeQueue<DroneTelemetry> snapshotQueue;
+  float nextSnapshotTime = 0.0f;
   DroneCommand currentCommand{};
-  std::mutex stateMutex;
+  mutable std::mutex stateMutex;
   std::atomic<bool> stopFlag{false};
   std::atomic<bool> startFlag{false};
   std::atomic<bool> threadReady{false};
-
-  void updateDroneXY(const float deltaTime);
-  void rotateTowards(const float targetDir, const float deltaTime);
 };

@@ -28,44 +28,58 @@ void DronePhysics::stepPhysics(const float deltaTime)
     currentCommand = cmd.value();
   }
 
-  std::lock_guard<std::mutex> lock(stateMutex);
+  // Новий стан у локальних змінних, поза замком
+  Coord newPos = CURRENT_POS;
+  float newSpeed = CURRENT_SPEED;
+  float newDir = CURRENT_DIR;
+  const float newTime = timeSinceStart + deltaTime;
+
   switch (currentCommand.state) {
     case DroneState::Stopped:
-      rotateTowards(currentCommand.targetDir, deltaTime);
-      timeSinceStart += deltaTime;
+      newDir = rotateToward(CURRENT_DIR, currentCommand.targetDir, config.angularSpeed, deltaTime);
       break;
 
     case DroneState::Turning:
-      CURRENT_DIR += currentCommand.angleSpeed * deltaTime;
-      timeSinceStart += deltaTime;
+      newDir = CURRENT_DIR + currentCommand.angleSpeed * deltaTime;
       break;
 
     case DroneState::Accelerating:
-      updateDroneXY(deltaTime);
-
-      rotateTowards(currentCommand.targetDir, deltaTime);
-      CURRENT_SPEED += droneAcceleration * deltaTime;
-      if (CURRENT_SPEED >= config.v0) {
-        CURRENT_SPEED = config.v0;
-      }
-      timeSinceStart += deltaTime;
+      newPos = movePos(CURRENT_POS, CURRENT_DIR, CURRENT_SPEED, deltaTime);
+      newDir = rotateToward(CURRENT_DIR, currentCommand.targetDir, config.angularSpeed, deltaTime);
+      newSpeed = fminf(CURRENT_SPEED + droneAcceleration * deltaTime, config.v0);
       break;
 
     case DroneState::Moving:
-      rotateTowards(currentCommand.targetDir, deltaTime);
-      updateDroneXY(deltaTime);
-      timeSinceStart += deltaTime;
+      newDir = rotateToward(CURRENT_DIR, currentCommand.targetDir, config.angularSpeed, deltaTime);
+      newPos = movePos(CURRENT_POS, newDir, CURRENT_SPEED, deltaTime);
       break;
 
     case DroneState::Decelerating:
-      updateDroneXY(deltaTime);
-
-      CURRENT_SPEED -= droneAcceleration * deltaTime;
-      if (CURRENT_SPEED <= 0.0f) {
-        CURRENT_SPEED = 0.0f;
-      }
-      timeSinceStart += deltaTime;
+      newPos = movePos(CURRENT_POS, CURRENT_DIR, CURRENT_SPEED, deltaTime);
+      newSpeed = fmaxf(CURRENT_SPEED - droneAcceleration * deltaTime, 0.0f);
       break;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(stateMutex);
+    CURRENT_POS = newPos;
+    CURRENT_SPEED = newSpeed;
+    CURRENT_DIR = newDir;
+    timeSinceStart = newTime;
+  }
+
+  // Знімок фізики на кожній межі кратній simTimeStep, місія логуватиме саме їх,
+  // тож dt у логах буде рівним. halfStep: timeSinceStart через похибку float
+  // точно на межу не лягає, тому ловиться найближчий крок.
+  const float halfStep = deltaTime * 0.5f;
+  if (newTime >= nextSnapshotTime - halfStep) {
+    snapshotQueue.push({
+      .pos = newPos,
+      .speed = newSpeed,
+      .dir = newDir,
+      .timeSinceStart = newTime,
+    });
+    nextSnapshotTime += config.simTimeStep;
   }
 }
 
@@ -75,21 +89,38 @@ void DronePhysics::run()
   LOG("DronePhysics thread ready");
 
   while (!startFlag) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));  // чекаємо start()
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
   LOG("DronePhysics started");
 
-  // Інтеграція фактично минулого реального часу × timeScale, замість фіксованого
-  // physicsTimeStep. Це знадобилось щоб прибрати дрейф годинника дрона від неточних коротких снів,
-  // timeSinceStart стає більш точним (реальний час × timeScale) і збігається з ритмом провайдера.
+  // Початковий знімок, стартова позиція дрона.
+  snapshotQueue.push(getTelemetry());
+  nextSnapshotTime = config.simTimeStep;
+
   auto last = std::chrono::steady_clock::now();
+
+  // Модельний час який фізика має відкрокувати
+  float accumulator = 0.0f;
   while (!stopFlag) {
+    // Додавання до модельного часу фактично минулий час (реальний час x timeScale),
+    // для захисту від неточних снів
     const auto now = std::chrono::steady_clock::now();
-    const float dt = std::chrono::duration<float>(now - last).count() * config.timeScale;
+    accumulator += std::chrono::duration<float>(now - last).count() * config.timeScale;
     last = now;
 
-    stepPhysics(dt);
+    // Максимально допустимий модельний час, щоб у випадку чого не наздоганяти "лавиною кроків"
+    const float maxCatchUp = 1.0f;
+    if (accumulator > maxCatchUp) {
+      accumulator = maxCatchUp;
+    }
+
+    // Крокуємо кроки фізики по заданому кроку фізики на весь модельний час який накопичився
+    while (accumulator >= config.physicsTimeStep) {
+      stepPhysics(config.physicsTimeStep);
+      accumulator -= config.physicsTimeStep;
+    }
+
     std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
   }
 
@@ -109,7 +140,7 @@ bool DronePhysics::isThreadReady() const
   return threadReady;
 }
 
-DroneTelemetry DronePhysics::getTelemetry()
+DroneTelemetry DronePhysics::getTelemetry() const
 {
   std::lock_guard<std::mutex> lock(stateMutex);
 
@@ -121,24 +152,16 @@ DroneTelemetry DronePhysics::getTelemetry()
   };
 }
 
-void DronePhysics::updateDroneXY(const float deltaTime)
+// Безпечно чекаємо актуального знімку фізики, бо поки міся чекає фізика точно робить знімки
+DroneTelemetry DronePhysics::waitSnapshot()
 {
-  CURRENT_POS = CURRENT_POS + Coord{cosf(CURRENT_DIR), sinf(CURRENT_DIR)} * CURRENT_SPEED * deltaTime;
-}
+  while (true) {
+    const auto snapshot = snapshotQueue.tryPop();
 
-// Плавна зміна курсу, не швидше за angularSpeed.
-void DronePhysics::rotateTowards(const float targetDir, const float deltaTime)
-{
-  const float diff = normalizeAngle(targetDir - CURRENT_DIR);
-  const float maxStep = config.angularSpeed * deltaTime;
+    if (snapshot.has_value()) {
+      return snapshot.value();
+    }
 
-  if (diff > maxStep) {
-    CURRENT_DIR += maxStep;
-  }
-  else if (diff < -maxStep) {
-    CURRENT_DIR -= maxStep;
-  }
-  else {
-    CURRENT_DIR = targetDir;
+    std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
   }
 }

@@ -72,7 +72,6 @@ struct Simulation {
   float CURRENT_SPEED = 0.0f;
   float CURRENT_DIR = 0.0f;
   Coord maneuverPoint = {0.0f, 0.0f};
-  float turningTimeLeft = 0.0f;
 
   int selectedTargetIndex = 0;
   int prevSelectedTargetIndex = 0;
@@ -96,14 +95,6 @@ struct Simulation {
     , dc(droneConfig)
     , droneAcceleration(powf(dc.v0, 2) / (2 * dc.accelerationPath))  // (a)
     {};
-
-  void updateDroneXY() { CURRENT_POS = CURRENT_POS + Coord{float(cosf(CURRENT_DIR)), sinf(CURRENT_DIR)} * CURRENT_SPEED * dc.simTimeStep; }
-};
-
-struct InterpolationIndex {
-  float frac;
-  int idx;
-  int next;
 };
 
 struct Target {

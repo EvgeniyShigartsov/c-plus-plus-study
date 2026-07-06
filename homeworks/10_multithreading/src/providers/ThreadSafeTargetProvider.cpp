@@ -43,22 +43,29 @@ ThreadSafeTargetProvider::ThreadSafeTargetProvider(const std::string& pathToTarg
 
     currentTargets.resize(TARGETS_COUNT);
 
+    updateCurrentTargets(0);
     isSuccessfullyLoaded = true;
-
-    for (int i = 0; i < TARGETS_COUNT; i++) {
-      const int nextIndex = 1;
-      const Coord pos = targetsInTime[i][0];
-      const Coord nextPos = targetsInTime[i][nextIndex];
-      const Coord velocity = (nextPos - pos) / arrayTimeStep;
-      currentTargets[i] = {.pos = pos, .velocity = velocity};
-    }
   }
   catch (const json::exception& parseError) {
     LOG("targets.json parse error: " << parseError.what());
   }
 }
 
-Target ThreadSafeTargetProvider::getTarget(const int targetIndex)
+void ThreadSafeTargetProvider::updateCurrentTargets(const int nodeIndex)
+{
+  std::lock_guard<std::mutex> lock(targetsMutex);
+  for (int i = 0; i < TARGETS_COUNT; i++) {
+    const int nextIndex = (nodeIndex + 1) % TARGET_MOVES_COUNT;
+
+    const Coord pos = targetsInTime[i][nodeIndex];
+    const Coord nextPos = targetsInTime[i][nextIndex];
+    const Coord velocity = (nextPos - pos) / arrayTimeStep;
+
+    currentTargets[i] = {.pos = pos, .velocity = velocity};
+  }
+}
+
+Target ThreadSafeTargetProvider::getTarget(const int targetIndex) const
 {
   std::lock_guard<std::mutex> lock(targetsMutex);
   return currentTargets[targetIndex];
@@ -67,20 +74,10 @@ Target ThreadSafeTargetProvider::getTarget(const int targetIndex)
 void ThreadSafeTargetProvider::advance()
 {
   currentNodeIndex = (currentNodeIndex + 1) % TARGET_MOVES_COUNT;
-
-  std::lock_guard<std::mutex> lock(targetsMutex);
-  for (int i = 0; i < TARGETS_COUNT; i++) {
-    const int nextIndex = (currentNodeIndex + 1) % TARGET_MOVES_COUNT;
-
-    const Coord pos = targetsInTime[i][currentNodeIndex];
-    const Coord nextPos = targetsInTime[i][nextIndex];
-    const Coord velocity = (nextPos - pos) / arrayTimeStep;
-
-    currentTargets[i] = {.pos = pos, .velocity = velocity};
-  }
+  updateCurrentTargets(currentNodeIndex);
 }
 
-bool ThreadSafeTargetProvider::isLoadSucces()
+bool ThreadSafeTargetProvider::isLoadSucces() const
 {
   return isSuccessfullyLoaded;
 }
@@ -117,7 +114,7 @@ void ThreadSafeTargetProvider::run()
   LOG("TargetProvider stopped");
 }
 
-int ThreadSafeTargetProvider::getTargetCount()
+int ThreadSafeTargetProvider::getTargetCount() const
 {
   std::lock_guard<std::mutex> lock(targetsMutex);
   return TARGETS_COUNT;

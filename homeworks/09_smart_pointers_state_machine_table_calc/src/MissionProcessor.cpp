@@ -11,7 +11,6 @@
 #include "MissionProcessor.hpp"
 
 const int MAX_STEPS = 10000;
-const float GRAVITY = 9.81f;
 
 MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver)
   : targetProvider(std::move(provider))
@@ -24,17 +23,17 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
 {
   droneInitialConfig = configLoader->getConfig();
   sim = Simulation(droneInitialConfig);
-  const BombParams bp = configLoader->getAmmoParams();
 
-  const bool IS_BOMB_OK = setBombFlightTime(bp.drag, GRAVITY, bp.mass, bp.lift, sim.dc.v0, sim.dc.altitude, bombFlightTime);
+  bombFlightTime = ballisticSolver->getBombFlightTime();
+  h = ballisticSolver->get_h();
+  ballisticSolver->isLoadSuccess();
 
-  h = get_h(bombFlightTime, bp.drag, GRAVITY, bp.lift, bp.mass, sim.dc.v0);
   droneAcceleration = powf(sim.dc.v0, 2) / (2 * sim.dc.accelerationPath);  // (a)
   targetsCount = targetProvider->getTargetCount();
 
   currentState = std::make_unique<StateStopped>();
 
-  return IS_BOMB_OK;
+  return true;
 }
 
 [[nodiscard]] bool MissionProcessor::hasNext() const

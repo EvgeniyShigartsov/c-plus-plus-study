@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
-project(multithreading CXX)
+project(drone_manage_with_UART_and_auto_drop CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(
-    multithreading
+    drone_manage_with_UART_and_auto_drop
     src/main.cpp
     src/config/ComponentFactory.cpp
     src/config/FileConfigLoader.cpp
@@ -23,5 +23,5 @@ add_executable(
     src/DronePhysics.cpp
     src/MissionProcessor.cpp)
 
-target_include_directories(multithreading PRIVATE include)
-target_compile_options(multithreading PRIVATE -Wall -Wextra -pedantic)
+target_include_directories(drone_manage_with_UART_and_auto_drop PRIVATE include)
+target_compile_options(drone_manage_with_UART_and_auto_drop PRIVATE -Wall -Wextra -pedantic)

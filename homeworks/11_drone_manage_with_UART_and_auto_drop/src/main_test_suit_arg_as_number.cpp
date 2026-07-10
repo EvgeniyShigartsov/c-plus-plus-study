@@ -22,7 +22,7 @@ const std::string AMMO_FILE_PATH = "homeworks/11_drone_manage_with_UART_and_auto
 const std::string TARGETS_FILE_PATH = "homeworks/11_drone_manage_with_UART_and_auto_drop/data/targets.json";
 const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/11_drone_manage_with_UART_and_auto_drop/data/ballistic_table.txt";
 
-const std::string TESTING_DATA_DIR = "homeworks/11_drone_manage_with_UART_and_auto_drop/data/testing_data";
+const std::string TESTING_DATA_DIR = "homeworks/11_drone_manage_with_UART_and_auto_drop/data/testing_data/";
 
 struct TestPaths {
   std::string configPath;

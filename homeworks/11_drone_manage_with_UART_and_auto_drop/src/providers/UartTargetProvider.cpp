@@ -37,19 +37,3 @@ Target UartTargetProvider::getTarget(const int targetIndex) const
   return slots[targetIndex].target;
 }
 
-bool UartTargetProvider::isLoadSucces() const
-{
-  return true;
-}
-
-// Тимчасові заглушки: TODO: оновити ITargetProvider щоб ци методы не були більше потрібні.
-bool UartTargetProvider::isThreadReady() const
-{
-  return true;
-}
-
-void UartTargetProvider::start() {}
-
-void UartTargetProvider::stop() {}
-
-void UartTargetProvider::run() {}

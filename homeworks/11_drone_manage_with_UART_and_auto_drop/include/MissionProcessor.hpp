@@ -1,6 +1,5 @@
 #pragma once
 #include <memory>
-#include <vector>
 #include "interfaces/IDroneState.hpp"
 #include "types.hpp"
 
@@ -21,8 +20,6 @@ private:
   std::unique_ptr<IDroneState> currentState;
   DroneCommand lastCommand{};
 
-  std::vector<SimStep> stepsLog;
-
 public:
   MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver);
   [[nodiscard]] bool init(const DroneConfig& config);
@@ -31,7 +28,6 @@ public:
   DroneCommand getLastCommand() const;
   void changeSolver(std::unique_ptr<IBallisticSolver> solver);
   void reset();
-  std::vector<SimStep> getStepsLog();
 
   virtual ~MissionProcessor();
 };

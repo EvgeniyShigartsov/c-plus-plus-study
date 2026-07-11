@@ -1,5 +1,4 @@
 #include <memory>
-#include <vector>
 
 #include "types.hpp"
 #include "MathUtils.hpp"
@@ -15,7 +14,6 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
   : targetProvider(std::move(provider))
   , ballisticSolver(std::move(solver))
 {
-  stepsLog.reserve(MAX_STEPS);
 }
 
 [[nodiscard]] bool MissionProcessor::init(const DroneConfig& config)
@@ -162,8 +160,6 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
     .timeSecSinceStart = sim.timeSecSinceStart,
   };
 
-  stepsLog.push_back(stepResult);
-
   sim.prevSelectedTargetIndex = sim.selectedTargetIndex;
   sim.CURRENT_TIME += sim.dc.simTimeStep;
   sim.step++;
@@ -180,11 +176,6 @@ void MissionProcessor::reset()
 {
   sim = Simulation(droneInitialConfig);
 }
-
-std::vector<SimStep> MissionProcessor::getStepsLog()
-{
-  return stepsLog;
-};
 
 DroneCommand MissionProcessor::getLastCommand() const
 {

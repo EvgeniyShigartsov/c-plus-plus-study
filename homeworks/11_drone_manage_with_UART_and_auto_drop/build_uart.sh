@@ -12,7 +12,8 @@ g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
     src/utils/MathUtils.cpp \
     src/MissionProcessor.cpp \
     src/DronePhysics.cpp \
-    src/solvers/AnalyticalSolver.cpp \
+    src/solvers/TableSolver.cpp \
+    src/BallisticTable.cpp \
     src/states/StateAccelerating.cpp \
     src/states/StateDecelerating.cpp \
     src/states/StateMoving.cpp \
@@ -20,6 +21,6 @@ g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
     src/states/StateTurning.cpp \
     -Iinclude \
     -lgpiod \
-    -o hm11_uart_autopilot
+    -o script.out
 
-echo "OK: $(pwd)/hm11_uart_autopilot"
+echo "OK: $(pwd)/script.out"

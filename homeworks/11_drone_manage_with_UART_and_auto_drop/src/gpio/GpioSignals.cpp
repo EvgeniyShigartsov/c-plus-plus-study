@@ -57,6 +57,6 @@ void GpioSignals::pulseDrop()
   dropDone = true;
 
   gpiod_line_set_value(dropLine, 1);  // імпульс скиду
-  usleep(80000);
+  usleep(2000000);
   gpiod_line_set_value(dropLine, 0);
 }

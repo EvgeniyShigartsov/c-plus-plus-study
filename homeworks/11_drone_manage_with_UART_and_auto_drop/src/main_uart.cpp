@@ -11,9 +11,11 @@
 #include "gpio/GpioSignals.hpp"
 #include "link/UartLink.hpp"
 #include "providers/UartTargetProvider.hpp"
-#include "solvers/AnalyticalSolver.hpp"
+#include "solvers/TableSolver.hpp"
 #include "third_party/drone_link.h"
 #include "types.hpp"
+
+const std::string BALLISTIC_TABLE_FILE_PATH = "data/ballistic_table.txt";
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,cppcoreguidelines-avoid-c-arrays)
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -179,10 +181,10 @@ int main(int argc, char* argv[])
     targetProvider->update(static_cast<int>(i), initialTargets[i], firstTimeSec);
   }
 
-  auto solver = std::make_unique<AnalyticalSolver>(bombParams, droneConfig);
+  auto solver = std::make_unique<TableSolver>(BALLISTIC_TABLE_FILE_PATH, bombParams, droneConfig);
 
   if (!solver->isLoadSuccess()) {
-    std::cerr << "ballistic solver init failed\n";
+    std::cerr << "ballistic table load failed: " << BALLISTIC_TABLE_FILE_PATH << " (запускати з теки домашки)\n";
     return 1;
   }
 

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "gpio/GpioSignals.hpp"
 #include "link/UartLink.hpp"
 #include "third_party/drone_link.h"
 
@@ -93,7 +94,15 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  std::cout << "hm11 uart autopilot: listening " << opts.uartDev << "\n";
+  GpioSignals gpio(opts.gpioChip, opts.startLine, opts.dropLine);
+
+  if (!gpio.isOpen()) {
+    return 1;
+  }
+
+  gpio.assertStart();  // START = 1 -> чекер запускає симуляцію
+
+  std::cout << "hm11 uart autopilot: START=1 on " << opts.gpioChip << ", listening " << opts.uartDev << "\n";
 
   dlink::Parser parser;
 

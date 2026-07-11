@@ -10,6 +10,14 @@ g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
     src/providers/UartTargetProvider.cpp \
     src/control/DroneController.cpp \
     src/utils/MathUtils.cpp \
+    src/MissionProcessor.cpp \
+    src/DronePhysics.cpp \
+    src/solvers/AnalyticalSolver.cpp \
+    src/states/StateAccelerating.cpp \
+    src/states/StateDecelerating.cpp \
+    src/states/StateMoving.cpp \
+    src/states/StateStopped.cpp \
+    src/states/StateTurning.cpp \
     -Iinclude \
     -lgpiod \
     -o hm11_uart_autopilot

@@ -188,7 +188,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  MissionProcessor mission(targetProvider, nullptr, std::move(solver));
+  MissionProcessor mission(targetProvider, std::move(solver));
 
   if (!mission.init(droneConfig)) {
     return 1;

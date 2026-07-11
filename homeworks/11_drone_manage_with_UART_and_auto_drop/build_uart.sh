@@ -11,7 +11,6 @@ g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
     src/control/DroneController.cpp \
     src/utils/MathUtils.cpp \
     src/MissionProcessor.cpp \
-    src/DronePhysics.cpp \
     src/solvers/TableSolver.cpp \
     src/BallisticTable.cpp \
     src/states/StateAccelerating.cpp \

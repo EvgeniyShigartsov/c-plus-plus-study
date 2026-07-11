@@ -6,7 +6,6 @@
 #include "interfaces/IDroneState.hpp"
 #include "types.hpp"
 
-class IConfigLoader;
 class IBallisticSolver;
 class ITargetProvider;
 
@@ -23,6 +22,7 @@ private:
   float h = 0.0f;
   int targetsCount = 0;
   std::unique_ptr<IDroneState> currentState;
+  DroneCommand lastCommand{};
 
   std::vector<SimStep> stepsLog;
 
@@ -34,9 +34,10 @@ public:
   MissionProcessor(std::shared_ptr<ITargetProvider> provider,
                    std::shared_ptr<DronePhysics> dronePhysics,
                    std::unique_ptr<IBallisticSolver> solver);
-  [[nodiscard]] bool init(std::unique_ptr<IConfigLoader> configLoader);
+  [[nodiscard]] bool init(const DroneConfig& config);
   [[nodiscard]] bool hasNext() const;
   SimStep step(const DroneTelemetry& telemetry);
+  DroneCommand getLastCommand() const;
   void changeSolver(std::unique_ptr<IBallisticSolver> solver);
   void reset();
   std::vector<SimStep> getStepsLog();

@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
   auto physics = std::make_shared<DronePhysics>(droneConfig);
   auto missionProcessor = std::make_shared<MissionProcessor>(targetProvider, physics, std::move(solver));
 
-  const bool isInitSucces = missionProcessor->init(std::move(configLoader));
+  const bool isInitSucces = missionProcessor->init(droneConfig);
 
   if (!isConfigLoadSuccess || !targetProvider->isLoadSucces() || !isInitSucces) {
     return 1;

@@ -8,7 +8,6 @@
 #include "Logger.hpp"
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
-#include "interfaces/IConfigLoader.hpp"
 #include "states/StateStopped.hpp"
 #include "MissionProcessor.hpp"
 
@@ -24,9 +23,9 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider,
   stepsLog.reserve(MAX_STEPS);
 }
 
-[[nodiscard]] bool MissionProcessor::init(std::unique_ptr<IConfigLoader> configLoader)
+[[nodiscard]] bool MissionProcessor::init(const DroneConfig& config)
 {
-  droneInitialConfig = configLoader->getConfig();
+  droneInitialConfig = config;
   sim = Simulation(droneInitialConfig);
 
   bombFlightTime = ballisticSolver->getBombFlightTime();
@@ -148,7 +147,13 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
     currentState = std::move(nextState);
   }
 
-  dronePhysics->pushCommand(cmd);
+  lastCommand = cmd;
+
+  // В UART-режимі (ДЗ11) локальної фізики немає: команду забирає main через
+  // getLastCommand() і шле чекеру по UART.
+  if (dronePhysics) {
+    dronePhysics->pushCommand(cmd);
+  }
 
   DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");
   DEBUG("  target=" << sim.selectedTargetIndex << " state=" << currentState->name());
@@ -191,6 +196,11 @@ std::vector<SimStep> MissionProcessor::getStepsLog()
 {
   return stepsLog;
 };
+
+DroneCommand MissionProcessor::getLastCommand() const
+{
+  return lastCommand;
+}
 
 void MissionProcessor::run()
 {

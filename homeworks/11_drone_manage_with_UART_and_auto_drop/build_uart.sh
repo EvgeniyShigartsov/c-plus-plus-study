@@ -8,6 +8,8 @@ g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
     src/link/UartLink.cpp \
     src/gpio/GpioSignals.cpp \
     src/providers/UartTargetProvider.cpp \
+    src/control/DroneController.cpp \
+    src/utils/MathUtils.cpp \
     -Iinclude \
     -lgpiod \
     -o hm11_uart_autopilot

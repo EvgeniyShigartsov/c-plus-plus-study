@@ -5,6 +5,7 @@ cd "$(dirname "$0")"
 
 g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
     src/main_uart.cpp \
+    src/link/UartLink.cpp \
     -Iinclude \
     -lgpiod \
     -o hm11_uart_autopilot

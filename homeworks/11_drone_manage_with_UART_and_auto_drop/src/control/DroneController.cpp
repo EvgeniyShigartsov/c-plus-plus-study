@@ -5,6 +5,13 @@
 
 #include "MathUtils.hpp"
 
+namespace {
+const float MIN_ACCEL = -1.0f;
+const float MAX_ACCEL = 1.0f;
+const float MIN_TURN_RATE = -1.0f;
+const float MAX_TURN_RATE = 1.0f;
+}  // namespace
+
 DroneController::DroneController(const DroneConfig& config)
   : v0(config.v0)
   , angularSpeed(config.angularSpeed)
@@ -19,13 +26,13 @@ ControlSignal DroneController::compute(const DroneCommand& cmd, const DroneTelem
   const float desiredSpeed = wantsMove ? v0 : 0.0f;
 
   const float speedError = desiredSpeed - telemetry.speed;
-  const float accel = std::clamp(speedError / (droneAcceleration * timeStep), -1.0f, 1.0f);
+  const float accel = std::clamp(speedError / (droneAcceleration * timeStep), MIN_ACCEL, MAX_ACCEL);
 
   float turnRate = 0.0f;
 
   if (cmd.state != DroneState::Decelerating) {
     const float dirError = normalizeAngle(cmd.targetDir - telemetry.dir);
-    turnRate = std::clamp(dirError / (angularSpeed * timeStep), -1.0f, 1.0f);
+    turnRate = std::clamp(dirError / (angularSpeed * timeStep), MIN_TURN_RATE, MAX_TURN_RATE);
   }
 
   return {accel, turnRate};

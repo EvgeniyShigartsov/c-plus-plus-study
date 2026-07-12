@@ -10,7 +10,7 @@ GpioSignals::GpioSignals(const std::string& chipName, int startLineNum, int drop
   : chip(gpiod_chip_open_by_name(chipName.c_str()))
 {
   if (chip == nullptr) {
-    perror("gpiod_chip_open_by_name");
+    perror("failed to open gpio chip (check --gpiochip name)");
     return;
   }
 
@@ -18,14 +18,14 @@ GpioSignals::GpioSignals(const std::string& chipName, int startLineNum, int drop
   dropLine = gpiod_chip_get_line(chip, static_cast<unsigned int>(dropLineNum));
 
   if (startLine == nullptr || dropLine == nullptr) {
-    perror("gpiod_chip_get_line");
+    perror("failed to get START/DROP line (check --start-line/--drop-line)");
     gpiod_chip_close(chip);
     chip = nullptr;
     return;
   }
 
   if (gpiod_line_request_output(startLine, "drone", 0) < 0 || gpiod_line_request_output(dropLine, "drone", 0) < 0) {
-    perror("gpiod_line_request_output");
+    perror("failed to request START/DROP line as output");
     gpiod_chip_close(chip);
     chip = nullptr;
   }
@@ -57,6 +57,6 @@ void GpioSignals::pulseDrop()
   dropDone = true;
 
   gpiod_line_set_value(dropLine, 1);  // імпульс скиду
-  usleep(2000000);
+  usleep(80000);
   gpiod_line_set_value(dropLine, 0);
 }

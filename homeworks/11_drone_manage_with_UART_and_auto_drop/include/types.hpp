@@ -78,7 +78,6 @@ struct Simulation {
   float timeSecSinceStart = 0.0f;
 
   Simulation() = default;
-  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   Simulation(DroneConfig& droneConfig)
     : CURRENT_POS(droneConfig.startPos)
     , CURRENT_DIR(droneConfig.initialDir)
@@ -104,4 +103,9 @@ struct DroneTelemetry {
   float speed;
   float dir;
   float timeSinceStart;
+};
+
+struct ControlSignal {
+  float accel = 0.0f;     // прискорення вздовж курсу, [-1..1] (1 = повний газ, -1 = гальмо)
+  float turnRate = 0.0f;  // швидкість повороту, [-1..1] (1 = макс. вліво, -1 = вправо)
 };

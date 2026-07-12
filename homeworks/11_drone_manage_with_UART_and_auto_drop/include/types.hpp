@@ -53,18 +53,12 @@ struct BombParams {
 struct SimStep {
   Coord pos;
   Coord dropPoint;
-  Coord aimPoint;
-  Coord predictedTarget;
-  float direction;
   std::string state;
   int targetIdx;
-  int step;
-  float timeSecSinceStart;
 };
 
 struct Simulation {
   Coord CURRENT_POS = {0.0f, 0.0f};
-  float CURRENT_TIME = 0.0f;
   float CURRENT_SPEED = 0.0f;
   float CURRENT_DIR = 0.0f;
   Coord maneuverPoint = {0.0f, 0.0f};
@@ -102,7 +96,6 @@ enum DroneState { Stopped, Turning, Accelerating, Moving, Decelerating };
 
 struct DroneCommand {
   DroneState state;
-  float angleSpeed;
   float targetDir;
 };
 

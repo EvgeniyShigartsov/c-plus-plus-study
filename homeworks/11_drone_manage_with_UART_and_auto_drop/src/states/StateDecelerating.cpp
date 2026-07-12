@@ -9,7 +9,6 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateDecelerating::execute
 {
   DroneCommand command{
     .state = DroneState::Decelerating,
-    .angleSpeed = 0.0f,
     .targetDir = sim.dirToFire,
   };
 

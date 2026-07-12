@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "Logger.hpp"
-#include "MathUtils.hpp"
 #include "MissionProcessor.hpp"
 #include "control/DroneController.hpp"
 #include "gpio/GpioSignals.hpp"
@@ -195,7 +194,6 @@ int main(int argc, char* argv[])
   const DroneController controller(droneConfig);
 
   float lastTimeSec = firstTimeSec;
-  int teleCount = 0;
   bool flying = true;
 
   while (flying) {
@@ -225,12 +223,6 @@ int main(int argc, char* argv[])
         const SimStep stepResult = mission.step(tele);
         const ControlSignal control = controller.compute(mission.getLastCommand(), tele);
         link.sendControl(control.accel, control.turnRate);
-
-        if (++teleCount % 10 == 0) {
-          LOG("t=" << tele.timeSinceStart << "s pos=(" << tele.pos.x << "," << tele.pos.y << ") v=" << tele.speed
-                   << " state=" << stepResult.state << " target=" << stepResult.targetIdx
-                   << " distToDrop=" << length(tele.pos - stepResult.dropPoint) << "\n");
-        }
 
         if (!mission.hasNext()) {
           LOG("DROP! t=" << tele.timeSinceStart << "s pos=(" << tele.pos.x << "," << tele.pos.y << ") target=" << stepResult.targetIdx

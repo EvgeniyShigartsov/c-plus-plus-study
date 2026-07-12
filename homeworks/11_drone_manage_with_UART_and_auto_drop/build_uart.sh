@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
-    src/main_uart.cpp \
+    src/main.cpp \
     src/link/UartLink.cpp \
     src/gpio/GpioSignals.cpp \
     src/providers/UartTargetProvider.cpp \

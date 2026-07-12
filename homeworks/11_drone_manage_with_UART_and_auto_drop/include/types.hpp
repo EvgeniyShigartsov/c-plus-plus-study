@@ -32,19 +32,15 @@ struct Coord {
 };
 
 struct DroneConfig {
-  std::string ammoName;
   Coord startPos;
   float altitude;
   float initialDir;
   float v0;
   float accelerationPath;
-  float arrayTimeStep;
   float simTimeStep;
   float hitRadius;
   float angularSpeed;
   float turnThreshold;
-  float physicsTimeStep;
-  float timeScale;
 };
 
 struct BombParams {

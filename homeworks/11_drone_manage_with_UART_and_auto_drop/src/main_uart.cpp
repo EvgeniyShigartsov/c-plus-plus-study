@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "Logger.hpp"
 #include "MathUtils.hpp"
 #include "MissionProcessor.hpp"
 #include "control/DroneController.hpp"
@@ -23,6 +24,7 @@ const std::string BALLISTIC_TABLE_FILE_PATH = "data/ballistic_table.txt";
 struct CliOptions {
   std::string uartDev = "/tmp/ttyA";
   std::string gpioChip = "gpiochip1";
+  std::string ballisticTable = BALLISTIC_TABLE_FILE_PATH;
   int startLine = 24;
   int dropLine = 23;
 };
@@ -47,6 +49,9 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     else if (key == "--drop-line") {
       opts.dropLine = std::stoi(value);
     }
+    else if (key == "--ballistic-table") {
+      opts.ballisticTable = value;
+    }
     else {
       std::cerr << "Unknown argument: " << key << "\n";
     }
@@ -68,19 +73,15 @@ DroneTelemetry toDroneTelemetry(const dlink::Telemetry& t)
 DroneConfig buildDroneConfig(const dlink::AmmoCfg& ammo, const dlink::DroneCfg& cfg, const dlink::Telemetry& tele)
 {
   return {
-    .ammoName = ammo.name,
     .startPos = {tele.x, tele.y},
     .altitude = tele.z,
     .initialDir = tele.dir,
     .v0 = cfg.attackSpeed,
     .accelerationPath = cfg.accelerationPath,
-    .arrayTimeStep = cfg.timeStep,
     .simTimeStep = cfg.timeStep,
     .hitRadius = ammo.hitRadius,
     .angularSpeed = cfg.angularSpeed,
     .turnThreshold = cfg.turnThreshold,
-    .physicsTimeStep = cfg.timeStep,  // локальної фізики немає, поле не використовується
-    .timeScale = cfg.timeScale,
   };
 }
 
@@ -103,7 +104,7 @@ int main(int argc, char* argv[])
 
   gpio.assertStart();  // START = 1 -> чекер запускає симуляцію
 
-  std::cout << "hm11 uart autopilot: START=1 on " << opts.gpioChip << ", listening " << opts.uartDev << "\n";
+  LOG("Simulation started on " << opts.gpioChip << ", listening " << opts.uartDev << "\n");
 
   dlink::Parser parser;
 
@@ -168,9 +169,6 @@ int main(int argc, char* argv[])
     }
   }
 
-  std::cout << "mission: ammo=" << ammo.name << " hitRadius=" << ammo.hitRadius << " targets=" << static_cast<int>(ammo.nTargets)
-            << " | drone: v0=" << cfg.attackSpeed << " maxW=" << cfg.angularSpeed << " alt=" << firstTele.z << "\n";
-
   const DroneConfig droneConfig = buildDroneConfig(ammo, cfg, firstTele);
   const BombParams bombParams = {.name = ammo.name, .mass = ammo.mass, .drag = ammo.drag, .lift = ammo.lift};
 
@@ -181,10 +179,10 @@ int main(int argc, char* argv[])
     targetProvider->update(static_cast<int>(i), initialTargets[i], firstTimeSec);
   }
 
-  auto solver = std::make_unique<TableSolver>(BALLISTIC_TABLE_FILE_PATH, bombParams, droneConfig);
+  auto solver = std::make_unique<TableSolver>(opts.ballisticTable, bombParams, droneConfig);
 
   if (!solver->isLoadSuccess()) {
-    std::cerr << "ballistic table load failed: " << BALLISTIC_TABLE_FILE_PATH << " (запускати з теки домашки)\n";
+    std::cerr << "ballistic table load failed: " << opts.ballisticTable << "\n";
     return 1;
   }
 
@@ -229,14 +227,14 @@ int main(int argc, char* argv[])
         link.sendControl(control.accel, control.turnRate);
 
         if (++teleCount % 10 == 0) {
-          std::cout << "t=" << tele.timeSinceStart << "s pos=(" << tele.pos.x << "," << tele.pos.y << ") v=" << tele.speed
-                    << " state=" << stepResult.state << " target=" << stepResult.targetIdx
-                    << " distToDrop=" << length(tele.pos - stepResult.dropPoint) << "\n";
+          LOG("t=" << tele.timeSinceStart << "s pos=(" << tele.pos.x << "," << tele.pos.y << ") v=" << tele.speed
+                   << " state=" << stepResult.state << " target=" << stepResult.targetIdx
+                   << " distToDrop=" << length(tele.pos - stepResult.dropPoint) << "\n");
         }
 
         if (!mission.hasNext()) {
-          std::cout << "DROP! t=" << tele.timeSinceStart << "s pos=(" << tele.pos.x << "," << tele.pos.y
-                    << ") target=" << stepResult.targetIdx << "\n";
+          LOG("DROP! t=" << tele.timeSinceStart << "s pos=(" << tele.pos.x << "," << tele.pos.y << ") target=" << stepResult.targetIdx
+                         << "\n");
           gpio.pulseDrop();
           flying = false;
           break;
@@ -244,8 +242,6 @@ int main(int argc, char* argv[])
       }
     }
   }
-
-  std::cout << "mission finished - verdict (HIT/MISS) у терміналі чекера\n";
 
   return 0;
 }

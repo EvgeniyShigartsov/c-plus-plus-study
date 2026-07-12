@@ -91,12 +91,12 @@ int main(int argc, char* argv[])
 
   const DroneConfig droneConfig = buildDroneConfig(mission.ammo, mission.droneCfg, mission.firstTelemetry);
   const BombParams bombParams = toBombParams(mission.ammo);
+  const DroneTelemetry firstTelemetry = toDroneTelemetry(mission.firstTelemetry);
 
   auto targetProvider = std::make_shared<UartTargetProvider>(static_cast<int>(mission.ammo.nTargets));
 
-  const float firstTimeSeconds = static_cast<float>(mission.firstTelemetry.t_ms) / 1000.0f;
   for (size_t i = 0; i < mission.initialTargets.size(); i++) {
-    targetProvider->update(static_cast<int>(i), mission.initialTargets[i], firstTimeSeconds);
+    targetProvider->update(static_cast<int>(i), mission.initialTargets[i], firstTelemetry.timeSinceStart);
   }
 
   auto solver = std::make_unique<TableSolver>(opts.ballisticTable, bombParams, droneConfig);
@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
   uint8_t len = 0;
   uint8_t payload[260];
 
-  float lastTimeSeconds = firstTimeSeconds;
+  float lastTimeSeconds = firstTelemetry.timeSinceStart;
   bool flying = true;
 
   while (flying) {

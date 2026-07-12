@@ -9,6 +9,7 @@
 #include "MissionProcessor.hpp"
 #include "control/DroneController.hpp"
 #include "gpio/GpioSignals.hpp"
+#include "link/PacketMappers.hpp"
 #include "link/UartLink.hpp"
 #include "providers/UartTargetProvider.hpp"
 #include "solvers/TableSolver.hpp"
@@ -57,31 +58,6 @@ CliOptions parseArgs(const std::vector<std::string>& args)
   }
 
   return opts;
-}
-
-DroneTelemetry toDroneTelemetry(const dlink::Telemetry& t)
-{
-  return {
-    .pos = {t.x, t.y},
-    .speed = t.speed,
-    .dir = t.dir,
-    .timeSinceStart = static_cast<float>(t.t_ms) / 1000.0f,
-  };
-}
-
-DroneConfig buildDroneConfig(const dlink::AmmoCfg& ammo, const dlink::DroneCfg& droneConfig, const dlink::Telemetry& telemetry)
-{
-  return {
-    .startPos = {telemetry.x, telemetry.y},
-    .altitude = telemetry.z,
-    .initialDir = telemetry.dir,
-    .v0 = droneConfig.attackSpeed,
-    .accelerationPath = droneConfig.accelerationPath,
-    .simTimeStep = droneConfig.timeStep,
-    .hitRadius = ammo.hitRadius,
-    .angularSpeed = droneConfig.angularSpeed,
-    .turnThreshold = droneConfig.turnThreshold,
-  };
 }
 
 int main(int argc, char* argv[])
@@ -172,7 +148,7 @@ int main(int argc, char* argv[])
   }
 
   const DroneConfig droneConfig = buildDroneConfig(ammo, cfg, firstTele);
-  const BombParams bombParams = {.name = ammo.name, .mass = ammo.mass, .drag = ammo.drag, .lift = ammo.lift};
+  const BombParams bombParams = toBombParams(ammo);
 
   auto targetProvider = std::make_shared<UartTargetProvider>(static_cast<int>(ammo.nTargets));
 

@@ -3,14 +3,6 @@
 #include "interfaces/ITargetProvider.hpp"
 #include "types.hpp"
 
-namespace {
-struct TargetSlot {
-  Target target = {{0.0f, 0.0f}, {0.0f, 0.0f}};
-  float lastUpdateTime = 0.0f;
-  bool seen = false;
-};
-}  // namespace
-
 class UartTargetProvider : public ITargetProvider {
 public:
   UartTargetProvider(int targetCount);

@@ -9,6 +9,7 @@ add_library(
     hm11_uart_compile_check STATIC
     src/main.cpp
     src/link/UartLink.cpp
+    src/link/PacketMappers.cpp
     src/gpio/GpioSignals.cpp
     src/providers/UartTargetProvider.cpp
     src/control/DroneController.cpp

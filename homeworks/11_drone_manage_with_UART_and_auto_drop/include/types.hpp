@@ -109,3 +109,9 @@ struct ControlSignal {
   float accel = 0.0f;     // прискорення вздовж курсу, [-1..1] (1 = повний газ, -1 = гальмо)
   float turnRate = 0.0f;  // швидкість повороту, [-1..1] (1 = макс. вліво, -1 = вправо)
 };
+
+struct TargetSlot {
+  Target target = {{0.0f, 0.0f}, {0.0f, 0.0f}};
+  float lastUpdateTime = 0.0f;
+  bool seen = false;
+};

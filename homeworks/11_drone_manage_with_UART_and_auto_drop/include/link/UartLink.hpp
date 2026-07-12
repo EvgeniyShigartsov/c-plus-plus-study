@@ -12,8 +12,8 @@ public:
 
   int readBytes(uint8_t* buf, int size) const;
 
-  void sendControl(float accel, float turnRate);
+  void sendControl(float accel, float turnRate) const;
 
 private:
-  int fd = -1;
+  int fileDescriptor = -1;
 };

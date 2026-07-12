@@ -9,6 +9,7 @@
 #include "MissionProcessor.hpp"
 #include "control/DroneController.hpp"
 #include "gpio/GpioSignals.hpp"
+#include "link/MissionConfig.hpp"
 #include "link/PacketMappers.hpp"
 #include "link/UartLink.hpp"
 #include "providers/UartTargetProvider.hpp"
@@ -86,75 +87,16 @@ int main(int argc, char* argv[])
 
   dlink::Parser parser;
 
-  uint8_t buf[256];
-  uint8_t type = 0;
-  uint8_t len = 0;
-  uint8_t payload[260];
+  const MissionConfigPackets mission = collectMissionConfig(link, parser);
 
-  dlink::AmmoCfg ammo{};
-  dlink::DroneCfg cfg{};
-  dlink::Telemetry firstTele{};
-  bool haveAmmo = false;
-  bool haveCfg = false;
-  bool haveTele = false;
+  const DroneConfig droneConfig = buildDroneConfig(mission.ammo, mission.droneCfg, mission.firstTelemetry);
+  const BombParams bombParams = toBombParams(mission.ammo);
 
-  std::vector<Coord> initialTargets;
-  std::vector<bool> targetSeen;
-  size_t targetsSeen = 0;
+  auto targetProvider = std::make_shared<UartTargetProvider>(static_cast<int>(mission.ammo.nTargets));
 
-  const bool waitingConfig = true;
-  while (waitingConfig) {
-    const int n = link.readBytes(buf, sizeof(buf));
-
-    if (n <= 0) {
-      usleep(1000);
-      continue;
-    }
-
-    for (int i = 0; i < n; i++) {
-      if (!parser.feed(buf[i], type, payload, len)) {
-        continue;
-      }
-
-      if (type == dlink::PKT_AMMO) {
-        std::memcpy(&ammo, payload, sizeof ammo);
-        haveAmmo = true;
-        initialTargets.resize(ammo.nTargets);
-        targetSeen.resize(ammo.nTargets, false);
-      }
-      else if (type == dlink::PKT_CONFIG) {
-        std::memcpy(&cfg, payload, sizeof cfg);
-        haveCfg = true;
-      }
-      else if (type == dlink::PKT_TELEMETRY) {
-        std::memcpy(&firstTele, payload, sizeof firstTele);
-        haveTele = true;
-      }
-      else if (type == dlink::PKT_TARGET && haveAmmo) {
-        dlink::TargetPos tp{};
-        std::memcpy(&tp, payload, sizeof tp);
-
-        if (tp.id < initialTargets.size() && !targetSeen[tp.id]) {
-          initialTargets[tp.id] = {tp.x, tp.y};
-          targetSeen[tp.id] = true;
-          targetsSeen++;
-        }
-      }
-    }
-
-    if (haveAmmo && haveCfg && haveTele && targetsSeen == initialTargets.size()) {
-      break;
-    }
-  }
-
-  const DroneConfig droneConfig = buildDroneConfig(ammo, cfg, firstTele);
-  const BombParams bombParams = toBombParams(ammo);
-
-  auto targetProvider = std::make_shared<UartTargetProvider>(static_cast<int>(ammo.nTargets));
-
-  const float firstTimeSeconds = static_cast<float>(firstTele.t_ms) / 1000.0f;
-  for (size_t i = 0; i < initialTargets.size(); i++) {
-    targetProvider->update(static_cast<int>(i), initialTargets[i], firstTimeSeconds);
+  const float firstTimeSeconds = static_cast<float>(mission.firstTelemetry.t_ms) / 1000.0f;
+  for (size_t i = 0; i < mission.initialTargets.size(); i++) {
+    targetProvider->update(static_cast<int>(i), mission.initialTargets[i], firstTimeSeconds);
   }
 
   auto solver = std::make_unique<TableSolver>(opts.ballisticTable, bombParams, droneConfig);
@@ -171,6 +113,11 @@ int main(int argc, char* argv[])
   }
 
   const DroneController controller(droneConfig);
+
+  uint8_t buf[256];
+  uint8_t type = 0;
+  uint8_t len = 0;
+  uint8_t payload[260];
 
   float lastTimeSeconds = firstTimeSeconds;
   bool flying = true;

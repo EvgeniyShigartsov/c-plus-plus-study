@@ -10,6 +10,7 @@ add_library(
     src/main.cpp
     src/link/UartLink.cpp
     src/link/PacketMappers.cpp
+    src/link/MissionConfig.cpp
     src/gpio/GpioSignals.cpp
     src/providers/UartTargetProvider.cpp
     src/control/DroneController.cpp

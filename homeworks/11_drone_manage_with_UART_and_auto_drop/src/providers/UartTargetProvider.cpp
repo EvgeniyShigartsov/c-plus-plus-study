@@ -36,4 +36,3 @@ Target UartTargetProvider::getTarget(const int targetIndex) const
 {
   return slots[targetIndex].target;
 }
-

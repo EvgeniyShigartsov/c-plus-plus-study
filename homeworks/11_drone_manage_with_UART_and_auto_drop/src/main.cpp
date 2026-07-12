@@ -69,24 +69,27 @@ DroneTelemetry toDroneTelemetry(const dlink::Telemetry& t)
   };
 }
 
-DroneConfig buildDroneConfig(const dlink::AmmoCfg& ammo, const dlink::DroneCfg& cfg, const dlink::Telemetry& tele)
+DroneConfig buildDroneConfig(const dlink::AmmoCfg& ammo, const dlink::DroneCfg& droneConfig, const dlink::Telemetry& telemetry)
 {
   return {
-    .startPos = {tele.x, tele.y},
-    .altitude = tele.z,
-    .initialDir = tele.dir,
-    .v0 = cfg.attackSpeed,
-    .accelerationPath = cfg.accelerationPath,
-    .simTimeStep = cfg.timeStep,
+    .startPos = {telemetry.x, telemetry.y},
+    .altitude = telemetry.z,
+    .initialDir = telemetry.dir,
+    .v0 = droneConfig.attackSpeed,
+    .accelerationPath = droneConfig.accelerationPath,
+    .simTimeStep = droneConfig.timeStep,
     .hitRadius = ammo.hitRadius,
-    .angularSpeed = cfg.angularSpeed,
-    .turnThreshold = cfg.turnThreshold,
+    .angularSpeed = droneConfig.angularSpeed,
+    .turnThreshold = droneConfig.turnThreshold,
   };
 }
 
 int main(int argc, char* argv[])
 {
-  const std::vector<std::string> args(argv + 1, argv + argc);
+  std::vector<std::string> args;
+  for (int i = 1; i < argc; i++) {
+    args.emplace_back(argv[i]);
+  }
   const CliOptions opts = parseArgs(args);
 
   UartLink link(opts.uartDev);
@@ -121,7 +124,7 @@ int main(int argc, char* argv[])
 
   std::vector<Coord> initialTargets;
   std::vector<bool> targetSeen;
-  int targetsSeen = 0;
+  size_t targetsSeen = 0;
 
   const bool waitingConfig = true;
   while (waitingConfig) {
@@ -163,7 +166,7 @@ int main(int argc, char* argv[])
       }
     }
 
-    if (haveAmmo && haveCfg && haveTele && targetsSeen == static_cast<int>(initialTargets.size())) {
+    if (haveAmmo && haveCfg && haveTele && targetsSeen == initialTargets.size()) {
       break;
     }
   }
@@ -173,9 +176,9 @@ int main(int argc, char* argv[])
 
   auto targetProvider = std::make_shared<UartTargetProvider>(static_cast<int>(ammo.nTargets));
 
-  const float firstTimeSec = static_cast<float>(firstTele.t_ms) / 1000.0f;
+  const float firstTimeSeconds = static_cast<float>(firstTele.t_ms) / 1000.0f;
   for (size_t i = 0; i < initialTargets.size(); i++) {
-    targetProvider->update(static_cast<int>(i), initialTargets[i], firstTimeSec);
+    targetProvider->update(static_cast<int>(i), initialTargets[i], firstTimeSeconds);
   }
 
   auto solver = std::make_unique<TableSolver>(opts.ballisticTable, bombParams, droneConfig);
@@ -185,25 +188,25 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  MissionProcessor mission(targetProvider, std::move(solver));
+  MissionProcessor missionProcessor(targetProvider, std::move(solver));
 
-  if (!mission.init(droneConfig)) {
+  if (!missionProcessor.init(droneConfig)) {
     return 1;
   }
 
   const DroneController controller(droneConfig);
 
-  float lastTimeSec = firstTimeSec;
+  float lastTimeSeconds = firstTimeSeconds;
   bool flying = true;
 
   while (flying) {
-    const int n = link.readBytes(buf, sizeof(buf));
-    if (n <= 0) {
+    const int bytes = link.readBytes(buf, sizeof(buf));
+    if (bytes <= 0) {
       usleep(1000);
       continue;
     }
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < bytes; i++) {
       if (!parser.feed(buf[i], type, payload, len)) {
         continue;
       }
@@ -211,22 +214,22 @@ int main(int argc, char* argv[])
       if (type == dlink::PKT_TARGET) {
         dlink::TargetPos tp{};
         std::memcpy(&tp, payload, sizeof tp);
-        targetProvider->update(tp.id, {tp.x, tp.y}, lastTimeSec);
+        targetProvider->update(tp.id, {tp.x, tp.y}, lastTimeSeconds);
       }
       else if (type == dlink::PKT_TELEMETRY) {
         dlink::Telemetry t{};
         std::memcpy(&t, payload, sizeof t);
 
-        const DroneTelemetry tele = toDroneTelemetry(t);
-        lastTimeSec = tele.timeSinceStart;
+        const DroneTelemetry telemetry = toDroneTelemetry(t);
+        lastTimeSeconds = telemetry.timeSinceStart;
 
-        const SimStep stepResult = mission.step(tele);
-        const ControlSignal control = controller.compute(mission.getLastCommand(), tele);
+        const SimStep stepResult = missionProcessor.step(telemetry);
+        const ControlSignal control = controller.compute(missionProcessor.getLastCommand(), telemetry);
         link.sendControl(control.accel, control.turnRate);
 
-        if (!mission.hasNext()) {
-          LOG("DROP! t=" << tele.timeSinceStart << "s pos=(" << tele.pos.x << "," << tele.pos.y << ") target=" << stepResult.targetIdx
-                         << "\n");
+        if (!missionProcessor.hasNext()) {
+          LOG("DROP! t=" << telemetry.timeSinceStart << "s pos=(" << telemetry.pos.x << "," << telemetry.pos.y
+                         << ") target=" << stepResult.targetIdx << "\n");
           gpio.pulseDrop();
           flying = false;
           break;

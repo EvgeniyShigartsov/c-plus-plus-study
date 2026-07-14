@@ -34,6 +34,17 @@ RUN apt update && \
   sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
   locale-gen
 
+# MAVSDK для ДЗ-12: заголовки та бібліотека, щоб clangd бачив
+# mavsdk/mavsdk.h і c2_service збирався локально, само ДЗ
+# збирається у власному Docker-образі на Ubuntu 22.04
+ARG MAVSDK_VERSION=2.12.9
+RUN ARCH="$(dpkg --print-architecture)" && \
+  if [ "$ARCH" = "arm64" ]; then MAVSDK_DEB="libmavsdk-dev_${MAVSDK_VERSION}_debian12_arm64.deb"; \
+  else MAVSDK_DEB="libmavsdk-dev_${MAVSDK_VERSION}_ubuntu22.04_amd64.deb"; fi && \
+  curl -fsSLo /tmp/mavsdk.deb \
+    "https://github.com/mavlink/MAVSDK/releases/download/v${MAVSDK_VERSION}/${MAVSDK_DEB}" && \
+  dpkg -i /tmp/mavsdk.deb && rm /tmp/mavsdk.deb
+
 # Конфіги C++ тулів кладемо в корінь /, не в home. clangd, clang-format,
 # cmake-format шукають такі файли в батьківських директоріях від точки
 # запуску - тобто вони знайдуться незалежно від того, де всередині

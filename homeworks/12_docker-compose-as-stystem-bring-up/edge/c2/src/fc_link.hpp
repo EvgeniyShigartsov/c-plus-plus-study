@@ -1,6 +1,7 @@
 #pragma once
 // fc_link.hpp: готовий допомiжний файл, змiнювати не потрiбно.
 //
+// NOLINTBEGIN -- файл з репозторію, не має бути змінений.
 // Тонка C++ обгортка над MAVSDK для комунiкацiї з ArduPilot.
 // Ховає налаштування з'єднання, плагiни MAVSDK та потокобезпечнiсть.
 // Пiдключити цей заголовок i використати FcLink у c2_controller.cpp.
@@ -74,3 +75,5 @@ private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
 };
+
+// NOLINTEND

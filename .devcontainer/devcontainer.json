@@ -8,6 +8,9 @@
     }
   },
   "remoteUser": "${localEnv:USER}",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
   "workspaceMount": "source=${localWorkspaceFolder},target=${localEnv:HOME}/${localWorkspaceFolderBasename},type=bind",
   "workspaceFolder": "${localEnv:HOME}/${localWorkspaceFolderBasename}",
   "mounts": [

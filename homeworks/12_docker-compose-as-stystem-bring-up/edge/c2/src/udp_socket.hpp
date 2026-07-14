@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <string>
 
+// NOLINTBEGIN -- файл з репозторію, не має бути змінений.
+
 // Неблокуючий UDP socket з RAII-володiнням ресурсом.
 // У конструкторi робить bind на bind_port; при помилцi кидає std::runtime_error.
 class UdpSocket {
@@ -76,3 +78,5 @@ inline sockaddr_in make_addr(const std::string& ip, uint16_t port)
     throw std::runtime_error("invalid IP: " + ip);
   return a;
 }
+
+// NOLINTEND

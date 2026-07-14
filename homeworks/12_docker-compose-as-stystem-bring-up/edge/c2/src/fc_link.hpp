@@ -32,46 +32,45 @@
 //   }
 class FcLink {
 public:
-    // Режим руху з ArduPilot HEARTBEAT.
-    // У ArduPilot це режим GUIDED. MAVSDK може показувати його як Offboard,
-    // тому FcLink нормалiзує це до FlightMode::Guided.
-    enum class FlightMode { Unknown, Manual, Hold, Guided };
+  // Режим руху з ArduPilot HEARTBEAT.
+  // У ArduPilot це режим GUIDED. MAVSDK може показувати його як Offboard,
+  // тому FcLink нормалiзує це до FlightMode::Guided.
+  enum class FlightMode { Unknown, Manual, Hold, Guided };
 
-    // Пiдключитися до ArduPilot.
-    // ArduPilot має надсилати MAVLink UDP-пакети на 127.0.0.1:<listen_port>.
-    // Блокується до вiдповiдi автопiлота або до завершення часу очiкування.
-    // Кидає std::runtime_error, якщо з'єднання не вiдкрилось або минув час очiкування.
-    explicit FcLink(uint16_t listen_port,
-                    std::chrono::seconds timeout = std::chrono::seconds{30});
+  // Пiдключитися до ArduPilot.
+  // ArduPilot має надсилати MAVLink UDP-пакети на 127.0.0.1:<listen_port>.
+  // Блокується до вiдповiдi автопiлота або до завершення часу очiкування.
+  // Кидає std::runtime_error, якщо з'єднання не вiдкрилось або минув час очiкування.
+  explicit FcLink(uint16_t listen_port, std::chrono::seconds timeout = std::chrono::seconds{30});
 
-    ~FcLink();
+  ~FcLink();
 
-    FcLink(const FcLink&)            = delete;
-    FcLink& operator=(const FcLink&) = delete;
+  FcLink(const FcLink&) = delete;
+  FcLink& operator=(const FcLink&) = delete;
 
-    // Повертає true пiсля першого отриманого HEARTBEAT.
-    // Використати це як сигнал для перевiрки стану (/tmp/c2_healthy).
-    bool is_connected() const;
+  // Повертає true пiсля першого отриманого HEARTBEAT.
+  // Використати це як сигнал для перевiрки стану (/tmp/c2_healthy).
+  bool is_connected() const;
 
-    // Повертає true, якщо FC зараз у станi armed.
-    bool is_armed() const;
+  // Повертає true, якщо FC зараз у станi armed.
+  bool is_armed() const;
 
-    // Повертає поточний режим руху. Оновлюється приблизно раз на 1 s через HEARTBEAT.
-    FlightMode flight_mode() const;
+  // Повертає поточний режим руху. Оновлюється приблизно раз на 1 s через HEARTBEAT.
+  FlightMode flight_mode() const;
 
-    // Надiслати MAVLink-команду для переходу FC у HOLD mode.
-    // Безпечно викликати з будь-якого стану; ArduPilot зупиниться i триматиме позицiю.
-    void hold();
+  // Надiслати MAVLink-команду для переходу FC у HOLD mode.
+  // Безпечно викликати з будь-якого стану; ArduPilot зупиниться i триматиме позицiю.
+  void hold();
 
-    // Надiслати цiльову позицiю у локальнiй системi координат NED (метри вiд home).
-    // - north_m: додатне значення = пiвнiч
-    // - east_m:  додатне значення = схiд
-    // - down_m:  додатне значення = вниз (для наземного ровера лишити 0)
-    // На першому виклику автоматично стартує сесiя MAVSDK Offboard.
-    // Щоб команда спрацювала, FC має бути у режимi GUIDED.
-    void go_to_ned(float north_m, float east_m, float down_m = 0.0f);
+  // Надiслати цiльову позицiю у локальнiй системi координат NED (метри вiд home).
+  // - north_m: додатне значення = пiвнiч
+  // - east_m:  додатне значення = схiд
+  // - down_m:  додатне значення = вниз (для наземного ровера лишити 0)
+  // На першому виклику автоматично стартує сесiя MAVSDK Offboard.
+  // Щоб команда спрацювала, FC має бути у режимi GUIDED.
+  void go_to_ned(float north_m, float east_m, float down_m = 0.0f);
 
 private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };

@@ -14,7 +14,10 @@
   "ammo": "M67",
   "simulation": {
     "timeStep": 0.1,
-    "hitRadius": 2
+    "physicsTimeStep": 0.01,
+    "hitRadius": 2,
+    "timeScale": 10,
+    "targetTimeStep": 0.05
   },
   "targetArrayTimeStep": 1
 }

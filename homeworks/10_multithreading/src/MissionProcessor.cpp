@@ -1,6 +1,8 @@
 #include <memory>
 #include <vector>
+#include <thread>
 
+#include "DronePhysics.hpp"
 #include "types.hpp"
 #include "MathUtils.hpp"
 #include "Logger.hpp"
@@ -12,9 +14,12 @@
 
 const int MAX_STEPS = 10000;
 
-MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver)
+MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider,
+                                   std::shared_ptr<DronePhysics> dronePhysics,
+                                   std::unique_ptr<IBallisticSolver> solver)
   : targetProvider(std::move(provider))
   , ballisticSolver(std::move(solver))
+  , dronePhysics(std::move(dronePhysics))
 {
   stepsLog.reserve(MAX_STEPS);
 }
@@ -28,7 +33,6 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
   h = ballisticSolver->get_h();
   ballisticSolver->isLoadSuccess();
 
-  droneAcceleration = powf(sim.dc.v0, 2) / (2 * sim.dc.accelerationPath);  // (a)
   targetsCount = targetProvider->getTargetCount();
 
   currentState = std::make_unique<StateStopped>();
@@ -41,8 +45,13 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
   return sim.step <= MAX_STEPS && !sim.reachedFirePoint;
 }
 
-SimStep MissionProcessor::step()
+SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
 {
+  sim.CURRENT_POS = telemetry.pos;
+  sim.CURRENT_DIR = telemetry.dir;
+  sim.CURRENT_SPEED = telemetry.speed;
+  sim.timeSecSinceStart = telemetry.timeSinceStart;
+
   int bestTarget = 0;
   float bestTime = -1.0f;
   Coord bestFire{};
@@ -50,7 +59,7 @@ SimStep MissionProcessor::step()
   Coord actualDist{};
 
   for (int i = 0; i < targetsCount; i++) {
-    const Target target = targetProvider->getTarget(sim.CURRENT_TIME, i);
+    const Target target = targetProvider->getTarget(i);
 
     // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
     Coord currentFire = ballisticSolver->solve(target.pos, sim.CURRENT_POS, h);
@@ -82,7 +91,7 @@ SimStep MissionProcessor::step()
         timeToChangeTarget += currentState->getManeuverReadyTime(sim);
 
         // Додавання часу на розгін
-        timeToChangeTarget += sim.dc.v0 / droneAcceleration;
+        timeToChangeTarget += sim.dc.v0 / sim.droneAcceleration;
       }
       totalTime += timeToChangeTarget;
     }
@@ -123,7 +132,9 @@ SimStep MissionProcessor::step()
     actualDist = bestFire;
   }
 
-  if (length(sim.CURRENT_POS - bestFire) <= sim.dc.hitRadius && !sim.needsManeuver) {
+  // Скид, коли відстань до точки скиду менша за один крок польоту або hitRadius
+  const float fireThreshold = fminf(sim.dc.hitRadius, sim.dc.v0 * sim.dc.simTimeStep);
+  if (length(sim.CURRENT_POS - bestFire) <= fireThreshold && !sim.needsManeuver) {
     sim.reachedFirePoint = true;
   }
 
@@ -132,16 +143,18 @@ SimStep MissionProcessor::step()
   sim.deltaAngle = fabsf(normalizeAngle(sim.dirToFire - sim.CURRENT_DIR));
 
   // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
-  auto next = currentState->execute(sim);
-  if (next) {
-    currentState = std::move(next);
+  auto [nextState, cmd] = currentState->execute(sim);
+  if (nextState) {
+    currentState = std::move(nextState);
   }
+
+  dronePhysics->pushCommand(cmd);
 
   DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");
   DEBUG("  target=" << sim.selectedTargetIndex << " state=" << currentState->name());
 
   const Coord dir = {cosf(sim.CURRENT_DIR), sinf(sim.CURRENT_DIR)};
-  const Target predictedTarget = targetProvider->getTarget(sim.CURRENT_TIME + bombFlightTime, sim.selectedTargetIndex);
+  const Target predictedTarget = targetProvider->getTarget(sim.selectedTargetIndex);
 
   const SimStep stepResult = {
     .pos = sim.CURRENT_POS,
@@ -152,6 +165,7 @@ SimStep MissionProcessor::step()
     .state = currentState->name(),
     .targetIdx = sim.selectedTargetIndex,
     .step = sim.step,
+    .timeSecSinceStart = sim.timeSecSinceStart,
   };
 
   stepsLog.push_back(stepResult);
@@ -177,4 +191,39 @@ std::vector<SimStep> MissionProcessor::getStepsLog()
 {
   return stepsLog;
 };
+
+void MissionProcessor::run()
+{
+  threadReady = true;
+
+  LOG("MissionProcessor thread ready");
+
+  while (!startFlag) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  LOG("MissionProcessor started");
+
+  while (hasNext() && !stopFlag) {
+    step(dronePhysics->waitSnapshot());
+  }
+
+  LOG("MissionProcessor stopped");
+}
+
+void MissionProcessor::start()
+{
+  startFlag = true;
+}
+
+void MissionProcessor::stop()
+{
+  stopFlag = true;
+}
+
+bool MissionProcessor::isThreadReady() const
+{
+  return threadReady;
+}
+
 MissionProcessor::~MissionProcessor() = default;

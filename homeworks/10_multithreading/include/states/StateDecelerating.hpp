@@ -1,10 +1,11 @@
 #pragma once
 #include "interfaces/IDroneState.hpp"
 #include "types.hpp"
+#include <utility>
 
 class StateDecelerating : public IDroneState {
 public:
-  std::unique_ptr<IDroneState> execute(Simulation& sim) override;
+  std::pair<std::unique_ptr<IDroneState>, DroneCommand> execute(Simulation& sim) override;
 
   float getManeuverReadyTime(const Simulation& sim) override;
 

@@ -1,29 +1,31 @@
 #include <memory>
+#include <utility>
 #include "states/StateAccelerating.hpp"
 #include "interfaces/IDroneState.hpp"
 #include "states/StateDecelerating.hpp"
 #include "states/StateMoving.hpp"
 #include "types.hpp"
 
-std::unique_ptr<IDroneState> StateAccelerating::execute(Simulation& sim)
+std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateAccelerating::execute(Simulation& sim)
 {
+  DroneCommand command{
+    .state = DroneState::Accelerating,
+    .angleSpeed = 0.0f,
+    .targetDir = sim.dirToFire,
+  };
+
   if (sim.deltaAngle > sim.dc.turnThreshold) {
-    sim.updateDroneXY();
+    command.state = DroneState::Decelerating;
 
-    return std::make_unique<StateDecelerating>();
+    return {std::make_unique<StateDecelerating>(), command};
   }
-
-  sim.CURRENT_DIR = sim.dirToFire;
-  sim.CURRENT_SPEED += sim.droneAcceleration * sim.dc.simTimeStep;
 
   if (sim.CURRENT_SPEED >= sim.dc.v0) {
-    sim.CURRENT_SPEED = sim.dc.v0;
-    sim.updateDroneXY();
-    return std::make_unique<StateMoving>();
+    command.state = DroneState::Moving;
+    return {std::make_unique<StateMoving>(), command};
   }
-  sim.updateDroneXY();
 
-  return nullptr;
+  return {nullptr, command};
 }
 
 float StateAccelerating::getManeuverReadyTime(const Simulation& sim)

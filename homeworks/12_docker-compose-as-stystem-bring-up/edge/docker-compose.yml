@@ -12,7 +12,7 @@ services:
     volumes:
       - ./config/c2_config.json:/etc/c2/c2_config.json:ro  # конфiг лише для читання
       - ./logs:/var/log/c2                                 # логи видно на хостi пiсля stop
-    restart: _____    # для основного C2-сервiсу очiкується unless-stopped
+    restart: unless-stopped
     network_mode: host
 
   auto_stub:
@@ -29,3 +29,10 @@ services:
     volumes:
       - ../qgc:/opt/route:ro
     network_mode: host
+    # Фiкс для macOS/Docker Desktop:
+    # явний 127.0.0.1 працює однаково на Linux i macOS.
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 7777 || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 3

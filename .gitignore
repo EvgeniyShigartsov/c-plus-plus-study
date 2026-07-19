@@ -89,3 +89,5 @@ config.json
 simulation.json
 
 tmp
+
+*.log

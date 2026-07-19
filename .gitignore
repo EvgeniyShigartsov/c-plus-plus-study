@@ -88,6 +88,5 @@ output.txt
 config.json
 simulation.json
 
-tmp
-
 *.log
+/tmp

@@ -43,6 +43,8 @@ struct DroneConfig {
   float hitRadius;
   float angularSpeed;
   float turnThreshold;
+  float physicsTimeStep;
+  float timeScale;
 };
 
 struct BombParams {
@@ -61,6 +63,7 @@ struct SimStep {
   std::string state;
   int targetIdx;
   int step;
+  float timeSecSinceStart;
 };
 
 struct Simulation {
@@ -69,7 +72,6 @@ struct Simulation {
   float CURRENT_SPEED = 0.0f;
   float CURRENT_DIR = 0.0f;
   Coord maneuverPoint = {0.0f, 0.0f};
-  float turningTimeLeft = 0.0f;
 
   int selectedTargetIndex = 0;
   int prevSelectedTargetIndex = 0;
@@ -83,6 +85,7 @@ struct Simulation {
   float dirToFire = 0.0f;
   DroneConfig dc = {};
   float droneAcceleration = 0.0f;
+  float timeSecSinceStart = 0.0f;
 
   Simulation() = default;
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -92,17 +95,24 @@ struct Simulation {
     , dc(droneConfig)
     , droneAcceleration(powf(dc.v0, 2) / (2 * dc.accelerationPath))  // (a)
     {};
-
-  void updateDroneXY() { CURRENT_POS = CURRENT_POS + Coord{float(cosf(CURRENT_DIR)), sinf(CURRENT_DIR)} * CURRENT_SPEED * dc.simTimeStep; }
-};
-
-struct InterpolationIndex {
-  float frac;
-  int idx;
-  int next;
 };
 
 struct Target {
   Coord pos;
   Coord velocity;
+};
+
+enum DroneState { Stopped, Turning, Accelerating, Moving, Decelerating };
+
+struct DroneCommand {
+  DroneState state;
+  float angleSpeed;
+  float targetDir;
+};
+
+struct DroneTelemetry {
+  Coord pos;
+  float speed;
+  float dir;
+  float timeSinceStart;
 };

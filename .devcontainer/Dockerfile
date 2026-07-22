@@ -34,6 +34,16 @@ RUN apt update && \
   sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
   locale-gen
 
+ARG ROS_APT_SOURCE_VERSION=1.2.0
+COPY ros-packages.in /tmp/ros.in
+RUN curl -fsSL -o /tmp/ros2-apt-source.deb \
+      "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.noble_all.deb" && \
+  apt install -y /tmp/ros2-apt-source.deb && \
+  apt update && \
+  grep -vE '^\s*#' /tmp/ros.in | xargs apt install --no-install-recommends -y && \
+  rm -rf /var/lib/apt/lists/* && apt-get clean -y && \
+  rm /tmp/ros.in /tmp/ros2-apt-source.deb
+
 # Конфіги C++ тулів кладемо в корінь /, не в home. clangd, clang-format,
 # cmake-format шукають такі файли в батьківських директоріях від точки
 # запуску - тобто вони знайдуться незалежно від того, де всередині
@@ -91,7 +101,8 @@ RUN if id ubuntu >/dev/null 2>&1; then \
       userdel -r ubuntu && groupdel ubuntu 2>/dev/null || true; \
     fi && \
     useradd -s /bin/bash -m ${CONTAINER_USER} && \
-  echo "\nexport PROMPT_COMMAND=\"history -a; history -n\n\"" >> /home/${CONTAINER_USER}/.bashrc
+  echo "\nexport PROMPT_COMMAND=\"history -a; history -n\n\"" >> /home/${CONTAINER_USER}/.bashrc && \
+  echo "source /opt/ros/jazzy/setup.bash" >> /home/${CONTAINER_USER}/.bashrc
 
 # Всі подальші команди у контейнері (включно з процесами VS Code remote
 # extension) виконуються від CONTAINER_USER, не від root.

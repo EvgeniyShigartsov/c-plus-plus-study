@@ -16,6 +16,9 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Target.msg"
   "msg/ActuatorStatus.msg"
+  "msg/GimbalCommand.msg"
+  "msg/ServoCommand.msg"
+  "msg/TurretStatus.msg"
   "srv/TriggerActuator.srv"
 )
 

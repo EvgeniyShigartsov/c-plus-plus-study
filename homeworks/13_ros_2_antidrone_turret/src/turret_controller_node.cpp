@@ -3,6 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include "antidrone_turret/topic_names.hpp"
 #include "antidrone_turret/turret_controller_logic.hpp"
 #include "antidrone_turret/msg/actuator_status.hpp"
 #include "antidrone_turret/msg/gimbal_command.hpp"
@@ -13,12 +14,12 @@
 
 namespace {
 
-constexpr auto kTargetTopic = "/perception/target";
-constexpr auto kActuatorStatusTopic = "/actuator/status";
-constexpr auto kGimbalCommandTopic = "/gimbal/cmd";
-constexpr auto kServoCommandTopic = "/servo/cmd";
-constexpr auto kTurretStatusTopic = "/turret/status";
-constexpr auto kTriggerService = "/actuator/trigger";
+using antidrone_turret::kActuatorStatusTopic;
+using antidrone_turret::kGimbalCommandTopic;
+using antidrone_turret::kServoCommandTopic;
+using antidrone_turret::kTargetTopic;
+using antidrone_turret::kTriggerService;
+using antidrone_turret::kTurretStatusTopic;
 
 antidrone_turret::TargetInput to_target_input(const antidrone_turret::msg::Target& message)
 {

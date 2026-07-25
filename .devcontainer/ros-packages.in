@@ -1,0 +1,18 @@
+# ROS 2 Jazzy пакети для ДЗ 13
+# підключеного apt-репозиторію ROS - його дає ros2-apt-source.
+
+# Базовий ROS 2: rclcpp, rosidl, ament, launch, launch_ros
+# для ДЗ потрібні лише бібліотеки, CLI (ros2 topic/service/node) і launch.
+ros-jazzy-ros-base
+
+# Тулчейн збірки ROS 2: colcon, rosdep, vcstool.
+ros-dev-tools
+
+# ament_cmake_auto -  вимагає CMakeLists.txt з пакета antidrone_turret
+# (ament_auto_find_build_dependencies, ament_auto_add_executable).
+ros-jazzy-ament-cmake-auto
+
+# Генерація C++ типів з msg/*.msg і srv/*.srv (rosidl_generate_interfaces)
+# та gtest-інтеграція для ament_add_gtest.
+ros-jazzy-rosidl-default-generators
+ros-jazzy-ament-cmake-gtest

@@ -137,7 +137,7 @@ public:
     return action;
   }
 
-  // Для для логів
+  // Для логів
   Vector2d robot() const { return path_.empty() ? Vector2d{} : path_.back(); }
   std::size_t visited_count() const { return visited_.size(); }
   bool visited(const Vector2d position) const { return visited_.find(position) != visited_.end(); }
@@ -183,14 +183,14 @@ private:
 
   static Move dir_between(const Vector2d from, const Vector2d to)
   {
-    const Vector2d delta = to - from;
-    if (delta.x == 1) {
+    const Vector2d offset = to - from;
+    if (offset.x == 1) {
       return Move::Right;
     }
-    if (delta.x == -1) {
+    if (offset.x == -1) {
       return Move::Left;
     }
-    if (delta.y == 1) {
+    if (offset.y == 1) {
       return Move::Down;
     }
     return Move::Up;  // delta.y == -1

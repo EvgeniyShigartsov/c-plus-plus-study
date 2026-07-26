@@ -16,7 +16,7 @@ ros2 launch underground_world system.launch.py scenario:=training_corridor.yaml
 ```
 Сценарії: `training_corridor.yaml`, `small_rooms.yaml`, `branching_trench.yaml`, `dead_end_bunker.yaml`.
 
-## Перевірка результату
+## Перевірка результату (під час роботи симуляції)
 
 ```bash
 ros2 topic echo /robot/result --once
@@ -34,6 +34,6 @@ ros2 bag record -a -o ../bags/<scenario>
 # Термінал 2 (система):
 ros2 launch underground_world system.launch.py scenario:=<scenario>.yaml move_commit_period_ms:=300
 
-# Після завершення місії стопнути термінали 1, 2 та перевірити результат
+# Після завершення місії стопнути термінали 1, 2 (спочатку 1 щоб точно зебереглась метадата) та перевірити результат
 ros2 bag info ../bags/<scenario>
 ```

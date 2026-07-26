@@ -15,4 +15,11 @@ target_include_directories(mission_explorer_node PRIVATE include)
 ament_auto_add_executable(payload_action_node src/payload_action_node.cpp)
 target_include_directories(payload_action_node PRIVATE include)
 
+if(BUILD_TESTING)
+    find_package(ament_cmake_gtest REQUIRED)
+
+    ament_add_gtest(explorer_test test/explorer_test.cpp)
+    target_include_directories(explorer_test PRIVATE include)
+endif()
+
 ament_auto_package()

@@ -93,10 +93,10 @@ public:
     trigger_client_ = create_client<PayloadTrigger>(mission_control::kTriggerService);
 
     scan_subscription_ = create_subscription<LocalScan>(
-      mission_control::kLocalScanTopic, state_qos, [this](const LocalScan::SharedPtr& msg) { on_local_scan(*msg); });
+      mission_control::kLocalScanTopic, state_qos, [this](const LocalScan::ConstSharedPtr& msg) { on_local_scan(*msg); });
 
     result_subscription_ = create_subscription<RobotResult>(
-      mission_control::kResultTopic, state_qos, [this](const RobotResult::SharedPtr& msg) { on_result(*msg); });
+      mission_control::kResultTopic, state_qos, [this](const RobotResult::ConstSharedPtr& msg) { on_result(*msg); });
 
     RCLCPP_INFO(get_logger(), "mission_explorer started");
   }

@@ -65,6 +65,10 @@ out/
 bin/
 obj/
 
+# ROS 2 / colcon
+install/
+log/
+
 # IDE / editor
 .vs/
 .idea/

@@ -50,4 +50,4 @@ COPY --from=builder /src/build/c2_service .
 HEALTHCHECK --interval=5s --timeout=2s --retries=3 \
   CMD test -f /tmp/c2_healthy || exit 1
 
-CMD ["./c2_service"]
+CMD ["sh", "-c", "rm -f /tmp/c2_healthy && exec ./c2_service"]

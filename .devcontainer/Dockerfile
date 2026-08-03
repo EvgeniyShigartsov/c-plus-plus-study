@@ -70,7 +70,7 @@ RUN echo "ALL ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # CONTAINER_USER і WORKSPACE_FOLDER приходять з devcontainer.json:
 #   CONTAINER_USER   <- ${localEnv:USER}
-#   WORKSPACE_FOLDER <- ${localEnv:HOME}/${localWorkspaceFolderBasename}
+#   WORKSPACE_FOLDER <- ${localWorkspaceFolder}
 # Локально VS Code підставляє host username і path. У CI
 # devcontainers/ci підставляє `runner` і `/home/runner/<repo>`.
 ARG CONTAINER_USER=developer

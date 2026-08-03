@@ -44,6 +44,17 @@ RUN curl -fsSL -o /tmp/ros2-apt-source.deb \
   rm -rf /var/lib/apt/lists/* && apt-get clean -y && \
   rm /tmp/ros.in /tmp/ros2-apt-source.deb
 
+# MAVSDK для ДЗ-12: заголовки та бібліотека, щоб clangd бачив
+# mavsdk/mavsdk.h і c2_service збирався локально, само ДЗ
+# збирається у власному Docker-образі на Ubuntu 22.04
+ARG MAVSDK_VERSION=2.12.9
+RUN ARCH="$(dpkg --print-architecture)" && \
+  if [ "$ARCH" = "arm64" ]; then MAVSDK_DEB="libmavsdk-dev_${MAVSDK_VERSION}_debian12_arm64.deb"; \
+  else MAVSDK_DEB="libmavsdk-dev_${MAVSDK_VERSION}_ubuntu22.04_amd64.deb"; fi && \
+  curl -fsSLo /tmp/mavsdk.deb \
+    "https://github.com/mavlink/MAVSDK/releases/download/v${MAVSDK_VERSION}/${MAVSDK_DEB}" && \
+  dpkg -i /tmp/mavsdk.deb && rm /tmp/mavsdk.deb
+
 # Конфіги C++ тулів кладемо в корінь /, не в home. clangd, clang-format,
 # cmake-format шукають такі файли в батьківських директоріях від точки
 # запуску - тобто вони знайдуться незалежно від того, де всередині
@@ -69,7 +80,7 @@ RUN echo "ALL ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # CONTAINER_USER і WORKSPACE_FOLDER приходять з devcontainer.json:
 #   CONTAINER_USER   <- ${localEnv:USER}
-#   WORKSPACE_FOLDER <- ${localEnv:HOME}/${localWorkspaceFolderBasename}
+#   WORKSPACE_FOLDER <- ${localWorkspaceFolder}
 # Локально VS Code підставляє host username і path. У CI
 # devcontainers/ci підставляє `runner` і `/home/runner/<repo>`.
 ARG CONTAINER_USER=developer

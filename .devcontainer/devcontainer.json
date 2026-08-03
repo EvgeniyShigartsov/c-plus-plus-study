@@ -3,16 +3,19 @@
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
-      "WORKSPACE_FOLDER": "${localEnv:HOME}/${localWorkspaceFolderBasename}",
+      "WORKSPACE_FOLDER": "${localWorkspaceFolder}",
       "CONTAINER_USER": "${localEnv:USER}"
     }
   },
   "remoteUser": "${localEnv:USER}",
-  "workspaceMount": "source=${localWorkspaceFolder},target=${localEnv:HOME}/${localWorkspaceFolderBasename},type=bind",
-  "workspaceFolder": "${localEnv:HOME}/${localWorkspaceFolderBasename}",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
+  "workspaceFolder": "${localWorkspaceFolder}",
   "mounts": [
     "source=${localEnv:HOME}/.ssh,target=/home/${localEnv:USER}/.ssh,type=bind,readonly,consistency=cached",
-    "source=${localEnv:HOME}/.devcontainers/${localWorkspaceFolderBasename}/.bash_history,target=/home/${localEnv:USER}/.bash_history,type=bind,consistency=delegated",
+    "source=${localEnv:HOME}/.devcontainers/${localWorkspaceFolderBasename}/.bash_history,target=/home/${localEnv:USER}/.bash_history,type=bind,consistency=delegated"
   ],
   "initializeCommand": [
     ".devcontainer/scripts/initialize"

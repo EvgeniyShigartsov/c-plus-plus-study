@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>mission_control</name>
+  <version>0.1.0</version>
+  <description>Homework 14 solution: robot-dog underground explorer and payload action nodes.</description>
+
+  <maintainer email="evgeniy.shigartsov2@gmail.com">Yevhenii Shchyhartsov</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>underground_world</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

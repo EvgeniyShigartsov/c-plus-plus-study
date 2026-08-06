@@ -7,7 +7,6 @@
 using json = nlohmann::json;
 
 const std::string API_URL = "http://cppmiltech.com.ua";
-const std::string API_KEY = "dz12-vX7mK4qT9r2w";
 
 enum class SendOutcome {
   Success,           // 2xx успіх
@@ -34,8 +33,6 @@ public:
     body["testId"] = testId;
     body["simulation"] = simulationJson;
 
-    const httplib::Headers headers = {{"x-api-key", API_KEY}};
-
     const httplib::Result res = client->Post("/api/dz12/results", headers, body.dump(), "application/json");
 
     if (!res) {
@@ -53,9 +50,29 @@ public:
     return SendOutcome::PermanentFailure;
   }
 
+  bool ensureResults(const std::string& testId) const
+  {
+    const std::string url = "/api/dz12/results/" + testId + "/" + studentId;
+
+    const httplib::Result res = client->Get(url, headers);
+
+    if (!res || res->status != 200) {
+      return false;
+    }
+
+    const json body = json::parse(res->body, nullptr, false);
+
+    if (body.is_discarded()) {
+      return false;
+    }
+
+    return body.value("found", false);
+  }
+
   virtual ~HttpClient() = default;
 
 private:
   std::unique_ptr<httplib::Client> client;
   std::string studentId;
+  const httplib::Headers headers = {{"x-api-key", "dz12-vX7mK4qT9r2w"}};
 };

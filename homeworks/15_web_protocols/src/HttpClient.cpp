@@ -9,6 +9,12 @@ using json = nlohmann::json;
 const std::string API_URL = "http://cppmiltech.com.ua";
 const std::string API_KEY = "dz12-vX7mK4qT9r2w";
 
+enum class SendOutcome {
+  Success,           // 2xx успіх
+  PermanentFailure,  // 4xx, 400/401 - повторювати немає сенсу
+  RetryableFailure,  // 503 або таймаут - можна повторити
+};
+
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class HttpClient {
 public:
@@ -20,15 +26,31 @@ public:
     client->set_read_timeout(2, 0);
   };
 
-  bool sendResults(const int testId) const
+  SendOutcome sendResults(const std::string& testId, const json& simulationJson) const
   {
     json body;
 
     body["studentId"] = studentId;
     body["testId"] = testId;
-    body["simulation"] = "";
+    body["simulation"] = simulationJson;
 
-    return false;
+    const httplib::Headers headers = {{"x-api-key", API_KEY}};
+
+    const httplib::Result res = client->Post("/api/dz12/results", headers, body.dump(), "application/json");
+
+    if (!res) {
+      return SendOutcome::RetryableFailure;
+    }
+
+    if (res->status == 200 || res->status == 201) {
+      return SendOutcome::Success;
+    }
+
+    if (res->status == 503) {
+      return SendOutcome::RetryableFailure;
+    }
+
+    return SendOutcome::PermanentFailure;
   }
 
   virtual ~HttpClient() = default;

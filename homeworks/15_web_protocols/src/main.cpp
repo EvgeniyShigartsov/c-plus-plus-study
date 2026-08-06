@@ -26,7 +26,7 @@ json toJsonXY(const Coord& coord)
   return {{"x", coord.x}, {"y", coord.y}};
 }
 
-void writeSimulationJson(const std::vector<SimStep>& stepsLog)
+json buildSimulationJson(const std::vector<SimStep>& stepsLog)
 {
   json out;
 
@@ -48,8 +48,9 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
     out["steps"].push_back(outStep);
   }
 
-  std::ofstream outJsonFile("simulation.json");
-  outJsonFile << out.dump(2);
+  out.dump();
+
+  return out;
 }
 
 int main(int argc, char* argv[])
@@ -120,7 +121,7 @@ int main(int argc, char* argv[])
 
   const std::vector<SimStep> stepsLog = missionProcessor->getStepsLog();
 
-  writeSimulationJson(stepsLog);
+  const json simulationJson = buildSimulationJson(stepsLog);
 
   LOG("Simulation complete. Steps: " << stepsLog.size());
 

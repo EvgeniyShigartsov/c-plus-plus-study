@@ -28,3 +28,5 @@ if(MAVSDK_FOUND)
 else()
     message(STATUS "MAVSDK not found - skipping homeworks/12 c2_service")
 endif()
+
+add_subdirectory(homeworks/15_web_protocols)

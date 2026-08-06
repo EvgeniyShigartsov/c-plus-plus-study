@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(
-    hm11_uart_compile_check STATIC
+    hm15_web_protocols STATIC
     src/main.cpp
     src/link/UartLink.cpp
     src/link/PacketMappers.cpp
@@ -24,5 +24,5 @@ add_library(
     src/states/StateStopped.cpp
     src/states/StateTurning.cpp)
 
-target_include_directories(hm11_uart_compile_check PRIVATE include)
-target_compile_options(hm11_uart_compile_check PRIVATE -Wall -Wextra -pedantic)
+target_include_directories(hm15_web_protocols PRIVATE include)
+target_compile_options(hm15_web_protocols PRIVATE -Wall -Wextra -pedantic)

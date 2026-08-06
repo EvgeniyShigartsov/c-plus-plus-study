@@ -1,78 +1,58 @@
-#include <memory>
-#include <string>
-#include <utility>
-#include "third_party/httplib.h"
-#include "third_party/json.hpp"
+#include "HttpClient.hpp"
 
-using json = nlohmann::json;
+#include <utility>
 
 const std::string API_URL = "http://cppmiltech.com.ua";
 
-enum class SendOutcome {
-  Success,           // 2xx успіх
-  PermanentFailure,  // 4xx, 400/401 - повторювати немає сенсу
-  RetryableFailure,  // 503 або таймаут - можна повторити
-};
+HttpClient::HttpClient(std::string& studentId)
+  : client(std::make_unique<httplib::Client>(API_URL))
+  , studentId(std::move(studentId))
+  , headers({{"x-api-key", "dz12-vX7mK4qT9r2w"}})
+{
+  client->set_connection_timeout(2, 0);
+  client->set_read_timeout(2, 0);
+}
 
-// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
-class HttpClient {
-public:
-  HttpClient(std::string& studentId)
-    : client(std::make_unique<httplib::Client>(API_URL))
-    , studentId(std::move(studentId))
-  {
-    client->set_connection_timeout(2, 0);
-    client->set_read_timeout(2, 0);
-  };
+SendOutcome HttpClient::sendResults(const std::string& testId, const json& simulationJson) const
+{
+  json body;
 
-  SendOutcome sendResults(const std::string& testId, const json& simulationJson) const
-  {
-    json body;
+  body["studentId"] = studentId;
+  body["testId"] = testId;
+  body["simulation"] = simulationJson;
 
-    body["studentId"] = studentId;
-    body["testId"] = testId;
-    body["simulation"] = simulationJson;
+  const httplib::Result res = client->Post("/api/dz12/results", headers, body.dump(), "application/json");
 
-    const httplib::Result res = client->Post("/api/dz12/results", headers, body.dump(), "application/json");
-
-    if (!res) {
-      return SendOutcome::RetryableFailure;
-    }
-
-    if (res->status == 200 || res->status == 201) {
-      return SendOutcome::Success;
-    }
-
-    if (res->status == 503) {
-      return SendOutcome::RetryableFailure;
-    }
-
-    return SendOutcome::PermanentFailure;
+  if (!res) {
+    return SendOutcome::RetryableFailure;
   }
 
-  bool ensureResults(const std::string& testId) const
-  {
-    const std::string url = "/api/dz12/results/" + testId + "/" + studentId;
-
-    const httplib::Result res = client->Get(url, headers);
-
-    if (!res || res->status != 200) {
-      return false;
-    }
-
-    const json body = json::parse(res->body, nullptr, false);
-
-    if (body.is_discarded()) {
-      return false;
-    }
-
-    return body.value("found", false);
+  if (res->status == 200 || res->status == 201) {
+    return SendOutcome::Success;
   }
 
-  virtual ~HttpClient() = default;
+  if (res->status == 503) {
+    return SendOutcome::RetryableFailure;
+  }
 
-private:
-  std::unique_ptr<httplib::Client> client;
-  std::string studentId;
-  const httplib::Headers headers = {{"x-api-key", "dz12-vX7mK4qT9r2w"}};
-};
+  return SendOutcome::PermanentFailure;
+}
+
+bool HttpClient::ensureResults(const std::string& testId) const
+{
+  const std::string url = "/api/dz12/results/" + testId + "/" + studentId;
+
+  const httplib::Result res = client->Get(url, headers);
+
+  if (!res || res->status != 200) {
+    return false;
+  }
+
+  const json body = json::parse(res->body, nullptr, false);
+
+  if (body.is_discarded()) {
+    return false;
+  }
+
+  return body.value("found", false);
+}

@@ -10,6 +10,7 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateStopped::execute(Simu
 {
   DroneCommand command{
     .state = DroneState::Stopped,
+    .angleSpeed = 0.0f,
     .targetDir = sim.dirToFire,
   };
 

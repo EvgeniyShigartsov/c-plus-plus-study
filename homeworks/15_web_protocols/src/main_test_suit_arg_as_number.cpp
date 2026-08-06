@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <string>
 #include <thread>
@@ -20,6 +21,38 @@ const std::string CONFIG_FILE_PATH = "homeworks/10_multithreading/data/config.js
 const std::string AMMO_FILE_PATH = "homeworks/10_multithreading/data/ammo.json";
 const std::string TARGETS_FILE_PATH = "homeworks/10_multithreading/data/targets.json";
 const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/10_multithreading/data/ballistic_table.txt";
+
+const std::string TESTING_DATA_DIR = "homeworks/10_multithreading/data/testing_data/";
+
+struct TestPaths {
+  std::string configPath;
+  std::string targetsPath;
+};
+
+TestPaths getTestPaths(const std::string& key)
+{
+  static const std::map<std::string, TestPaths> testPaths = {
+    {"1", {TESTING_DATA_DIR + "01_sample_circles/01_config.json", TESTING_DATA_DIR + "01_sample_circles/01_targets.json"}},
+    {"2", {TESTING_DATA_DIR + "02_eliptic_trajectories/02_config.json", TESTING_DATA_DIR + "02_eliptic_trajectories/02_targets.json"}},
+    {"3", {TESTING_DATA_DIR + "03_visimky_lissaju_1-2/03_config.json", TESTING_DATA_DIR + "03_visimky_lissaju_1-2/03_targets.json"}},
+    {"4", {TESTING_DATA_DIR + "04_star_trajectories/04_config.json", TESTING_DATA_DIR + "04_star_trajectories/04_targets.json"}},
+    {"5", {TESTING_DATA_DIR + "05_lissaju_complex_curves/05_config.json", TESTING_DATA_DIR + "05_lissaju_complex_curves/05_targets.json"}},
+    {"6",
+     {TESTING_DATA_DIR + "06_fast_drone_slow_targets/06_config.json", TESTING_DATA_DIR + "06_fast_drone_slow_targets/06_targets.json"}},
+    {"7", {TESTING_DATA_DIR + "07_heavy_ammo/07_config.json", TESTING_DATA_DIR + "07_heavy_ammo/07_targets.json"}},
+    {"8", {TESTING_DATA_DIR + "08_gliding_ammo/08_config.json", TESTING_DATA_DIR + "08_gliding_ammo/08_targets.json"}},
+    {"9", {TESTING_DATA_DIR + "09_cardioids_eptirohoids/09_config.json", TESTING_DATA_DIR + "09_cardioids_eptirohoids/09_targets.json"}},
+    {"10", {TESTING_DATA_DIR + "10_extreme_far_fast/10_config.json", TESTING_DATA_DIR + "10_extreme_far_fast/10_targets.json"}},
+  };
+
+  const auto it = testPaths.find(key);
+
+  if (it == testPaths.end()) {
+    return {CONFIG_FILE_PATH, TARGETS_FILE_PATH};
+  }
+
+  return it->second;
+}
 
 json toJsonXY(const Coord& coord)
 {
@@ -54,14 +87,9 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
 
 int main(int argc, char* argv[])
 {
-  // Шляхи вхідних файлів з аргументів у порядку config, targets, ammo, ballisticTable
-  // Якщо аргумент не передано — буде використано дефолтний шлях.
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const std::string configPath = (argc > 1) ? argv[1] : CONFIG_FILE_PATH;
-  const std::string targetsPath = (argc > 2) ? argv[2] : TARGETS_FILE_PATH;
-  const std::string ammoPath = (argc > 3) ? argv[3] : AMMO_FILE_PATH;
-  const std::string ballisticTablePath = (argc > 4) ? argv[4] : BALLISTIC_TABLE_FILE_PATH;
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  const std::string testKey = (argc > 1) ? argv[1] : "";
+  const TestPaths testPaths = getTestPaths(testKey);
 
   std::unique_ptr<IConfigLoader> configLoader = createLoader(LoaderType::FILE);
 
@@ -70,19 +98,19 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  const bool isConfigLoadSuccess = configLoader->load(configPath, ammoPath);
+  const bool isConfigLoadSuccess = configLoader->load(testPaths.configPath, AMMO_FILE_PATH);
 
   const DroneConfig droneConfig = configLoader->getConfig();
   const BombParams bombParams = configLoader->getAmmoParams();
 
-  std::shared_ptr<ITargetProvider> targetProvider = createProvider(ProviderType::JSON, targetsPath, droneConfig);
+  std::shared_ptr<ITargetProvider> targetProvider = createProvider(ProviderType::JSON, testPaths.targetsPath, droneConfig);
 
   if (targetProvider == nullptr) {
     LOG("Target provider was not found.");
     return 1;
   }
 
-  std::unique_ptr<IBallisticSolver> solver = createSolver(SolverType::TABLE, ballisticTablePath, bombParams, droneConfig);
+  std::unique_ptr<IBallisticSolver> solver = createSolver(SolverType::TABLE, BALLISTIC_TABLE_FILE_PATH, bombParams, droneConfig);
 
   if (solver == nullptr) {
     LOG("Ballistic solver was not found.");

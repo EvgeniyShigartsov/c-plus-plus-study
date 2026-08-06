@@ -2,8 +2,9 @@
 #include "MathUtils.hpp"
 #include "types.hpp"
 
-TableSolver::TableSolver(const std::string& tablePath, BombParams bomb, const DroneConfig& droneConfig)
+TableSolver::TableSolver(const std::string& tablePath, BombParams bomb, DroneConfig droneConfig)
   : ammo(std::move(bomb))
+  , droneConfig(std::move(droneConfig))
   , isLoadedSuccesful(table.load(tablePath))
 {
   if (isLoadedSuccesful) {

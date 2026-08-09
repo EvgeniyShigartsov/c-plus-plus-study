@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_executable(
     web_protocols
     src/main.cpp
+    src/HttpClient.cpp
     src/config/ComponentFactory.cpp
     src/config/FileConfigLoader.cpp
     src/providers/ThreadSafeTargetProvider.cpp

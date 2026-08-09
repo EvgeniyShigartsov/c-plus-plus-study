@@ -1,19 +1,17 @@
 #include "HttpClient.hpp"
 
-#include <utility>
-
 const std::string API_URL = "http://cppmiltech.com.ua";
 
-HttpClient::HttpClient(std::string& studentId)
+HttpClient::HttpClient(const std::string& studentId)
   : client(std::make_unique<httplib::Client>(API_URL))
-  , studentId(std::move(studentId))
+  , studentId(studentId)
   , headers({{"x-api-key", "dz12-vX7mK4qT9r2w"}})
 {
   client->set_connection_timeout(2, 0);
   client->set_read_timeout(2, 0);
 }
 
-SendOutcome HttpClient::sendResults(const std::string& testId, const json& simulationJson) const
+httplib::Result HttpClient::sendResults(const std::string& testId, const json& simulationJson) const
 {
   json body;
 
@@ -21,21 +19,7 @@ SendOutcome HttpClient::sendResults(const std::string& testId, const json& simul
   body["testId"] = testId;
   body["simulation"] = simulationJson;
 
-  const httplib::Result res = client->Post("/api/dz12/results", headers, body.dump(), "application/json");
-
-  if (!res) {
-    return SendOutcome::RetryableFailure;
-  }
-
-  if (res->status == 200 || res->status == 201) {
-    return SendOutcome::Success;
-  }
-
-  if (res->status == 503) {
-    return SendOutcome::RetryableFailure;
-  }
-
-  return SendOutcome::PermanentFailure;
+  return client->Post("/api/dz12/results", headers, body.dump(), "application/json");
 }
 
 bool HttpClient::ensureResults(const std::string& testId) const

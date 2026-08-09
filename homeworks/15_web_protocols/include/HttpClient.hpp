@@ -7,18 +7,12 @@
 
 using json = nlohmann::json;
 
-enum class SendOutcome {
-  Success,           // 2xx успіх
-  PermanentFailure,  // 4xx, 400/401 - повторювати немає сенсу
-  RetryableFailure,  // 503 або таймаут - можна повторити
-};
-
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class HttpClient {
 public:
-  HttpClient(std::string& studentId);
+  HttpClient(const std::string& studentId);
 
-  SendOutcome sendResults(const std::string& testId, const json& simulationJson) const;
+  httplib::Result sendResults(const std::string& testId, const json& simulationJson) const;
   bool ensureResults(const std::string& testId) const;
 
   virtual ~HttpClient() = default;

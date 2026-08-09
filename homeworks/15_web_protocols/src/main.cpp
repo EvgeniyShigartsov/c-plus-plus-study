@@ -1,13 +1,14 @@
 #include <iostream>
-#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
 #include "DronePhysics.hpp"
+#include "HttpClient.hpp"
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
 #include "interfaces/IConfigLoader.hpp"
+#include "third_party/httplib.h"
 #include "third_party/json.hpp"
 #include "types.hpp"
 #include "Logger.hpp"
@@ -16,10 +17,12 @@
 
 using json = nlohmann::json;
 
-const std::string CONFIG_FILE_PATH = "homeworks/10_multithreading/data/config.json";
-const std::string AMMO_FILE_PATH = "homeworks/10_multithreading/data/ammo.json";
-const std::string TARGETS_FILE_PATH = "homeworks/10_multithreading/data/targets.json";
-const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/10_multithreading/data/ballistic_table.txt";
+const std::string CONFIG_FILE_PATH = "homeworks/15_web_protocols/data/config.json";
+const std::string AMMO_FILE_PATH = "homeworks/15_web_protocols/data/ammo.json";
+const std::string TARGETS_FILE_PATH = "homeworks/15_web_protocols/data/targets.json";
+const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/15_web_protocols/data/ballistic_table.txt";
+const std::string DEFAULT_TEST_ID = "T01";
+const std::string STUDENT_ID = "2120";
 
 json toJsonXY(const Coord& coord)
 {
@@ -62,6 +65,7 @@ int main(int argc, char* argv[])
   const std::string targetsPath = (argc > 2) ? argv[2] : TARGETS_FILE_PATH;
   const std::string ammoPath = (argc > 3) ? argv[3] : AMMO_FILE_PATH;
   const std::string ballisticTablePath = (argc > 4) ? argv[4] : BALLISTIC_TABLE_FILE_PATH;
+  const std::string testId = (argc > 5) ? argv[5] : DEFAULT_TEST_ID;
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   std::unique_ptr<IConfigLoader> configLoader = createLoader(LoaderType::FILE);
@@ -124,6 +128,24 @@ int main(int argc, char* argv[])
   const json simulationJson = buildSimulationJson(stepsLog);
 
   LOG("Simulation complete. Steps: " << stepsLog.size());
+
+  HttpClient httpClient(STUDENT_ID);
+
+  const httplib::Result res = httpClient.sendResults(testId, simulationJson);
+
+  if (!res) {
+    LOG(testId << ": POST retryable failure");
+  }
+  else if (res->status == 200 || res->status == 201) {
+    const bool confirmed = httpClient.ensureResults(testId);
+    LOG(testId << ": POST OK (" << res->status << "), GET confirm: " << confirmed);
+  }
+  else if (res->status == 503) {
+    LOG(testId << ": POST retryable failure 503");
+  }
+  else {
+    LOG(testId << ": POST permanent failure " << res->status << ")");
+  }
 
   return 0;
 }

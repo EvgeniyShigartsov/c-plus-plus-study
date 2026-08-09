@@ -61,35 +61,30 @@ json buildSimulationJson(const std::vector<SimStep>& stepsLog)
 
 void sendResultsToServer(const std::string& testId, const json& simulationJson)
 {
-  size_t retriesCount = 0;
-
   HttpClient httpClient(STUDENT_ID);
 
-  while (retriesCount <= MAX_RETRIES) {
+  for (size_t attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const httplib::Result res = httpClient.sendResults(testId, simulationJson);
 
-    if (!res && retriesCount < MAX_RETRIES) {
-      retriesCount++;
+    if (!res) {
       LOG(testId << ": No HTTP connection, retryable failure");
+    }
+    else if (res->status == 503) {
+      LOG(testId << ": Save results failed, retryable failure 503");
     }
     else if (res->status == 200 || res->status == 201) {
       const bool confirmed = httpClient.ensureResults(testId);
 
       if (confirmed) {
         LOG(testId << ": Results saved on server");
-        break;
+        return;
       }
 
       LOG(testId << ": POST request status is " << res->status << ", but no confirmation received");
-      retriesCount++;
-    }
-    else if (res->status == 503 && retriesCount < MAX_RETRIES) {
-      retriesCount++;
-      LOG(testId << ": Save results failed, retryable failure 503");
     }
     else {
       LOG(testId << ": Save results permanent failure: status is " << res->status);
-      break;
+      return;
     }
 
     std::this_thread::sleep_for(std::chrono::duration(std::chrono::seconds(1)));

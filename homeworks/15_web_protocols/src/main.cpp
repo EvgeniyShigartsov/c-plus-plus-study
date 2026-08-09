@@ -1,3 +1,5 @@
+#include <chrono>
+#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -23,6 +25,7 @@ const std::string TARGETS_FILE_PATH = "homeworks/15_web_protocols/data/targets.j
 const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/15_web_protocols/data/ballistic_table.txt";
 const std::string DEFAULT_TEST_ID = "T01";
 const std::string STUDENT_ID = "2120";
+const size_t MAX_RETRIES = 5;
 
 json toJsonXY(const Coord& coord)
 {
@@ -54,6 +57,43 @@ json buildSimulationJson(const std::vector<SimStep>& stepsLog)
   out.dump();
 
   return out;
+}
+
+void sendResultsToServer(const std::string& testId, const json& simulationJson)
+{
+  size_t retriesCount = 0;
+
+  HttpClient httpClient(STUDENT_ID);
+
+  while (retriesCount <= MAX_RETRIES) {
+    const httplib::Result res = httpClient.sendResults(testId, simulationJson);
+
+    if (!res && retriesCount < MAX_RETRIES) {
+      retriesCount++;
+      LOG(testId << ": No HTTP connection, retryable failure");
+    }
+    else if (res->status == 200 || res->status == 201) {
+      const bool confirmed = httpClient.ensureResults(testId);
+
+      if (confirmed) {
+        LOG(testId << ": Results saved on server");
+        break;
+      }
+
+      LOG(testId << ": POST request status is " << res->status << ", but no confirmation received");
+      retriesCount++;
+    }
+    else if (res->status == 503 && retriesCount < MAX_RETRIES) {
+      retriesCount++;
+      LOG(testId << ": Save results failed, retryable failure 503");
+    }
+    else {
+      LOG(testId << ": Save results permanent failure: status is " << res->status);
+      break;
+    }
+
+    std::this_thread::sleep_for(std::chrono::duration(std::chrono::seconds(1)));
+  }
 }
 
 int main(int argc, char* argv[])
@@ -129,23 +169,7 @@ int main(int argc, char* argv[])
 
   LOG("Simulation complete. Steps: " << stepsLog.size());
 
-  HttpClient httpClient(STUDENT_ID);
-
-  const httplib::Result res = httpClient.sendResults(testId, simulationJson);
-
-  if (!res) {
-    LOG(testId << ": POST retryable failure");
-  }
-  else if (res->status == 200 || res->status == 201) {
-    const bool confirmed = httpClient.ensureResults(testId);
-    LOG(testId << ": POST OK (" << res->status << "), GET confirm: " << confirmed);
-  }
-  else if (res->status == 503) {
-    LOG(testId << ": POST retryable failure 503");
-  }
-  else {
-    LOG(testId << ": POST permanent failure " << res->status << ")");
-  }
+  sendResultsToServer(testId, simulationJson);
 
   return 0;
 }

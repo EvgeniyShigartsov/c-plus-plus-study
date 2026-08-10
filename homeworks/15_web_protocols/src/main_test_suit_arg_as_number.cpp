@@ -1,11 +1,13 @@
+#include <chrono>
+#include <cstddef>
 #include <iostream>
-#include <fstream>
 #include <map>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
 #include "DronePhysics.hpp"
+#include "HttpClient.hpp"
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
 #include "interfaces/IConfigLoader.hpp"
@@ -17,38 +19,49 @@
 
 using json = nlohmann::json;
 
-const std::string CONFIG_FILE_PATH = "homeworks/10_multithreading/data/config.json";
-const std::string AMMO_FILE_PATH = "homeworks/10_multithreading/data/ammo.json";
-const std::string TARGETS_FILE_PATH = "homeworks/10_multithreading/data/targets.json";
-const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/10_multithreading/data/ballistic_table.txt";
+const std::string CONFIG_FILE_PATH = "homeworks/15_web_protocols/data/config.json";
+const std::string AMMO_FILE_PATH = "homeworks/15_web_protocols/data/ammo.json";
+const std::string TARGETS_FILE_PATH = "homeworks/15_web_protocols/data/targets.json";
+const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/15_web_protocols/data/ballistic_table.txt";
 
-const std::string TESTING_DATA_DIR = "homeworks/10_multithreading/data/testing_data/";
+const std::string TESTING_DATA_DIR = "homeworks/15_web_protocols/data/testing_data/";
+const std::string STUDENT_ID = "2120";
+const std::string DEFAULT_TEST_ID = "T01";
+const size_t MAX_RETRIES = 5;
 
 struct TestPaths {
   std::string configPath;
   std::string targetsPath;
+  std::string testId;
 };
 
 TestPaths getTestPaths(const std::string& key)
 {
   static const std::map<std::string, TestPaths> testPaths = {
-    {"1", {TESTING_DATA_DIR + "01_sample_circles/01_config.json", TESTING_DATA_DIR + "01_sample_circles/01_targets.json"}},
-    {"2", {TESTING_DATA_DIR + "02_eliptic_trajectories/02_config.json", TESTING_DATA_DIR + "02_eliptic_trajectories/02_targets.json"}},
-    {"3", {TESTING_DATA_DIR + "03_visimky_lissaju_1-2/03_config.json", TESTING_DATA_DIR + "03_visimky_lissaju_1-2/03_targets.json"}},
-    {"4", {TESTING_DATA_DIR + "04_star_trajectories/04_config.json", TESTING_DATA_DIR + "04_star_trajectories/04_targets.json"}},
-    {"5", {TESTING_DATA_DIR + "05_lissaju_complex_curves/05_config.json", TESTING_DATA_DIR + "05_lissaju_complex_curves/05_targets.json"}},
+    {"1", {TESTING_DATA_DIR + "01_sample_circles/01_config.json", TESTING_DATA_DIR + "01_sample_circles/01_targets.json", "T01"}},
+    {"2",
+     {TESTING_DATA_DIR + "02_eliptic_trajectories/02_config.json", TESTING_DATA_DIR + "02_eliptic_trajectories/02_targets.json", "T02"}},
+    {"3", {TESTING_DATA_DIR + "03_visimky_lissaju_1-2/03_config.json", TESTING_DATA_DIR + "03_visimky_lissaju_1-2/03_targets.json", "T03"}},
+    {"4", {TESTING_DATA_DIR + "04_star_trajectories/04_config.json", TESTING_DATA_DIR + "04_star_trajectories/04_targets.json", "T04"}},
+    {"5",
+     {TESTING_DATA_DIR + "05_lissaju_complex_curves/05_config.json",
+      TESTING_DATA_DIR + "05_lissaju_complex_curves/05_targets.json",
+      "T05"}},
     {"6",
-     {TESTING_DATA_DIR + "06_fast_drone_slow_targets/06_config.json", TESTING_DATA_DIR + "06_fast_drone_slow_targets/06_targets.json"}},
-    {"7", {TESTING_DATA_DIR + "07_heavy_ammo/07_config.json", TESTING_DATA_DIR + "07_heavy_ammo/07_targets.json"}},
-    {"8", {TESTING_DATA_DIR + "08_gliding_ammo/08_config.json", TESTING_DATA_DIR + "08_gliding_ammo/08_targets.json"}},
-    {"9", {TESTING_DATA_DIR + "09_cardioids_eptirohoids/09_config.json", TESTING_DATA_DIR + "09_cardioids_eptirohoids/09_targets.json"}},
-    {"10", {TESTING_DATA_DIR + "10_extreme_far_fast/10_config.json", TESTING_DATA_DIR + "10_extreme_far_fast/10_targets.json"}},
+     {TESTING_DATA_DIR + "06_fast_drone_slow_targets/06_config.json",
+      TESTING_DATA_DIR + "06_fast_drone_slow_targets/06_targets.json",
+      "T06"}},
+    {"7", {TESTING_DATA_DIR + "07_heavy_ammo/07_config.json", TESTING_DATA_DIR + "07_heavy_ammo/07_targets.json", "T07"}},
+    {"8", {TESTING_DATA_DIR + "08_gliding_ammo/08_config.json", TESTING_DATA_DIR + "08_gliding_ammo/08_targets.json", "T08"}},
+    {"9",
+     {TESTING_DATA_DIR + "09_cardioids_eptirohoids/09_config.json", TESTING_DATA_DIR + "09_cardioids_eptirohoids/09_targets.json", "T09"}},
+    {"10", {TESTING_DATA_DIR + "10_extreme_far_fast/10_config.json", TESTING_DATA_DIR + "10_extreme_far_fast/10_targets.json", "T10"}},
   };
 
   const auto it = testPaths.find(key);
 
   if (it == testPaths.end()) {
-    return {CONFIG_FILE_PATH, TARGETS_FILE_PATH};
+    return {CONFIG_FILE_PATH, TARGETS_FILE_PATH, DEFAULT_TEST_ID};
   }
 
   return it->second;
@@ -59,7 +72,7 @@ json toJsonXY(const Coord& coord)
   return {{"x", coord.x}, {"y", coord.y}};
 }
 
-void writeSimulationJson(const std::vector<SimStep>& stepsLog)
+json buildSimulationJson(const std::vector<SimStep>& stepsLog)
 {
   json out;
 
@@ -81,8 +94,39 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
     out["steps"].push_back(outStep);
   }
 
-  std::ofstream outJsonFile("simulation.json");
-  outJsonFile << out.dump(2);
+  return out;
+}
+
+void sendResultsToServer(const std::string& testId, const json& simulationJson)
+{
+  HttpClient httpClient(STUDENT_ID);
+
+  for (size_t attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const httplib::Result res = httpClient.sendResults(testId, simulationJson);
+
+    if (!res) {
+      LOG(testId << ": No HTTP connection, retryable failure");
+    }
+    else if (res->status == 503) {
+      LOG(testId << ": Save results failed, retryable failure (503)");
+    }
+    else if (res->status == 200 || res->status == 201) {
+      const bool confirmed = httpClient.ensureResults(testId);
+
+      if (confirmed) {
+        LOG(testId << ": Results saved on server");
+        return;
+      }
+
+      LOG(testId << ": POST request status is " << res->status << ", but no confirmation received");
+    }
+    else {
+      LOG(testId << ": Save results permanent failure: status is " << res->status);
+      return;
+    }
+
+    std::this_thread::sleep_for(std::chrono::duration(std::chrono::seconds(1)));
+  }
 }
 
 int main(int argc, char* argv[])
@@ -148,9 +192,11 @@ int main(int argc, char* argv[])
 
   const std::vector<SimStep> stepsLog = missionProcessor->getStepsLog();
 
-  writeSimulationJson(stepsLog);
+  const json simulationJson = buildSimulationJson(stepsLog);
 
   LOG("Simulation complete. Steps: " << stepsLog.size());
+
+  sendResultsToServer(testPaths.testId, simulationJson);
 
   return 0;
 }

@@ -32,19 +32,15 @@ struct Coord {
 };
 
 struct DroneConfig {
-  std::string ammoName;
   Coord startPos;
   float altitude;
   float initialDir;
   float v0;
   float accelerationPath;
-  float arrayTimeStep;
   float simTimeStep;
   float hitRadius;
   float angularSpeed;
   float turnThreshold;
-  float physicsTimeStep;
-  float timeScale;
 };
 
 struct BombParams {
@@ -57,18 +53,12 @@ struct BombParams {
 struct SimStep {
   Coord pos;
   Coord dropPoint;
-  Coord aimPoint;
-  Coord predictedTarget;
-  float direction;
   std::string state;
   int targetIdx;
-  int step;
-  float timeSecSinceStart;
 };
 
 struct Simulation {
   Coord CURRENT_POS = {0.0f, 0.0f};
-  float CURRENT_TIME = 0.0f;
   float CURRENT_SPEED = 0.0f;
   float CURRENT_DIR = 0.0f;
   Coord maneuverPoint = {0.0f, 0.0f};
@@ -88,7 +78,6 @@ struct Simulation {
   float timeSecSinceStart = 0.0f;
 
   Simulation() = default;
-  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   Simulation(DroneConfig& droneConfig)
     : CURRENT_POS(droneConfig.startPos)
     , CURRENT_DIR(droneConfig.initialDir)
@@ -106,7 +95,6 @@ enum DroneState { Stopped, Turning, Accelerating, Moving, Decelerating };
 
 struct DroneCommand {
   DroneState state;
-  float angleSpeed;
   float targetDir;
 };
 
@@ -115,4 +103,15 @@ struct DroneTelemetry {
   float speed;
   float dir;
   float timeSinceStart;
+};
+
+struct ControlSignal {
+  float accel = 0.0f;     // прискорення вздовж курсу, [-1..1] (1 = повний газ, -1 = гальмо)
+  float turnRate = 0.0f;  // швидкість повороту, [-1..1] (1 = макс. вліво, -1 = вправо)
+};
+
+struct TargetSlot {
+  Target target = {{0.0f, 0.0f}, {0.0f, 0.0f}};
+  float lastUpdateTime = 0.0f;
+  bool seen = false;
 };

@@ -1,32 +1,24 @@
 #include <memory>
-#include <vector>
-#include <thread>
 
-#include "DronePhysics.hpp"
 #include "types.hpp"
 #include "MathUtils.hpp"
 #include "Logger.hpp"
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/ITargetProvider.hpp"
-#include "interfaces/IConfigLoader.hpp"
 #include "states/StateStopped.hpp"
 #include "MissionProcessor.hpp"
 
 const int MAX_STEPS = 10000;
 
-MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider,
-                                   std::shared_ptr<DronePhysics> dronePhysics,
-                                   std::unique_ptr<IBallisticSolver> solver)
+MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver)
   : targetProvider(std::move(provider))
   , ballisticSolver(std::move(solver))
-  , dronePhysics(std::move(dronePhysics))
 {
-  stepsLog.reserve(MAX_STEPS);
 }
 
-[[nodiscard]] bool MissionProcessor::init(std::unique_ptr<IConfigLoader> configLoader)
+[[nodiscard]] bool MissionProcessor::init(const DroneConfig& config)
 {
-  droneInitialConfig = configLoader->getConfig();
+  droneInitialConfig = config;
   sim = Simulation(droneInitialConfig);
 
   bombFlightTime = ballisticSolver->getBombFlightTime();
@@ -148,30 +140,19 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
     currentState = std::move(nextState);
   }
 
-  dronePhysics->pushCommand(cmd);
+  lastCommand = cmd;
 
   DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");
   DEBUG("  target=" << sim.selectedTargetIndex << " state=" << currentState->name());
 
-  const Coord dir = {cosf(sim.CURRENT_DIR), sinf(sim.CURRENT_DIR)};
-  const Target predictedTarget = targetProvider->getTarget(sim.selectedTargetIndex);
-
   const SimStep stepResult = {
     .pos = sim.CURRENT_POS,
     .dropPoint = bestFire,
-    .aimPoint = sim.CURRENT_POS + dir * h,
-    .predictedTarget = predictedTarget.pos,
-    .direction = sim.CURRENT_DIR,
     .state = currentState->name(),
     .targetIdx = sim.selectedTargetIndex,
-    .step = sim.step,
-    .timeSecSinceStart = sim.timeSecSinceStart,
   };
 
-  stepsLog.push_back(stepResult);
-
   sim.prevSelectedTargetIndex = sim.selectedTargetIndex;
-  sim.CURRENT_TIME += sim.dc.simTimeStep;
   sim.step++;
 
   return stepResult;
@@ -187,43 +168,9 @@ void MissionProcessor::reset()
   sim = Simulation(droneInitialConfig);
 }
 
-std::vector<SimStep> MissionProcessor::getStepsLog()
+DroneCommand MissionProcessor::getLastCommand() const
 {
-  return stepsLog;
-};
-
-void MissionProcessor::run()
-{
-  threadReady = true;
-
-  LOG("MissionProcessor thread ready");
-
-  while (!startFlag) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-
-  LOG("MissionProcessor started");
-
-  while (hasNext() && !stopFlag) {
-    step(dronePhysics->waitSnapshot());
-  }
-
-  LOG("MissionProcessor stopped");
-}
-
-void MissionProcessor::start()
-{
-  startFlag = true;
-}
-
-void MissionProcessor::stop()
-{
-  stopFlag = true;
-}
-
-bool MissionProcessor::isThreadReady() const
-{
-  return threadReady;
+  return lastCommand;
 }
 
 MissionProcessor::~MissionProcessor() = default;

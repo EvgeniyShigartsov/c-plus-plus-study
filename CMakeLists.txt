@@ -18,6 +18,7 @@ add_subdirectory(homeworks/07_classes_interfaces_patterns)
 add_subdirectory(homeworks/08_introduction_to_stl)
 add_subdirectory(homeworks/09_smart_pointers_state_machine_table_calc)
 add_subdirectory(homeworks/10_multithreading)
+add_subdirectory(homeworks/11_drone_manage_with_UART_and_auto_drop)
 
 # ДЗ-12 збирається в Docker, але для роботи IDE підключаємо його й у локальну збірку, якщо MAVSDK
 # встановлено в системі.

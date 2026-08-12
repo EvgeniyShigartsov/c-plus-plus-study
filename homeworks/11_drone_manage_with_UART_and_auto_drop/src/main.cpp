@@ -1,128 +1,167 @@
+#include <unistd.h>
+#include <cstring>
 #include <iostream>
-#include <fstream>
 #include <memory>
 #include <string>
-#include <thread>
 #include <vector>
-#include "DronePhysics.hpp"
-#include "interfaces/IBallisticSolver.hpp"
-#include "interfaces/ITargetProvider.hpp"
-#include "interfaces/IConfigLoader.hpp"
-#include "third_party/json.hpp"
-#include "types.hpp"
+
 #include "Logger.hpp"
-#include "config/ComponentFactory.hpp"
 #include "MissionProcessor.hpp"
+#include "control/DroneController.hpp"
+#include "gpio/GpioSignals.hpp"
+#include "link/MissionConfig.hpp"
+#include "link/PacketMappers.hpp"
+#include "link/UartLink.hpp"
+#include "providers/UartTargetProvider.hpp"
+#include "solvers/TableSolver.hpp"
+#include "third_party/drone_link.h"
+#include "types.hpp"
 
-using json = nlohmann::json;
+const std::string BALLISTIC_TABLE_FILE_PATH = "data/ballistic_table.txt";
 
-const std::string CONFIG_FILE_PATH = "homeworks/10_multithreading/data/config.json";
-const std::string AMMO_FILE_PATH = "homeworks/10_multithreading/data/ammo.json";
-const std::string TARGETS_FILE_PATH = "homeworks/10_multithreading/data/targets.json";
-const std::string BALLISTIC_TABLE_FILE_PATH = "homeworks/10_multithreading/data/ballistic_table.txt";
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,cppcoreguidelines-avoid-c-arrays)
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-json toJsonXY(const Coord& coord)
+struct CliOptions {
+  std::string uartDev = "/tmp/ttyA";
+  std::string gpioChip = "gpiochip1";
+  std::string ballisticTable = BALLISTIC_TABLE_FILE_PATH;
+  int startLine = 24;
+  int dropLine = 23;
+};
+
+CliOptions parseArgs(const std::vector<std::string>& args)
 {
-  return {{"x", coord.x}, {"y", coord.y}};
-}
+  CliOptions opts;
 
-void writeSimulationJson(const std::vector<SimStep>& stepsLog)
-{
-  json out;
+  for (size_t i = 0; i + 1 < args.size(); i += 2) {
+    const std::string& key = args[i];
+    const std::string& value = args[i + 1];
 
-  out["totalSteps"] = stepsLog.size();
-  out["steps"] = json::array();
-
-  for (const SimStep& step : stepsLog) {
-    json outStep;
-
-    outStep["position"] = toJsonXY(step.pos);
-    outStep["direction"] = step.direction;
-    outStep["state"] = step.state;
-    outStep["targetIndex"] = step.targetIdx;
-    outStep["dropPoint"] = toJsonXY(step.dropPoint);
-    outStep["aimPoint"] = toJsonXY(step.aimPoint);
-    outStep["predictedTarget"] = toJsonXY(step.predictedTarget);
-    outStep["timeSecSinceStart"] = step.timeSecSinceStart;
-
-    out["steps"].push_back(outStep);
+    if (key == "--uart") {
+      opts.uartDev = value;
+    }
+    else if (key == "--gpiochip") {
+      opts.gpioChip = value;
+    }
+    else if (key == "--start-line") {
+      opts.startLine = std::stoi(value);
+    }
+    else if (key == "--drop-line") {
+      opts.dropLine = std::stoi(value);
+    }
+    else if (key == "--ballistic-table") {
+      opts.ballisticTable = value;
+    }
+    else {
+      std::cerr << "Unknown argument: " << key << "\n";
+    }
   }
 
-  std::ofstream outJsonFile("simulation.json");
-  outJsonFile << out.dump(2);
+  return opts;
 }
 
 int main(int argc, char* argv[])
 {
-  // Шляхи вхідних файлів з аргументів у порядку config, targets, ammo, ballisticTable
-  // Якщо аргумент не передано — буде використано дефолтний шлях.
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const std::string configPath = (argc > 1) ? argv[1] : CONFIG_FILE_PATH;
-  const std::string targetsPath = (argc > 2) ? argv[2] : TARGETS_FILE_PATH;
-  const std::string ammoPath = (argc > 3) ? argv[3] : AMMO_FILE_PATH;
-  const std::string ballisticTablePath = (argc > 4) ? argv[4] : BALLISTIC_TABLE_FILE_PATH;
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  std::vector<std::string> args;
+  for (int i = 1; i < argc; i++) {
+    args.emplace_back(argv[i]);
+  }
+  const CliOptions opts = parseArgs(args);
 
-  std::unique_ptr<IConfigLoader> configLoader = createLoader(LoaderType::FILE);
+  UartLink link(opts.uartDev);
 
-  if (configLoader == nullptr) {
-    LOG("Config loader was not found.");
+  if (!link.isOpen()) {
     return 1;
   }
 
-  const bool isConfigLoadSuccess = configLoader->load(configPath, ammoPath);
+  GpioSignals gpio(opts.gpioChip, opts.startLine, opts.dropLine);
 
-  const DroneConfig droneConfig = configLoader->getConfig();
-  const BombParams bombParams = configLoader->getAmmoParams();
-
-  std::shared_ptr<ITargetProvider> targetProvider = createProvider(ProviderType::JSON, targetsPath, droneConfig);
-
-  if (targetProvider == nullptr) {
-    LOG("Target provider was not found.");
+  if (!gpio.isOpen()) {
     return 1;
   }
 
-  std::unique_ptr<IBallisticSolver> solver = createSolver(SolverType::TABLE, ballisticTablePath, bombParams, droneConfig);
+  gpio.assertStart();  // START = 1 -> чекер запускає симуляцію
 
-  if (solver == nullptr) {
-    LOG("Ballistic solver was not found.");
+  LOG("Simulation started on " << opts.gpioChip << ", listening " << opts.uartDev << "\n");
+
+  dlink::Parser parser;
+
+  const MissionConfigPackets mission = collectMissionConfig(link, parser);
+
+  const DroneConfig droneConfig = buildDroneConfig(mission.ammo, mission.droneCfg, mission.firstTelemetry);
+  const BombParams bombParams = toBombParams(mission.ammo);
+  const DroneTelemetry firstTelemetry = toDroneTelemetry(mission.firstTelemetry);
+
+  auto targetProvider = std::make_shared<UartTargetProvider>(static_cast<int>(mission.ammo.nTargets));
+
+  for (size_t i = 0; i < mission.initialTargets.size(); i++) {
+    targetProvider->update(static_cast<int>(i), mission.initialTargets[i], firstTelemetry.timeSinceStart);
+  }
+
+  auto solver = std::make_unique<TableSolver>(opts.ballisticTable, bombParams, droneConfig);
+
+  if (!solver->isLoadSuccess()) {
+    std::cerr << "ballistic table load failed: " << opts.ballisticTable << "\n";
     return 1;
   }
 
-  auto physics = std::make_shared<DronePhysics>(droneConfig);
-  auto missionProcessor = std::make_shared<MissionProcessor>(targetProvider, physics, std::move(solver));
+  MissionProcessor missionProcessor(targetProvider, std::move(solver));
 
-  const bool isInitSucces = missionProcessor->init(std::move(configLoader));
-
-  if (!isConfigLoadSuccess || !targetProvider->isLoadSucces() || !isInitSucces) {
+  if (!missionProcessor.init(droneConfig)) {
     return 1;
   }
 
-  std::thread providerThread(&ITargetProvider::run, targetProvider);
-  std::thread physicsThread(&DronePhysics::run, physics);
-  std::thread missionThread(&MissionProcessor::run, missionProcessor);
+  const DroneController controller(droneConfig);
 
-  while (!targetProvider->isThreadReady() || !physics->isThreadReady() || !missionProcessor->isThreadReady()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  uint8_t buf[256];
+  uint8_t type = 0;
+  uint8_t len = 0;
+  uint8_t payload[260];
+
+  float lastTimeSeconds = firstTelemetry.timeSinceStart;
+  bool flying = true;
+
+  while (flying) {
+    const int bytes = link.readBytes(buf, sizeof(buf));
+    if (bytes <= 0) {
+      usleep(1000);
+      continue;
+    }
+
+    for (int i = 0; i < bytes; i++) {
+      if (!parser.feed(buf[i], type, payload, len)) {
+        continue;
+      }
+
+      if (type == dlink::PKT_TARGET) {
+        dlink::TargetPos tp{};
+        std::memcpy(&tp, payload, sizeof tp);
+        targetProvider->update(tp.id, {tp.x, tp.y}, lastTimeSeconds);
+      }
+      else if (type == dlink::PKT_TELEMETRY) {
+        dlink::Telemetry t{};
+        std::memcpy(&t, payload, sizeof t);
+
+        const DroneTelemetry telemetry = toDroneTelemetry(t);
+        lastTimeSeconds = telemetry.timeSinceStart;
+
+        const SimStep stepResult = missionProcessor.step(telemetry);
+        const ControlSignal control = controller.compute(missionProcessor.getLastCommand(), telemetry);
+        link.sendControl(control.accel, control.turnRate);
+
+        if (!missionProcessor.hasNext()) {
+          LOG("DROP! t=" << telemetry.timeSinceStart << "s pos=(" << telemetry.pos.x << "," << telemetry.pos.y
+                         << ") target=" << stepResult.targetIdx << "\n");
+          gpio.pulseDrop();
+          flying = false;
+          break;
+        }
+      }
+    }
   }
-
-  targetProvider->start();
-  physics->start();
-  missionProcessor->start();
-
-  missionThread.join();
-
-  physics->stop();
-  targetProvider->stop();
-
-  providerThread.join();
-  physicsThread.join();
-
-  const std::vector<SimStep> stepsLog = missionProcessor->getStepsLog();
-
-  writeSimulationJson(stepsLog);
-
-  LOG("Simulation complete. Steps: " << stepsLog.size());
 
   return 0;
 }
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+// NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,cppcoreguidelines-avoid-c-arrays)

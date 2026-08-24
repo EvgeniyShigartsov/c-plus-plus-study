@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include <cstdint>
 #include <cstdlib>
 #include <string>
@@ -25,6 +27,7 @@ int main(int argc, char* argv[])
 
   Mpu6050 sensor(bus);
   if (!sensor.checkWhoAmI()) {
+    LOG("Unable to check WHO_AM_I");
     return 1;
   }
 
@@ -35,7 +38,18 @@ int main(int argc, char* argv[])
 
   LOG("MPU-6050 found on " << device << ", address " << static_cast<int>(address));
 
-  return 0;
+  while (true) {
+    Mpu6050::Readings r{};
+    if (!sensor.readAll(r)) {
+      LOG("Reading from MPU-6050 was failed.");
+      return 1;
+    }
+
+    LOG("accel g: " << r.accelX << ", " << r.accelY << ", " << r.accelZ << " | gyro dps: " << r.gyroX << ", " << r.gyroY << ", " << r.gyroZ
+                    << " | temp C: " << r.tempC);
+
+    usleep(200000);
+  }
 }
 
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)

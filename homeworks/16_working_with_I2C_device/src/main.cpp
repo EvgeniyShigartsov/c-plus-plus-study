@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
   while (true) {
     Mpu6050::Readings r{};
     if (!sensor.readAll(r)) {
-      LOG("Reading from MPU-6050 was failed.");
+      LOG("Reading from MPU-6050 failed.");
       return 1;
     }
 

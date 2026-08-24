@@ -23,7 +23,7 @@ I2CBus::I2CBus(const std::string& device, const uint8_t address)
   }
 
   if (ioctl(fd, I2C_SLAVE, address) < 0) {
-    LOG("I2C: failed to select address " << address << " on " << device << ": " << std::strerror(errno));
+    LOG("I2C: failed to select address " << static_cast<int>(address) << " on " << device << ": " << std::strerror(errno));
     close(fd);
     fd = -1;
   }
@@ -52,7 +52,7 @@ bool I2CBus::writeByte(const uint8_t reg, const uint8_t value) const
   const ssize_t res = write(fd, out.data(), out.size());
 
   if (res != static_cast<ssize_t>(out.size())) {
-    LOG("I2C: write to register " << reg << " failed: " << std::strerror(errno));
+    LOG("I2C: write to register " << static_cast<int>(reg) << " failed: " << std::strerror(errno));
     return false;
   }
 
@@ -68,13 +68,13 @@ bool I2CBus::readBlock(const uint8_t reg, uint8_t* data, const size_t len) const
   const ssize_t res = write(fd, &reg, 1);
 
   if (res != 1) {
-    LOG("I2C: device did not respond to register select " << reg << ", : " << std::strerror(errno));
+    LOG("I2C: device did not respond to register select " << static_cast<int>(reg) << ": " << std::strerror(errno));
     return false;
   }
 
   const ssize_t got = read(fd, data, len);
   if (got != static_cast<ssize_t>(len)) {
-    LOG("I2C: read from register " << reg << " was cut (got " << got << " of " << len << " bytes)");
+    LOG("I2C: read from register " << static_cast<int>(reg) << " was cut (got " << got << " of " << len << " bytes)");
     return false;
   }
 

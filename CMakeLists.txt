@@ -30,3 +30,4 @@ else()
 endif()
 
 add_subdirectory(homeworks/15_web_protocols)
+add_subdirectory(homeworks/16_working_with_I2C_device)

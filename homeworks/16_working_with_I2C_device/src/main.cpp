@@ -28,6 +28,11 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  if (!sensor.wake()) {
+    LOG("Unable to wakeup MPU-6050");
+    return 1;
+  }
+
   LOG("MPU-6050 found on " << device << ", address " << static_cast<int>(address));
 
   return 0;

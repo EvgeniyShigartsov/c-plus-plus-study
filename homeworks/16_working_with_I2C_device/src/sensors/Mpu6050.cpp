@@ -21,3 +21,8 @@ bool Mpu6050::checkWhoAmI() const
 
   return true;
 }
+
+bool Mpu6050::wake() const
+{
+  return bus.writeByte(Mpu6050::REG_PWR_MANAGEMENT_1, 0x00);
+}

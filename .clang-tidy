@@ -20,6 +20,7 @@ Checks: >
   -readability-magic-numbers,
   -bugprone-easily-swappable-parameters,
   -modernize-use-nodiscard,
+  -modernize-use-auto,
   misc-unused-using-decls,
 
 CheckOptions:

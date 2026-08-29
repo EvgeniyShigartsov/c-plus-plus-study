@@ -52,12 +52,17 @@ void MavlinkReporter::sendTelemetry(const dlink::Telemetry& telemetry) const
   double lon = 0.0;
   toGps(telemetry.x, telemetry.y, lat, lon);
 
-  double headingDeg = std::fmod(telemetry.dir * 180.0 / M_PI, 360.0);
-  if (headingDeg < 0.0f) {
-    headingDeg += 360.0f;
+  const float yaw = mavlinkUtil::toNedYaw(telemetry.dir);
+
+  double headingDeg = std::fmod(yaw * 180.0 / M_PI, 360.0);
+  if (headingDeg < 0.0) {
+    headingDeg += 360.0;
   }
-  const uint16_t hdg = static_cast<uint16_t>(std::lround(headingDeg * 100.0f));
+  const uint16_t hdg = static_cast<uint16_t>(std::lround(headingDeg * 100.0));
   const int32_t altMm = static_cast<int32_t>(std::lround(telemetry.z * 1000.0f));
+
+  const int16_t vNorth = static_cast<int16_t>(std::lround(telemetry.vy * 100.0f));
+  const int16_t vEast = static_cast<int16_t>(std::lround(telemetry.vx * 100.0f));
 
   mavlink_message_t position_msg;
 
@@ -69,15 +74,14 @@ void MavlinkReporter::sendTelemetry(const dlink::Telemetry& telemetry) const
                                        static_cast<int32_t>(std::llround(lon * 1e7)),
                                        altMm,
                                        altMm,
-                                       static_cast<int16_t>(std::lround(telemetry.vx * 100.0f)),
-                                       static_cast<int16_t>(std::lround(telemetry.vy * 100.0f)),
+                                       vNorth,
+                                       vEast,
                                        0,
                                        hdg);
   mavlinkUtil::send(udp, position_msg);
 
   mavlink_message_t attitude_msg;
 
-  mavlink_msg_attitude_pack(
-    mavlinkUtil::SYSID, mavlinkUtil::COMPID, &attitude_msg, telemetry.t_ms, 0.0f, 0.0f, telemetry.dir, 0.0f, 0.0f, 0.0f);
+  mavlink_msg_attitude_pack(mavlinkUtil::SYSID, mavlinkUtil::COMPID, &attitude_msg, telemetry.t_ms, 0.0f, 0.0f, yaw, 0.0f, 0.0f, 0.0f);
   mavlinkUtil::send(udp, attitude_msg);
 }

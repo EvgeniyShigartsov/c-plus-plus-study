@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -9,9 +10,12 @@
 #include "MissionProcessor.hpp"
 #include "control/DroneController.hpp"
 #include "gpio/GpioSignals.hpp"
+#include "link/MavlinkDrop.hpp"
+#include "link/MavlinkReporter.hpp"
 #include "link/MissionConfig.hpp"
 #include "link/PacketMappers.hpp"
 #include "link/UartLink.hpp"
+#include "link/UdpLink.hpp"
 #include "providers/UartTargetProvider.hpp"
 #include "solvers/TableSolver.hpp"
 #include "third_party/drone_link.h"
@@ -26,6 +30,8 @@ struct CliOptions {
   std::string uartDev = "/tmp/ttyA";
   std::string gpioChip = "gpiochip1";
   std::string ballisticTable = BALLISTIC_TABLE_FILE_PATH;
+  std::string mavHost = "127.0.0.1";
+  uint16_t mavPort = 14550;
   int startLine = 24;
   int dropLine = 23;
 };
@@ -52,6 +58,13 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     }
     else if (key == "--ballistic-table") {
       opts.ballisticTable = value;
+    }
+    else if (key == "--mav-dest") {
+      const size_t colon = value.rfind(':');
+      if (colon != std::string::npos) {
+        opts.mavHost = value.substr(0, colon);
+        opts.mavPort = static_cast<uint16_t>(std::stoi(value.substr(colon + 1)));
+      }
     }
     else {
       std::cerr << "Unknown argument: " << key << "\n";
@@ -114,15 +127,40 @@ int main(int argc, char* argv[])
 
   const DroneController controller(droneConfig);
 
+  UdpLink udp(opts.mavHost, opts.mavPort);
+  if (!udp.isOpen()) {
+    return 1;
+  }
+  MavlinkReporter reporter(udp);
+  MavlinkDrop drop(udp);
+  reporter.sendHeartbeatIfDue();
+
+  LOG("MAVLink telemetry -> " << opts.mavHost << ":" << opts.mavPort << "\n");
+
   uint8_t buf[256];
   uint8_t type = 0;
   uint8_t len = 0;
   uint8_t payload[260];
+  uint8_t udpBuf[512];
 
   float lastTimeSeconds = firstTelemetry.timeSinceStart;
-  bool flying = true;
+  bool dropStarted = false;
 
-  while (flying) {
+  while (true) {
+    const int udpBytes = udp.receive(udpBuf, sizeof(udpBuf));
+    if (udpBytes > 0) {
+      drop.feed(udpBuf, udpBytes);
+    }
+    reporter.sendHeartbeatIfDue();
+
+    if (dropStarted) {
+      drop.resendIfFailed();
+      if (drop.finished()) {
+        LOG((drop.acked() ? "MAVLink: drop confirmed by ACK" : "MAVLink: drop NOT confirmed, no ACK") << "\n");
+        break;
+      }
+    }
+
     const int bytes = link.readBytes(buf, sizeof(buf));
     if (bytes <= 0) {
       usleep(1000);
@@ -143,6 +181,12 @@ int main(int argc, char* argv[])
         dlink::Telemetry t{};
         std::memcpy(&t, payload, sizeof t);
 
+        reporter.sendTelemetry(t);
+
+        if (dropStarted) {
+          continue;  // скид відбувся, місію крутити не треба, тільки слати телеметрію
+        }
+
         const DroneTelemetry telemetry = toDroneTelemetry(t);
         lastTimeSeconds = telemetry.timeSinceStart;
 
@@ -151,11 +195,14 @@ int main(int argc, char* argv[])
         link.sendControl(control.accel, control.turnRate);
 
         if (!missionProcessor.hasNext()) {
-          LOG("DROP! t=" << telemetry.timeSinceStart << "s pos=(" << telemetry.pos.x << "," << telemetry.pos.y
-                         << ") target=" << stepResult.targetIdx << "\n");
+          double dropLat = 0.0;
+          double dropLon = 0.0;
+          MavlinkReporter::toGps(t.x, t.y, dropLat, dropLon);
+
+          LOG("DROP! t=" << telemetry.timeSinceStart << "s pos=(" << t.x << "," << t.y << ") target=" << stepResult.targetIdx << "\n");
           gpio.pulseDrop();
-          flying = false;
-          break;
+          drop.begin(dropLat, dropLon, t.z);
+          dropStarted = true;
         }
       }
     }

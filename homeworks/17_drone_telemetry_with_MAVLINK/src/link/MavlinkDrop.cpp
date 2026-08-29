@@ -39,7 +39,7 @@ void MavlinkDrop::sendCommand()
                                 TARGET_SYSTEM,
                                 TARGET_COMPONENT,
                                 MAV_CMD_USER_1,
-                                static_cast<uint8_t>(attempts - 1),  // confirmation: 0 перша, далі 1..4
+                                static_cast<uint8_t>(attempts - 1),
                                 0.0f,
                                 0.0f,
                                 0.0f,
@@ -51,7 +51,7 @@ void MavlinkDrop::sendCommand()
   lastSend = std::chrono::steady_clock::now();
 }
 
-void MavlinkDrop::poll()
+void MavlinkDrop::resendIfFailed()
 {
   if (isFinished || attempts == 0 || (std::chrono::steady_clock::now() - lastSend < RESEND_TIMEOUT)) {
     return;

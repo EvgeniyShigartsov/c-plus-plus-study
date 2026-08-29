@@ -8,10 +8,13 @@ class MavlinkDrop {
 public:
   explicit MavlinkDrop(const UdpLink& udp);
 
+  // Старт скиду
   void begin(const double lat, const double lon, const float altitude);
 
-  void poll();
+  // Відправляти повідомлення про скид повторно якщо не дійшло з першої спроби, але не більше ніж MAX_ATTEMPTS разів.
+  void resendIfFailed();
 
+  // Обробка байтів які прийшли по UDP, пошук COMMAND_ACK
   void feed(const uint8_t* buf, const int len);
 
   [[nodiscard]] bool started() const;

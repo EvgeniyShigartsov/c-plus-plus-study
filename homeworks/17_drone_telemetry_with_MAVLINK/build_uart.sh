@@ -7,7 +7,9 @@ g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
     src/main.cpp \
     src/link/UartLink.cpp \
     src/link/UdpLink.cpp \
+    src/link/MavlinkUtil.cpp \
     src/link/MavlinkReporter.cpp \
+    src/link/MavlinkDrop.cpp \
     src/link/PacketMappers.cpp \
     src/link/MissionConfig.cpp \
     src/gpio/GpioSignals.cpp \

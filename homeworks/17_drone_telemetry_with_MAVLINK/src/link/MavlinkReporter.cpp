@@ -1,29 +1,17 @@
 #include "link/MavlinkReporter.hpp"
-#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <common/mavlink.h>
+#include "link/MavlinkUtil.hpp"
 #include "link/UdpLink.hpp"
 
 namespace {
-constexpr uint8_t SYSID = 1;
-constexpr uint8_t COMPID = MAV_COMP_ID_AUTOPILOT1;
-
 constexpr double LAT0 = 50.4501;
 constexpr double LON0 = 30.5234;
 constexpr double METERS_PER_DEG = 111320.0;
 
 constexpr std::chrono::seconds HEARTBEAT_PERIOD = std::chrono::seconds(1);
-
-void sendMsg(const UdpLink& udp, const mavlink_message_t& msg)
-{
-  // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-  std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buffer{};
-  const uint16_t len = mavlink_msg_to_send_buffer(buffer.data(), &msg);
-  udp.sendFrame(buffer.data(), len);
-  // NOLINTEND(cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-}
 }  // namespace
 
 MavlinkReporter::MavlinkReporter(const UdpLink& udp)
@@ -47,9 +35,15 @@ void MavlinkReporter::sendHeartbeatIfDue()
   lastHeartbeat = now;
 
   mavlink_message_t msg;
-  mavlink_msg_heartbeat_pack(
-    SYSID, COMPID, &msg, MAV_TYPE_QUADROTOR, MAV_AUTOPILOT_GENERIC, MAV_MODE_FLAG_SAFETY_ARMED, 0, MAV_STATE_ACTIVE);
-  sendMsg(udp, msg);
+  mavlink_msg_heartbeat_pack(mavlinkUtil::SYSID,
+                             mavlinkUtil::COMPID,
+                             &msg,
+                             MAV_TYPE_QUADROTOR,
+                             MAV_AUTOPILOT_GENERIC,
+                             MAV_MODE_FLAG_SAFETY_ARMED,
+                             0,
+                             MAV_STATE_ACTIVE);
+  mavlinkUtil::send(udp, msg);
 }
 
 void MavlinkReporter::sendTelemetry(const dlink::Telemetry& telemetry) const
@@ -67,8 +61,8 @@ void MavlinkReporter::sendTelemetry(const dlink::Telemetry& telemetry) const
 
   mavlink_message_t position_msg;
 
-  mavlink_msg_global_position_int_pack(SYSID,
-                                       COMPID,
+  mavlink_msg_global_position_int_pack(mavlinkUtil::SYSID,
+                                       mavlinkUtil::COMPID,
                                        &position_msg,
                                        telemetry.t_ms,
                                        static_cast<int32_t>(std::llround(lat * 1e7)),
@@ -79,10 +73,11 @@ void MavlinkReporter::sendTelemetry(const dlink::Telemetry& telemetry) const
                                        static_cast<int16_t>(std::lround(telemetry.vy * 100.0f)),
                                        0,
                                        hdg);
-  sendMsg(udp, position_msg);
+  mavlinkUtil::send(udp, position_msg);
 
   mavlink_message_t attitude_msg;
 
-  mavlink_msg_attitude_pack(SYSID, COMPID, &attitude_msg, telemetry.t_ms, 0.0f, 0.0f, telemetry.dir, 0.0f, 0.0f, 0.0f);
-  sendMsg(udp, attitude_msg);
+  mavlink_msg_attitude_pack(
+    mavlinkUtil::SYSID, mavlinkUtil::COMPID, &attitude_msg, telemetry.t_ms, 0.0f, 0.0f, telemetry.dir, 0.0f, 0.0f, 0.0f);
+  mavlinkUtil::send(udp, attitude_msg);
 }

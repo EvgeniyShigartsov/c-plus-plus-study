@@ -200,7 +200,7 @@ int main(int argc, char* argv[])
           MavlinkReporter::toGps(t.x, t.y, dropLat, dropLon);
 
           LOG("DROP! t=" << telemetry.timeSinceStart << "s pos=(" << t.x << "," << t.y << ") target=" << stepResult.targetIdx << "\n");
-          gpio.pulseDrop();
+          gpio.assertDrop();
           drop.begin(dropLat, dropLon, t.z);
           dropStarted = true;
         }

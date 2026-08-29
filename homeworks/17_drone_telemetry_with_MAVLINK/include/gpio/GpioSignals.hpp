@@ -14,7 +14,8 @@ public:
 
   void assertStart();
 
-  void pulseDrop();
+  // Піднімаю лінію але тепер не опускаю, щоб блокуючий usleep не блокував відправку телеметрії
+  void assertDrop();
 
 private:
   gpiod_chip* chip = nullptr;

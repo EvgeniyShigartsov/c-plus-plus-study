@@ -31,3 +31,4 @@ endif()
 
 add_subdirectory(homeworks/15_web_protocols)
 add_subdirectory(homeworks/16_working_with_I2C_device)
+add_subdirectory(homeworks/17_drone_telemetry_with_MAVLINK)

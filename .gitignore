@@ -95,3 +95,5 @@ simulation.json
 
 *.log
 /tmp
+
+homeworks/17_drone_telemetry_with_MAVLINK/include/third_party/c_library_v2/

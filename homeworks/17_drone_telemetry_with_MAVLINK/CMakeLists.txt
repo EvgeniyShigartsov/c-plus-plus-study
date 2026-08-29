@@ -26,3 +26,13 @@ add_library(
 
 target_include_directories(drone_telemetry_with_MAVLINK PRIVATE include)
 target_compile_options(drone_telemetry_with_MAVLINK PRIVATE -Wall -Wextra -pedantic)
+
+set(MAVLINK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/third_party/c_library_v2)
+if(EXISTS ${MAVLINK_DIR}/common/mavlink.h)
+    target_include_directories(drone_telemetry_with_MAVLINK SYSTEM PRIVATE ${MAVLINK_DIR})
+else()
+    message(
+        WARNING
+            "MAVLink c_library_v2 not found at ${MAVLINK_DIR} - clone it (git clone --depth 1 https://github.com/mavlink/c_library_v2.git)"
+    )
+endif()

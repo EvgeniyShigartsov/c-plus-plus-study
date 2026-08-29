@@ -21,6 +21,7 @@ g++ -std=c++20 -O2 -Wall -Wextra -pedantic \
     src/states/StateStopped.cpp \
     src/states/StateTurning.cpp \
     -Iinclude \
+    -isystem include/third_party/c_library_v2 \
     -lgpiod \
     -o script.out
 

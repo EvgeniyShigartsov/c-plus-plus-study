@@ -1,8 +1,5 @@
 #include "gpio/GpioSignals.hpp"
-
 #include <gpiod.h>
-#include <unistd.h>
-
 #include <cstdio>
 
 GpioSignals::GpioSignals(const std::string& chipName, int startLineNum, int dropLineNum)
@@ -48,15 +45,12 @@ void GpioSignals::assertStart()
   gpiod_line_set_value(startLine, 1);  // на старті: «готовий» -> чекер починає симуляцію
 }
 
-void GpioSignals::pulseDrop()
+void GpioSignals::assertDrop()
 {
   if (dropDone) {
     return;  // скид одноразовий
   }
 
   dropDone = true;
-
-  gpiod_line_set_value(dropLine, 1);  // імпульс скиду
-  usleep(80000);
-  gpiod_line_set_value(dropLine, 0);
+  gpiod_line_set_value(dropLine, 1);
 }

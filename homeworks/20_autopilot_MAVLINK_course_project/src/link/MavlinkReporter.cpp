@@ -46,30 +46,30 @@ void MavlinkReporter::sendHeartbeatIfDue()
   mavlinkUtil::send(udp, msg);
 }
 
-void MavlinkReporter::sendTelemetry(const dlink::Telemetry& telemetry) const
+void MavlinkReporter::sendTelemetry(const VehicleState& state) const
 {
   double lat = 0.0;
   double lon = 0.0;
-  toGps(telemetry.x, telemetry.y, lat, lon);
+  toGps(state.x, state.y, lat, lon);
 
-  const float yaw = mavlinkUtil::toNedYaw(telemetry.dir);
+  const float yaw = mavlinkUtil::toNedYaw(state.dir);
 
   double headingDeg = std::fmod(yaw * 180.0 / M_PI, 360.0);
   if (headingDeg < 0.0) {
     headingDeg += 360.0;
   }
   const uint16_t hdg = static_cast<uint16_t>(std::lround(headingDeg * 100.0));
-  const int32_t altMm = static_cast<int32_t>(std::lround(telemetry.z * 1000.0f));
+  const int32_t altMm = static_cast<int32_t>(std::lround(state.z * 1000.0f));
 
-  const int16_t vNorth = static_cast<int16_t>(std::lround(telemetry.vy * 100.0f));
-  const int16_t vEast = static_cast<int16_t>(std::lround(telemetry.vx * 100.0f));
+  const int16_t vNorth = static_cast<int16_t>(std::lround(state.vy * 100.0f));
+  const int16_t vEast = static_cast<int16_t>(std::lround(state.vx * 100.0f));
 
   mavlink_message_t position_msg;
 
   mavlink_msg_global_position_int_pack(mavlinkUtil::SYSID,
                                        mavlinkUtil::COMPID,
                                        &position_msg,
-                                       telemetry.t_ms,
+                                       state.mission_time_ms,
                                        static_cast<int32_t>(std::llround(lat * 1e7)),
                                        static_cast<int32_t>(std::llround(lon * 1e7)),
                                        altMm,
@@ -82,6 +82,7 @@ void MavlinkReporter::sendTelemetry(const dlink::Telemetry& telemetry) const
 
   mavlink_message_t attitude_msg;
 
-  mavlink_msg_attitude_pack(mavlinkUtil::SYSID, mavlinkUtil::COMPID, &attitude_msg, telemetry.t_ms, 0.0f, 0.0f, yaw, 0.0f, 0.0f, 0.0f);
+  mavlink_msg_attitude_pack(
+    mavlinkUtil::SYSID, mavlinkUtil::COMPID, &attitude_msg, state.mission_time_ms, 0.0f, 0.0f, yaw, 0.0f, 0.0f, 0.0f);
   mavlinkUtil::send(udp, attitude_msg);
 }

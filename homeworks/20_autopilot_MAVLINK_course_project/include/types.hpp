@@ -1,7 +1,21 @@
 #pragma once
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <string>
+
+// Конвенція осей: x = схід, y = північ, dir = математичний курс, проти годинникової стрілки, старт зі сходу.
+struct VehicleState {
+  uint32_t mission_time_ms = 0;  // час від старту місії у мілісекундах
+  float x = 0.0f;
+  float y = 0.0f;
+  float z = 0.0f;      // висота, метри
+  float vx = 0.0f;     // швидкість по осі X, м/с
+  float vy = 0.0f;     // швидкість по осі Y, м/с
+  float speed = 0.0f;  // горизонтальна швидкість
+  float dir = 0.0f;
+  uint8_t state = 0;  //  стан стейт-машини донаведення (0..4) TODO: замінити на enum коли буде додано.
+};
 
 struct Coord {
   float x;

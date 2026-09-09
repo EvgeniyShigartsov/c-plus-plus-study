@@ -1,6 +1,6 @@
 #pragma once
 #include <chrono>
-#include "third_party/drone_link.h"
+#include "types.hpp"
 
 class UdpLink;
 
@@ -10,7 +10,7 @@ public:
 
   void sendHeartbeatIfDue();
 
-  void sendTelemetry(const dlink::Telemetry& telemetry) const;
+  void sendTelemetry(const VehicleState& state) const;
 
   // Локальні метри від старту -> градуси (опорна точка lat0/lon0 у .cpp).
   static void toGps(float x, float y, double& lat, double& lon);

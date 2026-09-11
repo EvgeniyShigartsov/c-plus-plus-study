@@ -248,4 +248,124 @@ ControlSignal to_control_signal(const RadioControlOverride& radio_control_overri
   };
 }
 
+mavlink_message_t pack_enable_command(const Identity& from, const Identity& target, const EnableCommand& command, uint8_t confirmation)
+{
+  mavlink_message_t msg{};
+  mavlink_msg_command_long_pack(from.sysid,
+                                from.compid,
+                                &msg,
+                                target.sysid,
+                                target.compid,
+                                kEnableCommandId,
+                                confirmation,
+                                command.enabled ? 1.0f : 0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f);
+  return msg;
+}
+
+EnableCommand parse_enable_command(const mavlink_message_t& msg)
+{
+  mavlink_command_long_t raw{};
+  mavlink_msg_command_long_decode(&msg, &raw);
+  return {.enabled = raw.param1 != 0.0f};
+}
+
+mavlink_message_t pack_target_designation(const Identity& from, const Identity& target, const TargetDesignation& designation)
+{
+  constexpr uint8_t kUnused = 0;
+
+  mavlink_message_t msg{};
+  mavlink_msg_command_int_pack(from.sysid,
+                               from.compid,
+                               &msg,
+                               target.sysid,
+                               target.compid,
+                               MAV_FRAME_GLOBAL,
+                               kTargetDesignationCommandId,
+                               kUnused,
+                               kUnused,
+                               static_cast<float>(designation.target_id),
+                               static_cast<float>(designation.target_count),
+                               0.0f,
+                               0.0f,
+                               static_cast<int32_t>(std::llround(designation.latitude * 1e7)),
+                               static_cast<int32_t>(std::llround(designation.longitude * 1e7)),
+                               0.0f);
+  return msg;
+}
+
+TargetDesignation parse_target_designation(const mavlink_message_t& msg)
+{
+  mavlink_command_int_t raw{};
+  mavlink_msg_command_int_decode(&msg, &raw);
+  return {
+    .target_id = static_cast<uint8_t>(raw.param1),
+    .target_count = static_cast<uint8_t>(raw.param2),
+    .latitude = static_cast<double>(raw.x) * 1e-7,
+    .longitude = static_cast<double>(raw.y) * 1e-7,
+  };
+}
+
+mavlink_message_t pack_drop_notification(const Identity& from, const Identity& target, const DropNotification& drop, uint8_t confirmation)
+{
+  mavlink_message_t msg{};
+  mavlink_msg_command_long_pack(from.sysid,
+                                from.compid,
+                                &msg,
+                                target.sysid,
+                                target.compid,
+                                kDropNotificationCommandId,
+                                confirmation,
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                static_cast<float>(drop.latitude),
+                                static_cast<float>(drop.longitude),
+                                drop.altitude);
+  return msg;
+}
+
+DropNotification parse_drop_notification(const mavlink_message_t& msg)
+{
+  mavlink_command_long_t raw{};
+  mavlink_msg_command_long_decode(&msg, &raw);
+
+  return {
+    .latitude = static_cast<double>(raw.param5),
+    .longitude = static_cast<double>(raw.param6),
+    .altitude = raw.param7,
+  };
+}
+
+mavlink_message_t pack_command_acknowledgement(const Identity& from, const Identity& target, const CommandAcknowledgement& acknowledgement)
+{
+  constexpr uint8_t kProgressUnused = 0;
+  constexpr int32_t kResultParam2Unused = 0;
+
+  mavlink_message_t msg{};
+  mavlink_msg_command_ack_pack(from.sysid,
+                               from.compid,
+                               &msg,
+                               acknowledgement.command,
+                               acknowledgement.result,
+                               kProgressUnused,
+                               kResultParam2Unused,
+                               target.sysid,
+                               target.compid);
+  return msg;
+}
+
+CommandAcknowledgement parse_command_acknowledgement(const mavlink_message_t& msg)
+{
+  mavlink_command_ack_t raw{};
+  mavlink_msg_command_ack_decode(&msg, &raw);
+  return {.command = raw.command, .result = raw.result};
+}
+
 }  // namespace mav

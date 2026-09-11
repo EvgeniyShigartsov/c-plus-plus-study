@@ -195,3 +195,65 @@ TEST(MavlinkCodec, RadioControlOverrideReleasesUnusedChannels)
   EXPECT_EQ(raw.chan2_raw, mav::kPwmReleased);
   EXPECT_EQ(raw.chan4_raw, mav::kPwmReleased);
 }
+
+TEST(MavlinkCodec, EnableCommandRoundTrip)
+{
+  const mav::EnableCommand original = {.enabled = true};
+
+  const mavlink_message_t msg = mav::pack_enable_command(mav::kGcs, mav::kAutopilot, original);
+
+  EXPECT_EQ(msg.msgid, MAVLINK_MSG_ID_COMMAND_LONG);
+  EXPECT_EQ(mav::parse_enable_command(msg), original);
+}
+
+TEST(MavlinkCodec, EnableCommandCarriesConfirmationForRetries)
+{
+  const uint8_t retry_attempt = 3;
+
+  const mav::EnableCommand cmd = {.enabled = false};
+
+  const mavlink_message_t msg = mav::pack_enable_command(mav::kGcs, mav::kAutopilot, cmd, retry_attempt);
+  mavlink_command_long_t raw{};
+  mavlink_msg_command_long_decode(&msg, &raw);
+
+  EXPECT_EQ(raw.confirmation, retry_attempt);
+  EXPECT_EQ(raw.command, mav::kEnableCommandId);
+}
+
+TEST(MavlinkCodec, TargetDesignationRoundTrip)
+{
+  const mav::TargetDesignation original = {
+    .target_id = 2,
+    .target_count = 5,
+    .latitude = 50.45123,
+    .longitude = 30.52456,
+  };
+
+  const mav::TargetDesignation parsed = mav::parse_target_designation(mav::pack_target_designation(mav::kGcs, mav::kAutopilot, original));
+
+  EXPECT_EQ(parsed.target_id, original.target_id);
+  EXPECT_EQ(parsed.target_count, original.target_count);
+  EXPECT_NEAR(parsed.latitude, original.latitude, 1e-6);
+  EXPECT_NEAR(parsed.longitude, original.longitude, 1e-6);
+}
+
+TEST(MavlinkCodec, DropNotificationRoundTrip)
+{
+  const mav::DropNotification original = {.latitude = 50.4510, .longitude = 30.5240, .altitude = 42.5f};
+
+  const mav::DropNotification parsed = mav::parse_drop_notification(mav::pack_drop_notification(mav::kAutopilot, mav::kVehicle, original));
+
+  EXPECT_NEAR(parsed.latitude, original.latitude, 1e-4);
+  EXPECT_NEAR(parsed.longitude, original.longitude, 1e-4);
+  EXPECT_FLOAT_EQ(parsed.altitude, original.altitude);
+}
+
+TEST(MavlinkCodec, CommandAckRoundTrip)
+{
+  const mav::CommandAcknowledgement original = {.command = mav::kEnableCommandId, .result = MAV_RESULT_ACCEPTED};
+
+  const mavlink_message_t msg = mav::pack_command_acknowledgement(mav::kAutopilot, mav::kGcs, original);
+
+  EXPECT_EQ(msg.msgid, MAVLINK_MSG_ID_COMMAND_ACK);
+  EXPECT_EQ(mav::parse_command_acknowledgement(msg), original);
+}

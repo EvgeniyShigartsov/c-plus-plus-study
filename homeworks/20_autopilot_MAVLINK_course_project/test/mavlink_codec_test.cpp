@@ -2,9 +2,11 @@
 
 #include <array>
 #include <cmath>
+#include <numbers>
 
 #include "mavlink/Codec.hpp"
 #include "mavlink/Frames.hpp"
+#include "mavlink/RadioControl.hpp"
 
 TEST(MavlinkFrames, NedYawIsInvolution)
 {
@@ -17,7 +19,7 @@ TEST(MavlinkFrames, NedYawIsInvolution)
 
 TEST(MavlinkFrames, NedYawMapsCardinalDirections)
 {
-  const float half_pi = static_cast<float>(M_PI) * 0.5f;
+  const float half_pi = std::numbers::pi_v<float> * 0.5f;
   EXPECT_NEAR(mav::ned_yaw(0.0f), half_pi, 1e-5f);
   EXPECT_NEAR(mav::ned_yaw(half_pi), 0.0f, 1e-5f);
 }
@@ -122,4 +124,74 @@ TEST(MavlinkCodec, GlobalPositionIntConventions)
   EXPECT_EQ(g.vx, expected_velocity_north);
   EXPECT_EQ(g.vy, expected_velocity_east);
   EXPECT_EQ(g.hdg, expected_heading);
+}
+
+TEST(MavlinkRadioControl, NormalizedToPwmBoundaries)
+{
+  const uint16_t expected_neutral = 1500;
+  const uint16_t expected_max = 2000;
+  const uint16_t expected_min = 1000;
+
+  EXPECT_EQ(mav::normalized_to_pwm(0.0f), expected_neutral);
+  EXPECT_EQ(mav::normalized_to_pwm(1.0f), expected_max);
+  EXPECT_EQ(mav::normalized_to_pwm(-1.0f), expected_min);
+  EXPECT_EQ(mav::normalized_to_pwm(2.0f), expected_max);
+  EXPECT_EQ(mav::normalized_to_pwm(-2.0f), expected_min);
+}
+
+TEST(MavlinkRadioControl, PwmToNormalizedRoundTrip)
+{
+  const std::array<float, 5> sample_values{-1.0f, -0.5f, 0.0f, 0.5f, 1.0f};
+
+  for (const float value : sample_values) {
+    EXPECT_NEAR(mav::pwm_to_normalized(mav::normalized_to_pwm(value)), value, 1e-3f);
+  }
+}
+
+TEST(MavlinkRadioControl, ReleasedPwmIsNeutral)
+{
+  EXPECT_FLOAT_EQ(mav::pwm_to_normalized(mav::kPwmReleased), 0.0f);
+}
+
+TEST(MavlinkCodec, RadioControlChannelsRoundTrip)
+{
+  const mav::RadioControlChannels original{.time_boot_ms = 42, .roll = 1600, .throttle = 1400};
+
+  const mav::RadioControlChannels parsed = mav::parse_radio_control_channels(mav::pack_radio_control_channels(mav::kVehicle, original));
+
+  EXPECT_EQ(parsed, original);
+}
+
+TEST(MavlinkCodec, RadioControlOverrideCarriesControlSignal)
+{
+  const ControlSignal original{.accel = 0.4f, .turnRate = -0.6f};
+
+  const mavlink_message_t msg = mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, original);
+  const mav::RadioControlOverride radio_control_override = mav::parse_radio_control_channels_override(msg);
+  const ControlSignal back = mav::to_control_signal(radio_control_override);
+
+  EXPECT_NEAR(back.accel, original.accel, 1e-3f);
+  EXPECT_NEAR(back.turnRate, original.turnRate, 1e-3f);
+}
+
+TEST(MavlinkCodec, RadioControlOverrideAddressesTargetVehicle)
+{
+  const mavlink_message_t msg = mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, {});
+  mavlink_rc_channels_override_t raw{};
+  mavlink_msg_rc_channels_override_decode(&msg, &raw);
+
+  EXPECT_EQ(raw.target_system, mav::kVehicle.sysid);
+  EXPECT_EQ(raw.target_component, mav::kVehicle.compid);
+}
+
+TEST(MavlinkCodec, RadioControlOverrideReleasesUnusedChannels)
+{
+  const ControlSignal control{.accel = 0.5f, .turnRate = 0.5f};
+
+  const mavlink_message_t msg = mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control);
+  mavlink_rc_channels_override_t raw{};
+  mavlink_msg_rc_channels_override_decode(&msg, &raw);
+
+  EXPECT_EQ(raw.chan2_raw, mav::kPwmReleased);
+  EXPECT_EQ(raw.chan4_raw, mav::kPwmReleased);
 }

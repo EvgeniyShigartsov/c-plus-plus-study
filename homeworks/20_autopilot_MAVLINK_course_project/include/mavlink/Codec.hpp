@@ -34,6 +34,21 @@ struct LocalPositionNed {
   bool operator==(const LocalPositionNed&) const = default;
 };
 
+struct RadioControlChannels {
+  uint32_t time_boot_ms = 0;
+  uint16_t roll = 0;
+  uint16_t throttle = 0;
+
+  bool operator==(const RadioControlChannels&) const = default;
+};
+
+struct RadioControlOverride {
+  uint16_t roll = 0;
+  uint16_t throttle = 0;
+
+  bool operator==(const RadioControlOverride&) const = default;
+};
+
 struct Attitude {
   uint32_t time_boot_ms = 0;  // час від старту, мс
   float yaw = 0.0f;           // курс, куди дивиться ніс, у системі NED (за годинниковою)
@@ -53,4 +68,14 @@ Attitude parse_attitude(const mavlink_message_t& msg);
 mavlink_message_t pack_global_position_int(const Identity& from, const VehicleState& state);
 
 VehicleState to_vehicle_state(const LocalPositionNed& position, const Attitude& attitude);
+
+mavlink_message_t pack_radio_control_channels(const Identity& from, const RadioControlChannels& channels);
+RadioControlChannels parse_radio_control_channels(const mavlink_message_t& msg);
+
+mavlink_message_t pack_radio_control_channels_override(const Identity& from, const Identity& target, const ControlSignal& control);
+RadioControlOverride parse_radio_control_channels_override(const mavlink_message_t& msg);
+
+RadioControlOverride to_radio_control_override(const ControlSignal& control);
+ControlSignal to_control_signal(const RadioControlOverride& radio_control_override);
+
 }  // namespace mav

@@ -5,6 +5,7 @@
 #include <numbers>
 
 #include "mavlink/Frames.hpp"
+#include "mavlink/RadioControl.hpp"
 
 namespace mav {
 
@@ -146,6 +147,105 @@ VehicleState to_vehicle_state(const LocalPositionNed& position, const Attitude& 
   state.speed = std::hypot(state.vx, state.vy);
   state.dir = ned_yaw(attitude.yaw);
   return state;
+}
+
+// --- RADIO_CONTROL_CHANNELS ---
+
+mavlink_message_t pack_radio_control_channels(const Identity& from, const RadioControlChannels& channels)
+{
+  constexpr uint16_t kNoData = UINT16_MAX;  // канал не читаємо -> «немає даних»
+  constexpr uint8_t kChannelCount = 8;
+  constexpr uint8_t kRssiUnknown = UINT8_MAX;
+
+  mavlink_message_t msg{};
+  mavlink_msg_rc_channels_pack(from.sysid,
+                               from.compid,
+                               &msg,
+                               channels.time_boot_ms,
+                               kChannelCount,
+                               channels.roll,
+                               kNoData,
+                               channels.throttle,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kNoData,
+                               kRssiUnknown);
+  return msg;
+}
+
+RadioControlChannels parse_radio_control_channels(const mavlink_message_t& msg)
+{
+  mavlink_rc_channels_t raw{};
+  mavlink_msg_rc_channels_decode(&msg, &raw);
+  return {.time_boot_ms = raw.time_boot_ms, .roll = raw.chan1_raw, .throttle = raw.chan3_raw};
+}
+
+// --- RADIO_CONTROL_CHANNELS_OVERRIDE ---
+
+mavlink_message_t pack_radio_control_channels_override(const Identity& from, const Identity& target, const ControlSignal& control)
+{
+  const RadioControlOverride radio_control_override = to_radio_control_override(control);
+
+  mavlink_message_t msg{};
+  mavlink_msg_rc_channels_override_pack(from.sysid,
+                                        from.compid,
+                                        &msg,
+                                        target.sysid,
+                                        target.compid,
+                                        radio_control_override.roll,
+                                        kPwmReleased,
+                                        radio_control_override.throttle,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased,
+                                        kPwmReleased);
+  return msg;
+}
+
+RadioControlOverride parse_radio_control_channels_override(const mavlink_message_t& msg)
+{
+  mavlink_rc_channels_override_t raw{};
+  mavlink_msg_rc_channels_override_decode(&msg, &raw);
+  return {.roll = raw.chan1_raw, .throttle = raw.chan3_raw};
+}
+
+RadioControlOverride to_radio_control_override(const ControlSignal& control)
+{
+  return {
+    .roll = normalized_to_pwm(control.turnRate),
+    .throttle = normalized_to_pwm(control.accel),
+  };
+}
+
+ControlSignal to_control_signal(const RadioControlOverride& radio_control_override)
+{
+  return {
+    .accel = pwm_to_normalized(radio_control_override.throttle),
+    .turnRate = pwm_to_normalized(radio_control_override.roll),
+  };
 }
 
 }  // namespace mav

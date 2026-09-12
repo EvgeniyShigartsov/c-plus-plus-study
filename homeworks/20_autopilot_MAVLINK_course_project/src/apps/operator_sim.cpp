@@ -1,15 +1,21 @@
+// operator_sim — тестовий скриптований оператор
+#include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "Logger.hpp"
+#include "link/UdpLink.hpp"
+#include "mavlink/Codec.hpp"
+#include "mavlink/Endpoint.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 struct CliOptions {
-  std::string script;
-  std::string targets = "data/targets.json";
-  std::string apEndpoint = "udp://127.0.0.1:14550";
+  std::string apHost = "127.0.0.1";
+  uint16_t apPort = 14560;  // домашній порт autopilot, сюди шлемо HEARTBEAT або команди
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -20,14 +26,11 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     const std::string& key = args[i];
     const std::string& value = args[i + 1];
 
-    if (key == "--script") {
-      opts.script = value;
+    if (key == "--ap-host") {
+      opts.apHost = value;
     }
-    else if (key == "--targets") {
-      opts.targets = value;
-    }
-    else if (key == "--ap-endpoint") {
-      opts.apEndpoint = value;
+    else if (key == "--ap-port") {
+      opts.apPort = static_cast<uint16_t>(std::stoi(value));
     }
     else {
       std::cerr << "Unknown argument at operator_sim.cpp: " << key << '\n';
@@ -46,10 +49,28 @@ int main(int argc, char* argv[])
   const CliOptions opts = parseArgs(args);
 
   LOG("operator_sim:\n"
-      << "  script      = " << (opts.script.empty() ? "(no script)" : opts.script) << '\n'
-      << "  targets     = " << opts.targets << '\n'
-      << "  ap-endpoint = " << opts.apEndpoint);
-  return 0;
+      << "  ap-host = " << opts.apHost << '\n'
+      << "  ap-port = " << opts.apPort);
+
+  const UdpLink udp(opts.apHost, opts.apPort);
+  if (!udp.isOpen()) {
+    LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort);
+    return 1;
+  }
+  const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
+
+  const std::chrono::milliseconds kHeartbeatPeriod = std::chrono::milliseconds(500);  // 2 Гц
+  std::chrono::steady_clock::time_point lastHeartbeat;
+
+  while (true) {
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    if (now - lastHeartbeat >= kHeartbeatPeriod) {
+      endpoint.send(mav::pack_heartbeat(mav::kGcs, {.type = MAV_TYPE_GCS}));
+      lastHeartbeat = now;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
 }
 
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)

@@ -11,8 +11,10 @@ class MavlinkEndpoint {
 public:
   MavlinkEndpoint(const UdpLink& udp, const mavlink_channel_t rxChannel);
 
+  // Відправляємо mavlink повідомлення
   void send(const mavlink_message_t& msg) const;
 
+  // Вичитуємо mavlink повідомлення
   [[nodiscard]] std::vector<mavlink_message_t> poll() const;
 
 private:

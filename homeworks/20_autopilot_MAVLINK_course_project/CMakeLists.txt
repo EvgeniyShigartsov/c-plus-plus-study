@@ -17,6 +17,7 @@ set(HM20_WARNINGS -Wall -Wextra -pedantic)
 
 add_library(
     hm20_guidance STATIC
+    src/authority/AuthorityStateMachine.cpp
     src/control/DroneController.cpp
     src/utils/MathUtils.cpp
     src/MissionProcessor.cpp
@@ -61,6 +62,11 @@ if(NOT CMAKE_CROSSCOMPILING)
         target_link_libraries(hm20_sim_test PRIVATE hm20_sim GTest::gtest_main)
         target_compile_options(hm20_sim_test PRIVATE ${HM20_WARNINGS})
         gtest_discover_tests(hm20_sim_test)
+
+        add_executable(hm20_guidance_test test/authority_test.cpp)
+        target_link_libraries(hm20_guidance_test PRIVATE hm20_guidance GTest::gtest_main)
+        target_compile_options(hm20_guidance_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_guidance_test)
     else()
         message(STATUS "GTest not found - skipping homeworks/20 tests.")
     endif()

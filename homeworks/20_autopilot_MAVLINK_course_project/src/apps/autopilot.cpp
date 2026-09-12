@@ -31,6 +31,7 @@ struct CliOptions {
   std::string vehicleHost = "127.0.0.1";
   uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim - туди шлемо RC_CHANNELS_OVERRIDE
   uint16_t ownPort = 14560;  // домашній порт автопілота - сюди отримуємо телеметрію від vehicle_sim
+  float heartbeatTimeoutSec = 3.0f;  // Скільки секунд чекати HEARTBEAT від оператора перш ніж перейти у failsafe
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -65,6 +66,9 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     else if (key == "--own-port") {
       opts.ownPort = static_cast<uint16_t>(std::stoi(value));
     }
+    else if (key == "--heartbeat-timeout") {
+      opts.heartbeatTimeoutSec = std::stof(value);
+    }
     else {
       std::cerr << "Unknown argument at autopilot.cpp: " << key << '\n';
     }
@@ -89,7 +93,8 @@ int main(int argc, char* argv[])
       << "  gcs-port        = " << opts.gcsPort << '\n'
       << "  vehicle-host    = " << opts.vehicleHost << '\n'
       << "  vehicle-port    = " << opts.vehiclePort << '\n'
-      << "  own-port        = " << opts.ownPort);
+      << "  own-port        = " << opts.ownPort << '\n'
+      << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
@@ -114,6 +119,8 @@ int main(int argc, char* argv[])
   AuthorityStateMachine authority;
   bool enabled = false;
   bool operatorInDeadband = true;
+  const auto heartbeatTimeout = std::chrono::duration<float>(opts.heartbeatTimeoutSec);
+  std::chrono::steady_clock::time_point lastOperatorHeartbeat;
 
   mav::LocalPositionNed lastPosition{};
   mav::Attitude lastAttitude{};
@@ -163,6 +170,14 @@ int main(int argc, char* argv[])
           LOG("mission: guidance core ready");
         }
       }
+      else if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT && mav::Identity{.sysid = msg.sysid, .compid = msg.compid} == mav::kGcs) {
+        const bool wasLinkOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
+        lastOperatorHeartbeat = std::chrono::steady_clock::now();
+
+        if (!wasLinkOk) {
+          LOG("operator link: restored");
+        }
+      }
       else if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS) {
         const mav::RadioControlChannels channels = mav::parse_radio_control_channels(msg);
         const bool wasInDeadband = operatorInDeadband;
@@ -193,10 +208,13 @@ int main(int argc, char* argv[])
           lastStep = mission->step(lastTelemetry);
         }
 
+        const bool operatorLinkOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
+
         const bool hasAuthorityChanged = authority.update({
           .enabled = enabled,
           .hasMission = mission != nullptr,
           .operatorInDeadband = operatorInDeadband,
+          .operatorLinkOk = operatorLinkOk,
           .reachedFirePoint = mission && !hasNextStep,
         });
         if (hasAuthorityChanged) {

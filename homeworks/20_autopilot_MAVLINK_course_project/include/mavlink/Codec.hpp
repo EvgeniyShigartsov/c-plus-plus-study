@@ -117,6 +117,8 @@ mavlink_message_t pack_global_position_int(const Identity& from, const VehicleSt
 
 VehicleState to_vehicle_state(const LocalPositionNed& position, const Attitude& attitude);
 
+DroneTelemetry to_drone_telemetry(const VehicleState& state);
+
 mavlink_message_t pack_radio_control_channels(const Identity& from, const RadioControlChannels& channels);
 RadioControlChannels parse_radio_control_channels(const mavlink_message_t& msg);
 

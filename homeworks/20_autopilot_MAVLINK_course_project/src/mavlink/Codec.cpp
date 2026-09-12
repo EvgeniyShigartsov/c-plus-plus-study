@@ -152,6 +152,16 @@ VehicleState to_vehicle_state(const LocalPositionNed& position, const Attitude& 
   return state;
 }
 
+DroneTelemetry to_drone_telemetry(const VehicleState& state)
+{
+  return {
+    .pos = {.x = state.x, .y = state.y},
+    .speed = state.speed,
+    .dir = state.dir,
+    .timeSinceStart = static_cast<float>(state.mission_time_ms) / 1000.0f,
+  };
+}
+
 // --- RADIO_CONTROL_CHANNELS ---
 
 mavlink_message_t pack_radio_control_channels(const Identity& from, const RadioControlChannels& channels)

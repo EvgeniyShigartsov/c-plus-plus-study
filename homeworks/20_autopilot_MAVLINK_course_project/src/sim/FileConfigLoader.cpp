@@ -31,6 +31,8 @@ bool FileConfigLoader::readDroneConfig(const std::string& pathToConfig)
     arrayTimeStep = data["targetArrayTimeStep"];
     droneConfig.simTimeStep = data["simulation"]["timeStep"];
     droneConfig.hitRadius = data["simulation"]["hitRadius"];
+    physicsTimeStep = data["simulation"]["physicsTimeStep"];
+    timeScale = data["simulation"]["timeScale"];
     droneConfig.angularSpeed = data["drone"]["angularSpeed"];
     droneConfig.turnThreshold = data["drone"]["turnThreshold"];
   }
@@ -110,6 +112,16 @@ BombParams FileConfigLoader::getAmmoParams() const
 float FileConfigLoader::getArrayTimeStep() const
 {
   return arrayTimeStep;
+}
+
+float FileConfigLoader::getPhysicsTimeStep() const
+{
+  return physicsTimeStep;
+}
+
+float FileConfigLoader::getTimeScale() const
+{
+  return timeScale;
 }
 
 FileConfigLoader::~FileConfigLoader() = default;

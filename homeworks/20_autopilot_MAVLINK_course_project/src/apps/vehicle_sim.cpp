@@ -1,8 +1,13 @@
+#include <chrono>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "Logger.hpp"
+#include "sim/DronePhysics.hpp"
+#include "sim/FileConfigLoader.hpp"
+#include "sim/JsonTargetProvider.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -37,6 +42,15 @@ CliOptions parseArgs(const std::vector<std::string>& args)
   return opts;
 }
 
+constexpr std::string CONFIG_FILE_FILENAME = "config.json";
+constexpr std::string AMMO_FILE_FILENAME = "ammo.json";
+constexpr std::string TARGETS_FILE_FILENAME = "targets.json";
+
+std::string makeScenarioPath(const std::string& scenario, const std::string& filename)
+{
+  return scenario + "/" + filename;
+}
+
 int main(int argc, char* argv[])
 {
   std::vector<std::string> args;
@@ -49,7 +63,54 @@ int main(int argc, char* argv[])
       << "  scenario    = " << opts.scenario << '\n'
       << "  ap-endpoint = " << opts.apEndpoint << '\n'
       << "  time-scale  = " << opts.timeScale);
-  return 0;
+
+  FileConfigLoader loader;
+  if (!loader.load(makeScenarioPath(opts.scenario, CONFIG_FILE_FILENAME), makeScenarioPath(opts.scenario, AMMO_FILE_FILENAME))) {
+    LOG("Failed to load config or ammo");
+    return 1;
+  }
+
+  const DroneConfig droneConfig = loader.getConfig();
+  const float physicsTimeStep = loader.getPhysicsTimeStep();
+  const float timeScale = opts.timeScale;
+
+  DronePhysics physics = DronePhysics(droneConfig);
+  const JsonTargetProvider targets =
+    JsonTargetProvider(makeScenarioPath(opts.scenario, TARGETS_FILE_FILENAME), loader.getArrayTimeStep(), droneConfig.simTimeStep);
+
+  if (!targets.isLoadSucces()) {
+    return 1;
+  }
+
+  std::chrono::time_point last = std::chrono::steady_clock::now();
+  float accumulator = 0.0f;
+  float nextTelemetryLog = 0.0f;
+
+  while (true) {
+    const std::chrono::time_point now = std::chrono::steady_clock::now();
+    accumulator += std::chrono::duration<float>(now - last).count() * timeScale;
+    last = now;
+
+    const float maxCatchUp = 1.0f;
+    if (accumulator > maxCatchUp) {
+      accumulator = maxCatchUp;
+    }
+
+    while (accumulator >= physicsTimeStep) {
+      physics.stepPhysics(physicsTimeStep);
+      accumulator -= physicsTimeStep;
+    }
+
+    const DroneTelemetry telemetry = physics.getTelemetry();
+    if (telemetry.timeSinceStart >= nextTelemetryLog) {
+      const Target firstTarget = targets.getTarget(telemetry.timeSinceStart, 0);
+      LOG("t=" << telemetry.timeSinceStart << " pos=(" << telemetry.pos.x << "," << telemetry.pos.y << ") speed=" << telemetry.speed
+               << " dir=" << telemetry.dir << " | target0=(" << firstTarget.pos.x << "," << firstTarget.pos.y << ")");
+      nextTelemetryLog += droneConfig.simTimeStep;
+    }
+
+    std::this_thread::sleep_for(std::chrono::duration<float>(physicsTimeStep / timeScale));
+  }
 }
 
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)

@@ -23,9 +23,11 @@ using json = nlohmann::json;
 
 struct CliOptions {
   std::string scenario = "data";
-  std::string apHost = "127.0.0.1";  // куди шлемо телеметрію — хост autopilot
-  uint16_t apPort = 14560;           // куди шлемо телеметрію — домашній порт autopilot
-  uint16_t ownPort = 14555;          // домашній порт, сюди autopilot шле RC_CHANNELS_OVERRIDE
+  std::string apHost = "127.0.0.1";   // куди шлемо телеметрію — хост autopilot
+  uint16_t apPort = 14560;            // куди шлемо телеметрію — домашній порт autopilot
+  uint16_t ownPort = 14555;           // домашній порт, сюди autopilot шле RC_CHANNELS_OVERRIDE
+  std::string gcsHost = "127.0.0.1";  // куди дублюємо телеметрію -- для QGC/чекера
+  uint16_t gcsPort = 14550;
   float timeScale = 1.0f;
   std::string simOutput = "simulation.json";
 };
@@ -49,6 +51,12 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     }
     else if (key == "--own-port") {
       opts.ownPort = static_cast<uint16_t>(std::stoi(value));
+    }
+    else if (key == "--gcs-host") {
+      opts.gcsHost = value;
+    }
+    else if (key == "--gcs-port") {
+      opts.gcsPort = static_cast<uint16_t>(std::stoi(value));
     }
     else if (key == "--time-scale") {
       opts.timeScale = std::stof(value);
@@ -131,6 +139,8 @@ int main(int argc, char* argv[])
       << "  ap-host    = " << opts.apHost << '\n'
       << "  ap-port    = " << opts.apPort << '\n'
       << "  own-port   = " << opts.ownPort << '\n'
+      << "  gcs-host   = " << opts.gcsHost << '\n'
+      << "  gcs-port   = " << opts.gcsPort << '\n'
       << "  time-scale = " << opts.timeScale << '\n'
       << "  sim-output = " << opts.simOutput);
 
@@ -158,6 +168,10 @@ int main(int argc, char* argv[])
     return 1;
   }
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
+
+  // Дублювання телеметрії на GCS
+  const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort);
+  const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_2);
 
   constexpr std::chrono::seconds heartbeatPeriod = std::chrono::seconds(1);
   std::chrono::steady_clock::time_point lastHeartbeat;
@@ -217,7 +231,10 @@ int main(int argc, char* argv[])
     }
 
     if (now - lastHeartbeat >= heartbeatPeriod) {
-      endpoint.send(mav::pack_heartbeat(mav::kVehicle, {.type = MAV_TYPE_QUADROTOR, .system_status = MAV_STATE_ACTIVE}));
+      const mavlink_message_t heartbeat =
+        mav::pack_heartbeat(mav::kVehicle, {.type = MAV_TYPE_QUADROTOR, .system_status = MAV_STATE_ACTIVE});
+      endpoint.send(heartbeat);
+      gcsEndpoint.send(heartbeat);
       lastHeartbeat = now;
     }
 
@@ -239,13 +256,22 @@ int main(int argc, char* argv[])
       }
 
       const VehicleState state = toVehicleState(telemetry, droneConfig.altitude);
-      endpoint.send(mav::pack_local_position_ned(mav::kVehicle, state));
-      endpoint.send(mav::pack_attitude(mav::kVehicle, state));
-      endpoint.send(mav::pack_global_position_int(mav::kVehicle, state));
-
+      const mavlink_message_t localPositionNed = mav::pack_local_position_ned(mav::kVehicle, state);
+      const mavlink_message_t attitude = mav::pack_attitude(mav::kVehicle, state);
+      const mavlink_message_t globalPositionInt = mav::pack_global_position_int(mav::kVehicle, state);
       // TODO: коли буде симуляція оператора, використати, а поки нейтраль
-      endpoint.send(mav::pack_radio_control_channels(
-        mav::kVehicle, {.time_boot_ms = state.mission_time_ms, .roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral}));
+      const mavlink_message_t radioControlChannels = mav::pack_radio_control_channels(
+        mav::kVehicle, {.time_boot_ms = state.mission_time_ms, .roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral});
+
+      endpoint.send(localPositionNed);
+      endpoint.send(attitude);
+      endpoint.send(globalPositionInt);
+      endpoint.send(radioControlChannels);
+
+      gcsEndpoint.send(localPositionNed);
+      gcsEndpoint.send(attitude);
+      gcsEndpoint.send(globalPositionInt);
+      gcsEndpoint.send(radioControlChannels);
 
       nextTelemetryLog += droneConfig.simTimeStep;
     }

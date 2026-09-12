@@ -131,7 +131,9 @@ int main(int argc, char* argv[])
   std::shared_ptr<CachedTargetProvider> targets;
   std::unique_ptr<MissionProcessor> mission;
   SimStep lastStep{};
-  bool reportedReady = false;
+
+  constexpr std::chrono::seconds kHeartbeatPeriod = std::chrono::seconds(1);
+  std::chrono::steady_clock::time_point lastOwnHeartbeat;
 
   while (true) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
@@ -219,6 +221,17 @@ int main(int argc, char* argv[])
         });
         if (hasAuthorityChanged) {
           LOG("authority changed to: -> " << authority.to_string());
+
+          const bool isFailsafe = authority.state() == AuthorityState::Failsafe;
+          gcsEndpoint.send(mav::pack_status_text(mav::kAutopilot,
+                                                 {.severity = static_cast<uint8_t>(isFailsafe ? MAV_SEVERITY_WARNING : MAV_SEVERITY_INFO),
+                                                  .text = "authority -> " + authority.to_string()}));
+
+          if (authority.state() == AuthorityState::Complete) {
+            endpoint.send(mav::pack_drop_notification(
+              mav::kAutopilot, mav::kVehicle, {.latitude = lastStep.dropPoint.x, .longitude = lastStep.dropPoint.y, .altitude = 0.0f}));
+            LOG("mission: complete, drop sent at (" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y << ")");
+          }
         }
 
         if (hasNextStep && authority.hasControl()) {
@@ -229,17 +242,20 @@ int main(int argc, char* argv[])
                             << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=(" << lastStep.dropPoint.x
                             << "," << lastStep.dropPoint.y << ") accel=" << control.accel << " turnRate=" << control.turnRate);
         }
-        else if (mission && !hasNextStep && !reportedReady) {
-          // Скид відбувається тут, поки що - лише сигнал у лог,
-          LOG("mission: reached fire point, ready to drop -- last dropPoint=(" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y
-                                                                               << ")");
-          reportedReady = true;
-        }
         else {
           LOG("telemetry t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
                              << ") speed=" << lastTelemetry.speed << " dir=" << lastTelemetry.dir);
         }
       }
+    }
+
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+    if (now - lastOwnHeartbeat >= kHeartbeatPeriod) {
+      gcsEndpoint.send(mav::pack_heartbeat(
+        mav::kAutopilot,
+        {.type = MAV_TYPE_ONBOARD_CONTROLLER, .custom_mode = static_cast<uint32_t>(authority.state()), .system_status = MAV_STATE_ACTIVE}));
+      lastOwnHeartbeat = now;
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(5));

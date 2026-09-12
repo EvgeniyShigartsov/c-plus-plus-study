@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -14,6 +15,9 @@
 #include "sim/DronePhysics.hpp"
 #include "sim/FileConfigLoader.hpp"
 #include "sim/JsonTargetProvider.hpp"
+#include "third_party/json.hpp"
+
+using json = nlohmann::json;
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -23,6 +27,7 @@ struct CliOptions {
   uint16_t apPort = 14560;           // куди шлемо телеметрію — домашній порт autopilot
   uint16_t ownPort = 14555;          // домашній порт, сюди autopilot шле RC_CHANNELS_OVERRIDE
   float timeScale = 1.0f;
+  std::string simOutput = "simulation.json";
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -48,6 +53,9 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     else if (key == "--time-scale") {
       opts.timeScale = std::stof(value);
     }
+    else if (key == "--sim-output") {
+      opts.simOutput = value;
+    }
     else {
       std::cerr << "Unknown argument at vehicle_sim.cpp: " << key << '\n';
     }
@@ -68,6 +76,37 @@ VehicleState toVehicleState(const DroneTelemetry& telemetry, const float altitud
     .speed = telemetry.speed,
     .dir = telemetry.dir,
   };
+}
+
+json toJsonXY(const Coord& coord)
+{
+  return {{"x", coord.x}, {"y", coord.y}};
+}
+
+void writeSimulationJson(const std::vector<SimStep>& stepsLog, const std::string& path)
+{
+  json out;
+
+  out["totalSteps"] = stepsLog.size();
+  out["steps"] = json::array();
+
+  for (const SimStep& step : stepsLog) {
+    json outStep;
+
+    outStep["position"] = toJsonXY(step.pos);
+    outStep["direction"] = step.direction;
+    outStep["state"] = step.state;
+    outStep["targetIndex"] = step.targetIdx;
+    outStep["dropPoint"] = toJsonXY(step.dropPoint);
+    outStep["aimPoint"] = toJsonXY(step.aimPoint);
+    outStep["predictedTarget"] = toJsonXY(step.predictedTarget);
+    outStep["timeSecSinceStart"] = step.timeSecSinceStart;
+
+    out["steps"].push_back(outStep);
+  }
+
+  std::ofstream outJsonFile(path);
+  outJsonFile << out.dump(2);
 }
 
 constexpr std::string CONFIG_FILE_FILENAME = "config.json";
@@ -92,7 +131,8 @@ int main(int argc, char* argv[])
       << "  ap-host    = " << opts.apHost << '\n'
       << "  ap-port    = " << opts.apPort << '\n'
       << "  own-port   = " << opts.ownPort << '\n'
-      << "  time-scale = " << opts.timeScale);
+      << "  time-scale = " << opts.timeScale << '\n'
+      << "  sim-output = " << opts.simOutput);
 
   FileConfigLoader loader;
   if (!loader.load(makeScenarioPath(opts.scenario, CONFIG_FILE_FILENAME), makeScenarioPath(opts.scenario, AMMO_FILE_FILENAME))) {

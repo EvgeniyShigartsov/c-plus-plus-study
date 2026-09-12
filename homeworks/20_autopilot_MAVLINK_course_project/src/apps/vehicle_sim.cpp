@@ -166,10 +166,39 @@ int main(int argc, char* argv[])
   float accumulator = 0.0f;
   float nextTelemetryLog = 0.0f;
 
+  std::vector<SimStep> stepsLog;
+  bool dropped = false;
+
   while (true) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
       if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE) {
         physics.setControl(mav::to_control_signal(mav::parse_radio_control_channels_override(msg)));
+      }
+      else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kDropNotificationCommandId &&
+               !dropped) {
+        dropped = true;
+
+        const mav::DropNotification drop = mav::parse_drop_notification(msg);
+        const Coord dropPoint{.x = static_cast<float>(drop.latitude), .y = static_cast<float>(drop.longitude)};
+
+        const DroneTelemetry telemetryAtDrop = physics.getTelemetry();
+        const Target targetAtDrop = targets.getTarget(telemetryAtDrop.timeSinceStart, 0);
+
+        const float missDistance = std::hypot(dropPoint.x - targetAtDrop.pos.x, dropPoint.y - targetAtDrop.pos.y);
+        const bool hit = missDistance <= droneConfig.hitRadius;
+
+        LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " point=(" << dropPoint.x << "," << dropPoint.y << ") target=("
+                      << targetAtDrop.pos.x << "," << targetAtDrop.pos.y << ") miss=" << missDistance << " -> " << (hit ? "HIT" : "MISS"));
+
+        stepsLog.push_back({
+          .pos = telemetryAtDrop.pos,
+          .dropPoint = dropPoint,
+          .state = "Stopped",  // тимчасова заглушка
+          .targetIdx = 0,      // тимчасова заглушка
+          .step = static_cast<int>(stepsLog.size()),
+          .timeSecSinceStart = telemetryAtDrop.timeSinceStart,
+        });
+        writeSimulationJson(stepsLog, opts.simOutput);
       }
     }
 
@@ -197,6 +226,17 @@ int main(int argc, char* argv[])
       const Target firstTarget = targets.getTarget(telemetry.timeSinceStart, 0);
       LOG("t=" << telemetry.timeSinceStart << " pos=(" << telemetry.pos.x << "," << telemetry.pos.y << ") speed=" << telemetry.speed
                << " dir=" << telemetry.dir << " | target0=(" << firstTarget.pos.x << "," << firstTarget.pos.y << ")");
+
+      if (!dropped) {
+        stepsLog.push_back({
+          .pos = telemetry.pos,
+          .direction = telemetry.dir,
+          .state = "Stopped",  // тимчасова зашлушка
+          .targetIdx = 0,      // тимчасова зашлушка
+          .step = static_cast<int>(stepsLog.size()),
+          .timeSecSinceStart = telemetry.timeSinceStart,
+        });
+      }
 
       const VehicleState state = toVehicleState(telemetry, droneConfig.altitude);
       endpoint.send(mav::pack_local_position_ned(mav::kVehicle, state));

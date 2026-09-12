@@ -57,7 +57,7 @@ AuthorityState AuthorityStateMachine::computeNextState(const AuthorityInput& in)
       if (in.reachedFirePoint) {
         return AuthorityState::Complete;
       }
-      if (!in.operatorLinkOk) {
+      if (!in.operatorHeartbeatOk) {
         return AuthorityState::Failsafe;
       }
       if (!in.enabled) {
@@ -72,7 +72,7 @@ AuthorityState AuthorityStateMachine::computeNextState(const AuthorityInput& in)
       return AuthorityState::Engaged;
 
     case AuthorityState::Yielding:
-      if (!in.operatorLinkOk) {
+      if (!in.operatorHeartbeatOk) {
         return AuthorityState::Failsafe;
       }
       if (!in.enabled) {
@@ -90,7 +90,7 @@ AuthorityState AuthorityStateMachine::computeNextState(const AuthorityInput& in)
       if (in.reachedFirePoint) {
         return AuthorityState::Complete;
       }
-      if (in.operatorLinkOk) {
+      if (in.operatorHeartbeatOk) {
         return AuthorityState::Engaged;
       }
       return AuthorityState::Failsafe;

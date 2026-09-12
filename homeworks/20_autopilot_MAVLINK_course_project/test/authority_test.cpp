@@ -12,7 +12,7 @@ TEST(AuthorityStateMachineTest, StandbyIgnoresEverythingExceptEnable)
 {
   AuthorityStateMachine sm;
 
-  sm.update({.enabled = false, .hasMission = true, .operatorInDeadband = false, .operatorLinkOk = false});
+  sm.update({.enabled = false, .hasMission = true, .operatorInDeadband = false, .operatorHeartbeatOk = false});
 
   EXPECT_EQ(sm.state(), AuthorityState::Standby);
 }
@@ -107,7 +107,7 @@ TEST(AuthorityStateMachineTest, LostOperatorLinkTriggersFailsafeFromEngaged)
   sm.update({.enabled = true});
   sm.update({.enabled = true, .hasMission = true});
 
-  sm.update({.enabled = true, .hasMission = true, .operatorLinkOk = false});
+  sm.update({.enabled = true, .hasMission = true, .operatorHeartbeatOk = false});
 
   EXPECT_EQ(sm.state(), AuthorityState::Failsafe);
 }
@@ -119,7 +119,7 @@ TEST(AuthorityStateMachineTest, LostOperatorLinkTriggersFailsafeFromYielding)
   sm.update({.enabled = true, .hasMission = true});
   sm.update({.enabled = true, .hasMission = true, .operatorInDeadband = false});
 
-  sm.update({.enabled = true, .hasMission = true, .operatorInDeadband = false, .operatorLinkOk = false});
+  sm.update({.enabled = true, .hasMission = true, .operatorInDeadband = false, .operatorHeartbeatOk = false});
 
   EXPECT_EQ(sm.state(), AuthorityState::Failsafe);
 }
@@ -128,7 +128,7 @@ TEST(AuthorityStateMachineTest, StandbyIgnoresLostOperatorLink)
 {
   AuthorityStateMachine sm;
 
-  sm.update({.enabled = false, .operatorLinkOk = false});
+  sm.update({.enabled = false, .operatorHeartbeatOk = false});
 
   EXPECT_EQ(sm.state(), AuthorityState::Standby);
 }
@@ -138,7 +138,7 @@ TEST(AuthorityStateMachineTest, ArmedIgnoresLostOperatorLink)
   AuthorityStateMachine sm;
   sm.update({.enabled = true});
 
-  sm.update({.enabled = true, .hasMission = false, .operatorLinkOk = false});
+  sm.update({.enabled = true, .hasMission = false, .operatorHeartbeatOk = false});
 
   EXPECT_EQ(sm.state(), AuthorityState::Armed);
 }
@@ -148,9 +148,9 @@ TEST(AuthorityStateMachineTest, FailsafeResumesEngagedWhenLinkRestored)
   AuthorityStateMachine sm;
   sm.update({.enabled = true});
   sm.update({.enabled = true, .hasMission = true});
-  sm.update({.enabled = true, .hasMission = true, .operatorLinkOk = false});
+  sm.update({.enabled = true, .hasMission = true, .operatorHeartbeatOk = false});
 
-  sm.update({.enabled = true, .hasMission = true, .operatorLinkOk = true});
+  sm.update({.enabled = true, .hasMission = true, .operatorHeartbeatOk = true});
 
   EXPECT_EQ(sm.state(), AuthorityState::Engaged);
 }
@@ -171,9 +171,9 @@ TEST(AuthorityStateMachineTest, ReachingFirePointCompletesFromFailsafe)
   AuthorityStateMachine sm;
   sm.update({.enabled = true});
   sm.update({.enabled = true, .hasMission = true});
-  sm.update({.enabled = true, .hasMission = true, .operatorLinkOk = false});
+  sm.update({.enabled = true, .hasMission = true, .operatorHeartbeatOk = false});
 
-  sm.update({.enabled = true, .hasMission = true, .operatorLinkOk = false, .reachedFirePoint = true});
+  sm.update({.enabled = true, .hasMission = true, .operatorHeartbeatOk = false, .reachedFirePoint = true});
 
   EXPECT_EQ(sm.state(), AuthorityState::Complete);
 }
@@ -196,7 +196,7 @@ TEST(AuthorityStateMachineTest, CompleteIsTerminal)
   sm.update({.enabled = true, .hasMission = true});
   sm.update({.enabled = true, .hasMission = true, .reachedFirePoint = true});
 
-  sm.update({.enabled = true, .hasMission = true, .operatorInDeadband = false, .operatorLinkOk = false});
+  sm.update({.enabled = true, .hasMission = true, .operatorInDeadband = false, .operatorHeartbeatOk = false});
 
   EXPECT_EQ(sm.state(), AuthorityState::Complete);
 }
@@ -223,6 +223,6 @@ TEST(AuthorityStateMachineTest, HasControlOnlyInEngagedAndFailsafe)
   sm.update({.enabled = true, .hasMission = true, .operatorInDeadband = false});
   EXPECT_FALSE(sm.hasControl());  // Yielding
 
-  sm.update({.enabled = true, .hasMission = true, .operatorInDeadband = false, .operatorLinkOk = false});
+  sm.update({.enabled = true, .hasMission = true, .operatorInDeadband = false, .operatorHeartbeatOk = false});
   EXPECT_TRUE(sm.hasControl());  // Failsafe
 }

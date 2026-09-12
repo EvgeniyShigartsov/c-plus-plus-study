@@ -171,11 +171,11 @@ int main(int argc, char* argv[])
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT && mav::Identity{.sysid = msg.sysid, .compid = msg.compid} == mav::kGcs) {
-        const bool wasLinkOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
+        const bool wasHeartbeatOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
         lastOperatorHeartbeat = std::chrono::steady_clock::now();
 
-        if (!wasLinkOk) {
-          LOG("operator link: restored");
+        if (!wasHeartbeatOk) {
+          LOG("operator heartbeat: restored");
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS) {
@@ -208,13 +208,13 @@ int main(int argc, char* argv[])
           lastStep = mission->step(lastTelemetry);
         }
 
-        const bool operatorLinkOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
+        const bool operatorHeartbeatOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
 
         const bool hasAuthorityChanged = authority.update({
           .enabled = enabled,
           .hasMission = mission != nullptr,
           .operatorInDeadband = operatorInDeadband,
-          .operatorLinkOk = operatorLinkOk,
+          .operatorHeartbeatOk = operatorHeartbeatOk,
           .reachedFirePoint = mission && !hasNextStep,
         });
         if (hasAuthorityChanged) {

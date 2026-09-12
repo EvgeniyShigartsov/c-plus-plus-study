@@ -11,11 +11,11 @@ enum AuthorityState {
 };
 
 struct AuthorityInput {
-  bool enabled = false;            // EnableCommand (USER_1)
-  bool hasMission = false;         // Є ціль + телеметрія
-  bool operatorInDeadband = true;  // RC_CHANNELS у нейтралі, тобто оператор не втручається
-  bool operatorLinkOk = true;      // HEARTBEAT оператора в порядку
-  bool reachedFirePoint = false;   // mission->hasNext() == false
+  bool enabled = false;             // EnableCommand (USER_1)
+  bool hasMission = false;          // Є ціль + телеметрія
+  bool operatorInDeadband = true;   // RC_CHANNELS у нейтралі, тобто оператор не втручається
+  bool operatorHeartbeatOk = true;  // HEARTBEAT оператора приходив нещодавно
+  bool reachedFirePoint = false;    // mission->hasNext() == false
 };
 
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)

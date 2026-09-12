@@ -5,6 +5,7 @@
 #include <numbers>
 
 #include "mavlink/Codec.hpp"
+#include "mavlink/Endpoint.hpp"
 #include "mavlink/Frames.hpp"
 #include "mavlink/RadioControl.hpp"
 
@@ -256,4 +257,42 @@ TEST(MavlinkCodec, CommandAckRoundTrip)
 
   EXPECT_EQ(msg.msgid, MAVLINK_MSG_ID_COMMAND_ACK);
   EXPECT_EQ(mav::parse_command_acknowledgement(msg), original);
+}
+
+TEST(MavlinkCodec, StatusTextRoundTrip)
+{
+  const mav::StatusText original{.severity = MAV_SEVERITY_WARNING, .text = "YIELD: operator input"};
+
+  const mav::StatusText parsed = mav::parse_status_text(mav::pack_status_text(mav::kAutopilot, original));
+
+  EXPECT_EQ(parsed, original);
+}
+
+TEST(MavlinkCodec, StatusTextTruncatesAtWireLimit)
+{
+  const std::string too_long(mav::kStatusTextMaxLength + 10, 'x');
+
+  const mav::StatusText parsed = mav::parse_status_text(mav::pack_status_text(mav::kAutopilot, {.text = too_long}));
+
+  EXPECT_EQ(parsed.text.size(), mav::kStatusTextMaxLength);
+}
+
+TEST(MavlinkEndpoint, ConstructsAndPollsIdleSocketCleanly)
+{
+  const UdpLink udp("127.0.0.1", 15020);
+  ASSERT_TRUE(udp.isOpen());
+
+  const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
+
+  EXPECT_TRUE(endpoint.poll().empty());
+}
+
+TEST(MavlinkEndpoint, SendDoesNotThrowWithNoListener)
+{
+  const UdpLink udp("127.0.0.1", 15021);
+  const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_2);
+
+  const mavlink_message_t heartbeat = mav::pack_heartbeat(mav::kAutopilot, {.type = MAV_TYPE_ONBOARD_CONTROLLER});
+
+  EXPECT_NO_THROW(endpoint.send(heartbeat));
 }

@@ -1,7 +1,10 @@
 #include "mavlink/Codec.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <numbers>
 
 #include "mavlink/Frames.hpp"
@@ -366,6 +369,29 @@ CommandAcknowledgement parse_command_acknowledgement(const mavlink_message_t& ms
   mavlink_command_ack_t raw{};
   mavlink_msg_command_ack_decode(&msg, &raw);
   return {.command = raw.command, .result = raw.result};
+}
+
+mavlink_message_t pack_status_text(const Identity& from, const StatusText& status)
+{
+  std::array<char, kStatusTextMaxLength> buffer{};
+  const std::size_t length = std::min(status.text.size(), buffer.size());
+  std::copy_n(status.text.begin(), length, buffer.begin());
+
+  constexpr uint16_t kSingleChunk = 0;
+  constexpr uint8_t kFirstChunk = 0;
+
+  mavlink_message_t msg{};
+  mavlink_msg_statustext_pack(from.sysid, from.compid, &msg, status.severity, buffer.data(), kSingleChunk, kFirstChunk);
+  return msg;
+}
+
+StatusText parse_status_text(const mavlink_message_t& msg)
+{
+  mavlink_statustext_t raw{};
+  mavlink_msg_statustext_decode(&msg, &raw);
+
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  return {.severity = raw.severity, .text = std::string(raw.text, strnlen(raw.text, kStatusTextMaxLength))};
 }
 
 }  // namespace mav

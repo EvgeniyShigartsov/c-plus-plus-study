@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
@@ -60,12 +61,12 @@ void UdpLink::sendFrame(const uint8_t* buf, const size_t len) const
   }
 }
 
-int UdpLink::receive(uint8_t* buf, const size_t capacity) const
+ssize_t UdpLink::receive(uint8_t* buf, const size_t capacity) const
 {
   const ssize_t bytesRead = ::recv(fileDescriptor, buf, capacity, 0);
   if (bytesRead == -1) {
     return (errno == EAGAIN || errno == EWOULDBLOCK) ? -1 : 0;
   }
-  return static_cast<int>(bytesRead);
+  return bytesRead;
 }
 // NOLINTEND(cppcoreguidelines-pro-type-vararg,cppcoreguidelines-pro-type-reinterpret-cast)

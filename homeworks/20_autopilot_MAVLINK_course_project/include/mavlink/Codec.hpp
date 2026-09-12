@@ -1,5 +1,7 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
+#include <string>
 
 #include <common/mavlink.h>
 
@@ -93,6 +95,15 @@ struct CommandAcknowledgement {
   bool operator==(const CommandAcknowledgement&) const = default;
 };
 
+constexpr std::size_t kStatusTextMaxLength = MAVLINK_MSG_STATUSTEXT_FIELD_TEXT_LEN;
+
+struct StatusText {
+  uint8_t severity = MAV_SEVERITY_INFO;
+  std::string text;
+
+  bool operator==(const StatusText&) const = default;
+};
+
 mavlink_message_t pack_heartbeat(const Identity& from, const Heartbeat& heartbeat);
 Heartbeat parse_heartbeat(const mavlink_message_t& msg);
 
@@ -130,5 +141,8 @@ DropNotification parse_drop_notification(const mavlink_message_t& msg);
 
 mavlink_message_t pack_command_acknowledgement(const Identity& from, const Identity& target, const CommandAcknowledgement& acknowledgement);
 CommandAcknowledgement parse_command_acknowledgement(const mavlink_message_t& msg);
+
+mavlink_message_t pack_status_text(const Identity& from, const StatusText& status);
+StatusText parse_status_text(const mavlink_message_t& msg);
 
 }  // namespace mav

@@ -31,7 +31,7 @@ add_library(
 target_include_directories(hm20_guidance PUBLIC include)
 target_compile_options(hm20_guidance PRIVATE ${HM20_WARNINGS})
 
-add_library(hm20_mavlink STATIC src/mavlink/Codec.cpp src/link/UdpLink.cpp)
+add_library(hm20_mavlink STATIC src/mavlink/Codec.cpp src/mavlink/Endpoint.cpp src/link/UdpLink.cpp)
 target_include_directories(hm20_mavlink PUBLIC include)
 target_include_directories(hm20_mavlink SYSTEM PUBLIC ${MAVLINK_DIR})
 target_compile_options(hm20_mavlink PRIVATE ${HM20_WARNINGS})

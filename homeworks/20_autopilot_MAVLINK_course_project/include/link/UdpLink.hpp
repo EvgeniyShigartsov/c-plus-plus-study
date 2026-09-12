@@ -1,4 +1,5 @@
 #pragma once
+#include <sys/types.h>
 #include <cstdint>
 #include <string>
 
@@ -12,7 +13,7 @@ public:
 
   void sendFrame(const uint8_t* buf, const size_t len) const;
 
-  int receive(uint8_t* buf, const size_t capacity) const;
+  ssize_t receive(uint8_t* buf, const size_t capacity) const;
 
 private:
   int fileDescriptor = -1;

@@ -288,6 +288,8 @@ EnableCommand parse_enable_command(const mavlink_message_t& msg)
   return {.enabled = raw.param1 != 0.0f};
 }
 
+constexpr double kLocalPositionScale = 1e4;
+
 mavlink_message_t pack_target_designation(const Identity& from, const Identity& target, const TargetDesignation& designation)
 {
   constexpr uint8_t kUnused = 0;
@@ -298,7 +300,7 @@ mavlink_message_t pack_target_designation(const Identity& from, const Identity& 
                                &msg,
                                target.sysid,
                                target.compid,
-                               MAV_FRAME_GLOBAL,
+                               MAV_FRAME_LOCAL_NED,
                                kTargetDesignationCommandId,
                                kUnused,
                                kUnused,
@@ -306,8 +308,8 @@ mavlink_message_t pack_target_designation(const Identity& from, const Identity& 
                                static_cast<float>(designation.target_count),
                                0.0f,
                                0.0f,
-                               static_cast<int32_t>(std::llround(designation.latitude * 1e7)),
-                               static_cast<int32_t>(std::llround(designation.longitude * 1e7)),
+                               static_cast<int32_t>(std::llround(designation.latitude * kLocalPositionScale)),
+                               static_cast<int32_t>(std::llround(designation.longitude * kLocalPositionScale)),
                                0.0f);
   return msg;
 }
@@ -319,8 +321,8 @@ TargetDesignation parse_target_designation(const mavlink_message_t& msg)
   return {
     .target_id = static_cast<uint8_t>(raw.param1),
     .target_count = static_cast<uint8_t>(raw.param2),
-    .latitude = static_cast<double>(raw.x) * 1e-7,
-    .longitude = static_cast<double>(raw.y) * 1e-7,
+    .latitude = static_cast<double>(raw.x) / kLocalPositionScale,
+    .longitude = static_cast<double>(raw.y) / kLocalPositionScale,
   };
 }
 

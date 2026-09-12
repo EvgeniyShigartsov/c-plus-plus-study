@@ -3,9 +3,9 @@
 #include "interfaces/ITargetProvider.hpp"
 #include "types.hpp"
 
-class UartTargetProvider : public ITargetProvider {
+class CachedTargetProvider : public ITargetProvider {
 public:
-  UartTargetProvider(int targetCount);
+  CachedTargetProvider(int targetCount);
 
   void update(int targetIndex, Coord pos, float timeSec);
 

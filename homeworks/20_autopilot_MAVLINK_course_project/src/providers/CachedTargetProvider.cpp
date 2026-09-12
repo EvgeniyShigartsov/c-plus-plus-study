@@ -1,16 +1,15 @@
-#include "providers/UartTargetProvider.hpp"
+#include "providers/CachedTargetProvider.hpp"
 #include "Logger.hpp"
 
-UartTargetProvider::UartTargetProvider(int targetCount)
-
+CachedTargetProvider::CachedTargetProvider(int targetCount)
 {
   slots.resize(targetCount);
 }
 
-void UartTargetProvider::update(int targetIndex, Coord pos, float timeSec)
+void CachedTargetProvider::update(int targetIndex, Coord pos, float timeSec)
 {
   if (targetIndex < 0 || targetIndex >= getTargetCount()) {
-    LOG("UartTargetProvider::update - invalid targetIndex: " << targetIndex);
+    LOG("CachedTargetProvider::update - invalid targetIndex: " << targetIndex);
     return;
   }
 
@@ -27,12 +26,12 @@ void UartTargetProvider::update(int targetIndex, Coord pos, float timeSec)
   slot.seen = true;
 }
 
-int UartTargetProvider::getTargetCount() const
+int CachedTargetProvider::getTargetCount() const
 {
   return static_cast<int>(slots.size());
 }
 
-Target UartTargetProvider::getTarget(const int targetIndex) const
+Target CachedTargetProvider::getTarget(const int targetIndex) const
 {
   return slots[targetIndex].target;
 }

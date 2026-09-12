@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -10,6 +11,7 @@
 #include "link/UdpLink.hpp"
 #include "mavlink/Codec.hpp"
 #include "mavlink/Endpoint.hpp"
+#include "providers/CachedTargetProvider.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -83,6 +85,9 @@ int main(int argc, char* argv[])
   mav::Attitude lastAttitude{};
   bool havePosition = false;
   bool haveAttitude = false;
+  DroneTelemetry lastTelemetry{};
+
+  std::unique_ptr<CachedTargetProvider> targets;
 
   while (true) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
@@ -98,12 +103,27 @@ int main(int argc, char* argv[])
         haveAttitude = true;
         telemetryUpdated = true;
       }
+      else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_INT && mavlink_msg_command_int_get_command(&msg) == mav::kTargetDesignationCommandId) {
+        const mav::TargetDesignation designation = mav::parse_target_designation(msg);
+
+        if (!targets) {
+          targets = std::make_unique<CachedTargetProvider>(designation.target_count);
+          LOG("targets: create cache for " << designation.target_count << " targets");
+        }
+
+        const Coord pos{.x = static_cast<float>(designation.latitude), .y = static_cast<float>(designation.longitude)};
+        targets->update(designation.target_id, pos, lastTelemetry.timeSinceStart);
+
+        const Target updated = targets->getTarget(designation.target_id);
+        LOG("target " << designation.target_id << " -> pos=(" << updated.pos.x << "," << updated.pos.y << ") vel=(" << updated.velocity.x
+                      << "," << updated.velocity.y << ")");
+      }
 
       if (telemetryUpdated && havePosition && haveAttitude) {
         const VehicleState state = mav::to_vehicle_state(lastPosition, lastAttitude);
-        const DroneTelemetry telemetry = mav::to_drone_telemetry(state);
-        LOG("telemetry t=" << telemetry.timeSinceStart << " pos=(" << telemetry.pos.x << "," << telemetry.pos.y
-                           << ") speed=" << telemetry.speed << " dir=" << telemetry.dir);
+        lastTelemetry = mav::to_drone_telemetry(state);
+        LOG("telemetry t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
+                           << ") speed=" << lastTelemetry.speed << " dir=" << lastTelemetry.dir);
       }
     }
 

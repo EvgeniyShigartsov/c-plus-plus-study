@@ -20,7 +20,7 @@ add_library(
     src/control/DroneController.cpp
     src/utils/MathUtils.cpp
     src/MissionProcessor.cpp
-    src/providers/UartTargetProvider.cpp
+    src/providers/CachedTargetProvider.cpp
     src/solvers/TableSolver.cpp
     src/BallisticTable.cpp
     src/states/StateAccelerating.cpp

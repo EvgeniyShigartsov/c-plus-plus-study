@@ -234,8 +234,8 @@ TEST(MavlinkCodec, TargetDesignationRoundTrip)
 
   EXPECT_EQ(parsed.target_id, original.target_id);
   EXPECT_EQ(parsed.target_count, original.target_count);
-  EXPECT_NEAR(parsed.latitude, original.latitude, 1e-6);
-  EXPECT_NEAR(parsed.longitude, original.longitude, 1e-6);
+  EXPECT_NEAR(parsed.latitude, original.latitude, 1e-4);
+  EXPECT_NEAR(parsed.longitude, original.longitude, 1e-4);
 }
 
 TEST(MavlinkCodec, DropNotificationRoundTrip)

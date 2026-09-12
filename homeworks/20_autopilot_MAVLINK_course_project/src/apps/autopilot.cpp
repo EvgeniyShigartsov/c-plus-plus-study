@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Logger.hpp"
+#include "authority/AuthorityStateMachine.hpp"
 #include "control/DroneController.hpp"
 #include "link/UdpLink.hpp"
 #include "mavlink/Codec.hpp"
@@ -107,6 +108,12 @@ int main(int argc, char* argv[])
   }
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
 
+  const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort);
+  const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_2);
+
+  AuthorityStateMachine authority;
+  bool enabled = false;
+
   mav::LocalPositionNed lastPosition{};
   mav::Attitude lastAttitude{};
   bool havePosition = false;
@@ -155,13 +162,35 @@ int main(int argc, char* argv[])
           LOG("mission: guidance core ready");
         }
       }
+      else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kEnableCommandId) {
+        const mav::EnableCommand command = mav::parse_enable_command(msg);
+        enabled = command.enabled;
+        LOG("enable: " << (enabled ? "true" : "false"));
+
+        gcsEndpoint.send(
+          mav::pack_command_acknowledgement(mav::kAutopilot, mav::kGcs, {.command = mav::kEnableCommandId, .result = MAV_RESULT_ACCEPTED}));
+      }
 
       if (telemetryUpdated && havePosition && haveAttitude) {
         const VehicleState state = mav::to_vehicle_state(lastPosition, lastAttitude);
         lastTelemetry = mav::to_drone_telemetry(state);
 
-        if (mission && mission->hasNext()) {
+        const bool hasNextStep = mission && mission->hasNext();
+
+        if (hasNextStep) {
           lastStep = mission->step(lastTelemetry);
+        }
+
+        const bool hasAuthorityChanged = authority.update({
+          .enabled = enabled,
+          .hasMission = mission != nullptr,
+          .reachedFirePoint = mission && !hasNextStep,
+        });
+        if (hasAuthorityChanged) {
+          LOG("authority changed to: -> " << authority.to_string());
+        }
+
+        if (hasNextStep && authority.hasControl()) {
           const ControlSignal control = controller.compute(mission->getLastCommand(), lastTelemetry);
           endpoint.send(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control));
 
@@ -169,7 +198,7 @@ int main(int argc, char* argv[])
                             << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=(" << lastStep.dropPoint.x
                             << "," << lastStep.dropPoint.y << ") accel=" << control.accel << " turnRate=" << control.turnRate);
         }
-        else if (mission && !reportedReady) {
+        else if (mission && !hasNextStep && !reportedReady) {
           // Скид відбувається тут, поки що - лише сигнал у лог,
           LOG("mission: reached fire point, ready to drop -- last dropPoint=(" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y
                                                                                << ")");

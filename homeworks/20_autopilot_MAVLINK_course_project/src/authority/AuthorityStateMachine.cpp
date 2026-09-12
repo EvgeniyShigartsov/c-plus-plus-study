@@ -1,4 +1,5 @@
 #include "authority/AuthorityStateMachine.hpp"
+#include <string>
 
 AuthorityState AuthorityStateMachine::state() const
 {
@@ -16,6 +17,25 @@ bool AuthorityStateMachine::update(const AuthorityInput& inputs)
 bool AuthorityStateMachine::hasControl() const
 {
   return current == AuthorityState::Engaged || current == AuthorityState::Failsafe;
+}
+
+std::string AuthorityStateMachine::to_string() const
+{
+  switch (current) {
+    case AuthorityState::Standby:
+      return "Standby";
+    case AuthorityState::Armed:
+      return "Armed";
+    case AuthorityState::Engaged:
+      return "Engaged";
+    case AuthorityState::Yielding:
+      return "Yielding";
+    case AuthorityState::Failsafe:
+      return "Failsafe";
+    case AuthorityState::Complete:
+      return "Complete";
+  }
+  return "Unknown";
 }
 
 AuthorityState AuthorityStateMachine::computeNextState(const AuthorityInput& in) const

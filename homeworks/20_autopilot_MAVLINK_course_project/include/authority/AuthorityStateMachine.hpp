@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 enum AuthorityState {
   Standby,   // вимкнений, оператор керує сам, або ніхто не керує
@@ -27,6 +28,9 @@ public:
 
   // Чи має зараз автопілот право слати RC_CHANNELS_OVERRIDE
   [[nodiscard]] bool hasControl() const;
+
+  // Назва поточного стану текстом.
+  [[nodiscard]] std::string to_string() const;
 
 private:
   AuthorityState current = AuthorityState::Standby;

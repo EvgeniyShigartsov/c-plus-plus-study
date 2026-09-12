@@ -11,6 +11,7 @@ constexpr uint16_t kPwmNeutral = 1500;
 constexpr uint16_t kPwmMax = 2000;
 constexpr uint16_t kPwmHalfRange = 500;  // відстань від нейтралі до краю
 constexpr uint16_t kPwmReleased = 0;     // канал лишається оператору
+constexpr uint16_t kPwmDeadband = 50;  // +-50 мкс навколо нейтралі, допустимий дрейф який ще не вважається втручанням
 
 // Нормалізація [-1..1] -> PWM [1000..2000]
 inline uint16_t normalized_to_pwm(float value)
@@ -30,6 +31,12 @@ inline float pwm_to_normalized(uint16_t pwm)
   const uint16_t clamped = std::clamp(pwm, kPwmMin, kPwmMax);
 
   return (static_cast<float>(clamped) - kPwmNeutral) / kPwmHalfRange;
+}
+
+// Перевірка на допустиме тремтіннія джойстику навколо нейтралі, тобто оператор свідомо не тисне джойстик
+inline bool is_in_deadband(const uint16_t pwm)
+{
+  return pwm >= kPwmNeutral - kPwmDeadband && pwm <= kPwmNeutral + kPwmDeadband;
 }
 
 }  // namespace mav

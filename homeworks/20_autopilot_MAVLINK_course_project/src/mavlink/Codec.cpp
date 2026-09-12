@@ -205,6 +205,11 @@ RadioControlChannels parse_radio_control_channels(const mavlink_message_t& msg)
   return {.time_boot_ms = raw.time_boot_ms, .roll = raw.chan1_raw, .throttle = raw.chan3_raw};
 }
 
+bool are_channels_in_deadband(const RadioControlChannels& channels)
+{
+  return is_in_deadband(channels.roll) && is_in_deadband(channels.throttle);
+}
+
 // --- RADIO_CONTROL_CHANNELS_OVERRIDE ---
 
 mavlink_message_t pack_radio_control_channels_override(const Identity& from, const Identity& target, const ControlSignal& control)

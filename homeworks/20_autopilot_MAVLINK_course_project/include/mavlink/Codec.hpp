@@ -122,6 +122,8 @@ DroneTelemetry to_drone_telemetry(const VehicleState& state);
 mavlink_message_t pack_radio_control_channels(const Identity& from, const RadioControlChannels& channels);
 RadioControlChannels parse_radio_control_channels(const mavlink_message_t& msg);
 
+bool are_channels_in_deadband(const RadioControlChannels& channels);
+
 mavlink_message_t pack_radio_control_channels_override(const Identity& from, const Identity& target, const ControlSignal& control);
 RadioControlOverride parse_radio_control_channels_override(const mavlink_message_t& msg);
 

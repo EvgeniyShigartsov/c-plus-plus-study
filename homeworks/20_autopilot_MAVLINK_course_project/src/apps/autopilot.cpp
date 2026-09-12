@@ -113,6 +113,7 @@ int main(int argc, char* argv[])
 
   AuthorityStateMachine authority;
   bool enabled = false;
+  bool operatorInDeadband = true;
 
   mav::LocalPositionNed lastPosition{};
   mav::Attitude lastAttitude{};
@@ -162,6 +163,17 @@ int main(int argc, char* argv[])
           LOG("mission: guidance core ready");
         }
       }
+      else if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS) {
+        const mav::RadioControlChannels channels = mav::parse_radio_control_channels(msg);
+        const bool wasInDeadband = operatorInDeadband;
+
+        operatorInDeadband = mav::are_channels_in_deadband(channels);
+
+        if (operatorInDeadband != wasInDeadband) {
+          LOG("operator " << (operatorInDeadband ? "released sticks" : "touched sticks") << " roll=" << channels.roll
+                          << " throttle=" << channels.throttle);
+        }
+      }
       else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kEnableCommandId) {
         const mav::EnableCommand command = mav::parse_enable_command(msg);
         enabled = command.enabled;
@@ -184,6 +196,7 @@ int main(int argc, char* argv[])
         const bool hasAuthorityChanged = authority.update({
           .enabled = enabled,
           .hasMission = mission != nullptr,
+          .operatorInDeadband = operatorInDeadband,
           .reachedFirePoint = mission && !hasNextStep,
         });
         if (hasAuthorityChanged) {

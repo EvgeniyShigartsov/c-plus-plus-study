@@ -154,6 +154,23 @@ TEST(MavlinkRadioControl, ReleasedPwmIsNeutral)
   EXPECT_FLOAT_EQ(mav::pwm_to_normalized(mav::kPwmReleased), 0.0f);
 }
 
+TEST(MavlinkRadioControl, NeutralPwmIsInDeadband)
+{
+  EXPECT_TRUE(mav::is_in_deadband(mav::kPwmNeutral));
+}
+
+TEST(MavlinkRadioControl, PwmAtDeadbandEdgeIsInDeadband)
+{
+  EXPECT_TRUE(mav::is_in_deadband(mav::kPwmNeutral - mav::kPwmDeadband));
+  EXPECT_TRUE(mav::is_in_deadband(mav::kPwmNeutral + mav::kPwmDeadband));
+}
+
+TEST(MavlinkRadioControl, PwmPastDeadbandEdgeIsNotInDeadband)
+{
+  EXPECT_FALSE(mav::is_in_deadband(mav::kPwmNeutral - mav::kPwmDeadband - 1));
+  EXPECT_FALSE(mav::is_in_deadband(mav::kPwmNeutral + mav::kPwmDeadband + 1));
+}
+
 TEST(MavlinkCodec, RadioControlChannelsRoundTrip)
 {
   const mav::RadioControlChannels original{.time_boot_ms = 42, .roll = 1600, .throttle = 1400};
@@ -161,6 +178,17 @@ TEST(MavlinkCodec, RadioControlChannelsRoundTrip)
   const mav::RadioControlChannels parsed = mav::parse_radio_control_channels(mav::pack_radio_control_channels(mav::kVehicle, original));
 
   EXPECT_EQ(parsed, original);
+}
+
+TEST(MavlinkCodec, DeadbandRequiresBothChannelsNeutral)
+{
+  const mav::RadioControlChannels bothNeutral{.roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral};
+  const mav::RadioControlChannels rollOff{.roll = mav::kPwmMax, .throttle = mav::kPwmNeutral};
+  const mav::RadioControlChannels throttleOff{.roll = mav::kPwmNeutral, .throttle = mav::kPwmMax};
+
+  EXPECT_TRUE(mav::are_channels_in_deadband(bothNeutral));
+  EXPECT_FALSE(mav::are_channels_in_deadband(rollOff));
+  EXPECT_FALSE(mav::are_channels_in_deadband(throttleOff));
 }
 
 TEST(MavlinkCodec, RadioControlOverrideCarriesControlSignal)

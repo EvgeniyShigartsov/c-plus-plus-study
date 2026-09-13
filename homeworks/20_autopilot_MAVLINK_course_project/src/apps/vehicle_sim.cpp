@@ -21,8 +21,10 @@ using json = nlohmann::json;
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
+const std::string defaultDataDir = "homeworks/20_autopilot_MAVLINK_course_project/data";
+
 struct CliOptions {
-  std::string scenario = "data";
+  std::string scenario = defaultDataDir;
   std::string apHost = "127.0.0.1";   // куди шлемо телеметрію — хост autopilot
   uint16_t apPort = 14560;            // куди шлемо телеметрію — домашній порт autopilot
   uint16_t ownPort = 14555;           // домашній порт, сюди autopilot шле RC_CHANNELS_OVERRIDE

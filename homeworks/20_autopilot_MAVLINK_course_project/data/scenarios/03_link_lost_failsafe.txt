@@ -1,0 +1,8 @@
+# 03_link_lost_failsafe: одразу після Engaged лінк оператора (HEARTBEAT) пропадає
+# надовго - автопілот сам, у Failsafe, доводить атаку до кінця, не чекаючи оператора.
+# Очікувано: Armed -> Engaged -> Failsafe -> Complete, без повернення в Engaged.
+# Запускати з коротким --heartbeat-timeout на боці autopilot
+
+0.2 designate_targets
+0.5 enable
+2.0 heartbeat_drop 60

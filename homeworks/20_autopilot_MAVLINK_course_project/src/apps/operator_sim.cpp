@@ -125,9 +125,20 @@ struct OperatorChannelState {
 void executeEvent(const TimelineEvent& event,
                   const mav::MavlinkEndpoint& endpoint,
                   const JsonTargetProvider& targetsProvider,
-                  OperatorChannelState& out_channelState)
+                  OperatorChannelState& out_channelState,
+                  float& out_heartbeatDropUntil)
 {
-  if (event.action == "channel") {
+  if (event.action == "heartbeat_drop") {
+    if (event.args.empty()) {
+      LOG("event: heartbeat_drop requires 1 arg (duration), skip");
+      return;
+    }
+
+    const float duration = std::stof(event.args[0]);
+    out_heartbeatDropUntil = event.time + duration;
+    LOG("event: heartbeat_drop for " << duration << "sec");
+  }
+  else if (event.action == "channel") {
     if (event.args.size() < 3) {
       LOG("event: channel requires 3 args (channel offset duration), skip");
       return;
@@ -243,19 +254,16 @@ int main(int argc, char* argv[])
   float scenarioTime = 0.0f;
   size_t nextEventIndex = 0;
   OperatorChannelState channelState;
+  float heartbeatDropUntil = -1.0f;
 
   while (true) {
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-    if (now - lastHeartbeat >= kHeartbeatPeriod) {
-      endpoint.send(mav::pack_heartbeat(mav::kGcs, {.type = MAV_TYPE_GCS}));
-      lastHeartbeat = now;
-    }
 
     scenarioTime += std::chrono::duration<float>(now - last).count() * opts.timeScale;
     last = now;
 
     while (nextEventIndex < events.size() && scenarioTime >= events[nextEventIndex].time) {
-      executeEvent(events[nextEventIndex], endpoint, targetProvider, channelState);
+      executeEvent(events[nextEventIndex], endpoint, targetProvider, channelState, heartbeatDropUntil);
       nextEventIndex++;
     }
 
@@ -266,6 +274,13 @@ int main(int argc, char* argv[])
     if (channelState.throttleClearAt >= 0.0f && scenarioTime >= channelState.throttleClearAt) {
       channelState.throttle = mav::kPwmNeutral;
       channelState.throttleClearAt = -1.0f;
+    }
+
+    const bool heartbeatDropped = scenarioTime < heartbeatDropUntil;
+
+    if (!heartbeatDropped && now - lastHeartbeat >= kHeartbeatPeriod) {
+      endpoint.send(mav::pack_heartbeat(mav::kGcs, {.type = MAV_TYPE_GCS}));
+      lastHeartbeat = now;
     }
 
     vehicleEndpoint.send(mav::pack_radio_control_channels_override(

@@ -183,10 +183,21 @@ int main(int argc, char* argv[])
   std::vector<SimStep> stepsLog;
   bool dropped = false;
 
+  mav::RadioControlOverride lastAutopilotOverride{.roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral};
+  mav::RadioControlOverride lastOperatorOverride{.roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral};
+
   while (true) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
       if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE) {
-        physics.setControl(mav::to_control_signal(mav::parse_radio_control_channels_override(msg)));
+        const mav::RadioControlOverride rc_override = mav::parse_radio_control_channels_override(msg);
+        const mav::Identity from{.sysid = msg.sysid, .compid = msg.compid};
+
+        if (from == mav::kGcs) {
+          lastOperatorOverride = rc_override;
+        }
+        else {
+          lastAutopilotOverride = rc_override;
+        }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kDropNotificationCommandId &&
                !dropped) {
@@ -215,6 +226,11 @@ int main(int argc, char* argv[])
         writeSimulationJson(stepsLog, opts.simOutput);
       }
     }
+
+    const bool operatorActive =
+      !mav::are_channels_in_deadband({.roll = lastOperatorOverride.roll, .throttle = lastOperatorOverride.throttle});
+
+    physics.setControl(mav::to_control_signal(operatorActive ? lastOperatorOverride : lastAutopilotOverride));
 
     const std::chrono::time_point now = std::chrono::steady_clock::now();
     accumulator += std::chrono::duration<float>(now - last).count() * timeScale;
@@ -259,9 +275,10 @@ int main(int argc, char* argv[])
       const mavlink_message_t localPositionNed = mav::pack_local_position_ned(mav::kVehicle, state);
       const mavlink_message_t attitude = mav::pack_attitude(mav::kVehicle, state);
       const mavlink_message_t globalPositionInt = mav::pack_global_position_int(mav::kVehicle, state);
-      // TODO: коли буде симуляція оператора, використати, а поки нейтраль
+
       const mavlink_message_t radioControlChannels = mav::pack_radio_control_channels(
-        mav::kVehicle, {.time_boot_ms = state.mission_time_ms, .roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral});
+        mav::kVehicle,
+        {.time_boot_ms = state.mission_time_ms, .roll = lastOperatorOverride.roll, .throttle = lastOperatorOverride.throttle});
 
       endpoint.send(localPositionNed);
       endpoint.send(attitude);

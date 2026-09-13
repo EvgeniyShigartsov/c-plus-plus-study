@@ -12,6 +12,7 @@
 #include "link/UdpLink.hpp"
 #include "mavlink/Codec.hpp"
 #include "mavlink/Endpoint.hpp"
+#include "mavlink/RadioControl.hpp"
 #include "sim/FileConfigLoader.hpp"
 #include "sim/JsonTargetProvider.hpp"
 
@@ -22,6 +23,8 @@ const std::string defaultDataDir = "homeworks/20_autopilot_MAVLINK_course_projec
 struct CliOptions {
   std::string apHost = "127.0.0.1";
   uint16_t apPort = 14560;  // домашній порт autopilot, сюди шлемо HEARTBEAT/команди
+  std::string vehicleHost = "127.0.0.1";
+  uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim, сюди шлемо команди від реального оператора
   std::string configPath = defaultDataDir + "/config.json";
   std::string ammoPath = defaultDataDir + "/ammo.json";
   std::string targetsPath = defaultDataDir + "/targets.json";
@@ -42,6 +45,12 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     }
     else if (key == "--ap-port") {
       opts.apPort = static_cast<uint16_t>(std::stoi(value));
+    }
+    else if (key == "--vehicle-host") {
+      opts.vehicleHost = value;
+    }
+    else if (key == "--vehicle-port") {
+      opts.vehiclePort = static_cast<uint16_t>(std::stoi(value));
     }
     else if (key == "--operator-scenario") {
       opts.operatorScenario = value;
@@ -106,9 +115,45 @@ std::vector<TimelineEvent> loadOperatorScenario(const std::string& path)
   return events;
 }
 
-void executeEvent(const TimelineEvent& event, const mav::MavlinkEndpoint& endpoint, const JsonTargetProvider& targets)
+struct OperatorChannelState {
+  uint16_t roll = mav::kPwmNeutral;
+  uint16_t throttle = mav::kPwmNeutral;
+  float rollClearAt = -1.0f;      // у секундах
+  float throttleClearAt = -1.0f;  // у секундах
+};
+
+void executeEvent(const TimelineEvent& event,
+                  const mav::MavlinkEndpoint& endpoint,
+                  const JsonTargetProvider& targetsProvider,
+                  OperatorChannelState& out_channelState)
 {
-  if (event.action == "enable") {
+  if (event.action == "channel") {
+    if (event.args.size() < 3) {
+      LOG("event: channel requires 3 args (channel offset duration), skip");
+      return;
+    }
+
+    const std::string& channel = event.args[0];
+    const int offset = std::stoi(event.args[1]);
+    const float duration = std::stof(event.args[2]);
+    const uint16_t pwm = static_cast<uint16_t>(mav::kPwmNeutral + offset);
+
+    if (channel == "roll") {
+      out_channelState.roll = pwm;
+      out_channelState.rollClearAt = event.time + duration;
+    }
+    else if (channel == "throttle") {
+      out_channelState.throttle = pwm;
+      out_channelState.throttleClearAt = event.time + duration;
+    }
+    else {
+      LOG("event: unknown channel '" << channel << "'");
+      return;
+    }
+
+    LOG("event: channel " << channel << " = " << pwm << " on " << duration << "sec");
+  }
+  else if (event.action == "enable") {
     endpoint.send(mav::pack_enable_command(mav::kGcs, mav::kAutopilot, {.enabled = true}));
     LOG("event: enable");
   }
@@ -117,9 +162,9 @@ void executeEvent(const TimelineEvent& event, const mav::MavlinkEndpoint& endpoi
     LOG("event: disable");
   }
   else if (event.action == "designate_targets") {
-    const int targetCount = targets.getTargetCount();
+    const int targetCount = targetsProvider.getTargetCount();
     for (int i = 0; i < targetCount; i++) {
-      const Coord pos = targets.getTarget(event.time, i).pos;
+      const Coord pos = targetsProvider.getTarget(event.time, i).pos;
       endpoint.send(mav::pack_target_designation(mav::kGcs,
                                                  mav::kAutopilot,
                                                  {
@@ -149,6 +194,8 @@ int main(int argc, char* argv[])
   LOG("operator_sim:\n"
       << "  ap-host           = " << opts.apHost << '\n'
       << "  ap-port           = " << opts.apPort << '\n'
+      << "  vehicle-host      = " << opts.vehicleHost << '\n'
+      << "  vehicle-port      = " << opts.vehiclePort << '\n'
       << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
       << "  config-path       = " << opts.configPath << '\n'
       << "  ammo-path         = " << opts.ammoPath << '\n'
@@ -182,12 +229,20 @@ int main(int argc, char* argv[])
   }
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
 
+  const UdpLink vehicleUdp(opts.vehicleHost, opts.vehiclePort);
+  if (!vehicleUdp.isOpen()) {
+    LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort);
+    return 1;
+  }
+  const mav::MavlinkEndpoint vehicleEndpoint(vehicleUdp, MAVLINK_COMM_2);
+
   const std::chrono::milliseconds kHeartbeatPeriod = std::chrono::milliseconds(500);  // 2 Гц
   std::chrono::steady_clock::time_point lastHeartbeat;
 
   std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
   float scenarioTime = 0.0f;
   size_t nextEventIndex = 0;
+  OperatorChannelState channelState;
 
   while (true) {
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
@@ -200,9 +255,21 @@ int main(int argc, char* argv[])
     last = now;
 
     while (nextEventIndex < events.size() && scenarioTime >= events[nextEventIndex].time) {
-      executeEvent(events[nextEventIndex], endpoint, targetProvider);
+      executeEvent(events[nextEventIndex], endpoint, targetProvider, channelState);
       nextEventIndex++;
     }
+
+    if (channelState.rollClearAt >= 0.0f && scenarioTime >= channelState.rollClearAt) {
+      channelState.roll = mav::kPwmNeutral;
+      channelState.rollClearAt = -1.0f;
+    }
+    if (channelState.throttleClearAt >= 0.0f && scenarioTime >= channelState.throttleClearAt) {
+      channelState.throttle = mav::kPwmNeutral;
+      channelState.throttleClearAt = -1.0f;
+    }
+
+    vehicleEndpoint.send(mav::pack_radio_control_channels_override(
+      mav::kGcs, mav::kVehicle, mav::to_control_signal({.roll = channelState.roll, .throttle = channelState.throttle})));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }

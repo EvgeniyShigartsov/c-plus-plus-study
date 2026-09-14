@@ -259,8 +259,8 @@ int main(int argc, char* argv[])
     const DroneTelemetry telemetry = physics.getTelemetry();
     if (telemetry.timeSinceStart >= nextTelemetryLog) {
       const Target firstTarget = targets.getTarget(telemetry.timeSinceStart, 0);
-      LOG("t=" << telemetry.timeSinceStart << " pos=(" << telemetry.pos.x << "," << telemetry.pos.y << ") speed=" << telemetry.speed
-               << " dir=" << telemetry.dir << " | target0=(" << firstTarget.pos.x << "," << firstTarget.pos.y << ")");
+      DEBUG("t=" << telemetry.timeSinceStart << " pos=(" << telemetry.pos.x << "," << telemetry.pos.y << ") speed=" << telemetry.speed
+                 << " dir=" << telemetry.dir << " | target0=(" << firstTarget.pos.x << "," << firstTarget.pos.y << ")");
 
       if (!dropped) {
         stepsLog.push_back({

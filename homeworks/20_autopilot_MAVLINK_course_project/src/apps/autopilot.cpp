@@ -238,13 +238,13 @@ int main(int argc, char* argv[])
           const ControlSignal control = controller.compute(mission->getLastCommand(), lastTelemetry);
           endpoint.send(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control));
 
-          LOG("guidance t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
-                            << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=(" << lastStep.dropPoint.x
-                            << "," << lastStep.dropPoint.y << ") accel=" << control.accel << " turnRate=" << control.turnRate);
+          DEBUG("guidance t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
+                              << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=(" << lastStep.dropPoint.x
+                              << "," << lastStep.dropPoint.y << ") accel=" << control.accel << " turnRate=" << control.turnRate);
         }
         else {
-          LOG("telemetry t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
-                             << ") speed=" << lastTelemetry.speed << " dir=" << lastTelemetry.dir);
+          DEBUG("telemetry t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
+                               << ") speed=" << lastTelemetry.speed << " dir=" << lastTelemetry.dir);
         }
       }
     }

@@ -124,9 +124,9 @@ struct OperatorChannelState {
 
 void executeEvent(const TimelineEvent& event,
                   const mav::MavlinkEndpoint& endpoint,
-                  const JsonTargetProvider& targetsProvider,
                   OperatorChannelState& out_channelState,
-                  float& out_heartbeatDropUntil)
+                  float& out_heartbeatDropUntil,
+                  bool& out_targetsArmed)
 {
   if (event.action == "heartbeat_drop") {
     if (event.args.empty()) {
@@ -173,19 +173,8 @@ void executeEvent(const TimelineEvent& event,
     LOG("event: disable");
   }
   else if (event.action == "designate_targets") {
-    const int targetCount = targetsProvider.getTargetCount();
-    for (int i = 0; i < targetCount; i++) {
-      const Coord pos = targetsProvider.getTarget(event.time, i).pos;
-      endpoint.send(mav::pack_target_designation(mav::kGcs,
-                                                 mav::kAutopilot,
-                                                 {
-                                                   .target_id = static_cast<uint8_t>(i),
-                                                   .target_count = static_cast<uint8_t>(targetCount),
-                                                   .latitude = pos.x,
-                                                   .longitude = pos.y,
-                                                 }));
-    }
-    LOG("event: designate_targets (" << targetCount << " targets)");
+    out_targetsArmed = true;
+    LOG("event: designate_targets armed");
   }
   else {
     LOG("event: unknown action '" << event.action << "', skip");
@@ -255,6 +244,7 @@ int main(int argc, char* argv[])
   size_t nextEventIndex = 0;
   OperatorChannelState channelState;
   float heartbeatDropUntil = -1.0f;
+  bool targetsArmed = false;
 
   while (true) {
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
@@ -263,7 +253,7 @@ int main(int argc, char* argv[])
     last = now;
 
     while (nextEventIndex < events.size() && scenarioTime >= events[nextEventIndex].time) {
-      executeEvent(events[nextEventIndex], endpoint, targetProvider, channelState, heartbeatDropUntil);
+      executeEvent(events[nextEventIndex], endpoint, channelState, heartbeatDropUntil, targetsArmed);
       nextEventIndex++;
     }
 
@@ -281,6 +271,21 @@ int main(int argc, char* argv[])
     if (!heartbeatDropped && now - lastHeartbeat >= kHeartbeatPeriod) {
       endpoint.send(mav::pack_heartbeat(mav::kGcs, {.type = MAV_TYPE_GCS}));
       lastHeartbeat = now;
+    }
+
+    if (targetsArmed) {
+      const int targetCount = targetProvider.getTargetCount();
+      for (int i = 0; i < targetCount; i++) {
+        const Coord pos = targetProvider.getTarget(scenarioTime, i).pos;
+        endpoint.send(mav::pack_target_designation(mav::kGcs,
+                                                   mav::kAutopilot,
+                                                   {
+                                                     .target_id = static_cast<uint8_t>(i),
+                                                     .target_count = static_cast<uint8_t>(targetCount),
+                                                     .latitude = pos.x,
+                                                     .longitude = pos.y,
+                                                   }));
+      }
     }
 
     vehicleEndpoint.send(mav::pack_radio_control_channels_override(

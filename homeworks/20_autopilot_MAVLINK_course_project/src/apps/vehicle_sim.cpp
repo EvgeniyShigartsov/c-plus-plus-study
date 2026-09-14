@@ -165,16 +165,16 @@ int main(int argc, char* argv[])
         dropped = true;
 
         const mav::DropNotification drop = mav::parse_drop_notification(msg);
-        const Coord dropPoint{.x = static_cast<float>(drop.latitude), .y = static_cast<float>(drop.longitude)};
+        const Coord aimPoint{.x = static_cast<float>(drop.latitude), .y = static_cast<float>(drop.longitude)};
 
         const DroneTelemetry telemetryAtDrop = physics.getTelemetry();
         const float impactTime = telemetryAtDrop.timeSinceStart + drop.bomb_flight_time_sec;
         const Target targetAtImpact = targets.getTarget(impactTime, drop.target_id);
 
-        const float missDistance = std::hypot(dropPoint.x - targetAtImpact.pos.x, dropPoint.y - targetAtImpact.pos.y);
+        const float missDistance = std::hypot(aimPoint.x - targetAtImpact.pos.x, aimPoint.y - targetAtImpact.pos.y);
         const bool hit = missDistance <= droneConfig.hitRadius;
 
-        LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " point=(" << dropPoint.x << "," << dropPoint.y << ") target#"
+        LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ") target#"
                       << static_cast<int>(drop.target_id) << "@impact(t=" << impactTime << ")=(" << targetAtImpact.pos.x << ","
                       << targetAtImpact.pos.y << ") miss=" << missDistance << " -> " << (hit ? "HIT" : "MISS"));
       }

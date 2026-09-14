@@ -272,14 +272,15 @@ int main(int argc, char* argv[])
           if (authority.state() == AuthorityState::Complete) {
             endpoint.send(mav::pack_drop_notification(mav::kAutopilot,
                                                       mav::kVehicle,
-                                                      {.latitude = lastStep.dropPoint.x,
-                                                       .longitude = lastStep.dropPoint.y,
+                                                      {.latitude = lastStep.predictedTarget.x,
+                                                       .longitude = lastStep.predictedTarget.y,
                                                        .altitude = 0.0f,
                                                        .target_id = static_cast<uint8_t>(lastStep.targetIdx),
                                                        .bomb_flight_time_sec = mission->getBombFlightTime()}));
 
-            LOG("mission: complete, drop sent at (" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y
-                                                    << ") target=" << lastStep.targetIdx);
+            LOG("mission: complete, released at (" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y << ") aiming at ("
+                                                   << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y
+                                                   << ") target=" << lastStep.targetIdx);
 
             writeSimulationJson(stepsLog, opts.simOutput);
             LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);

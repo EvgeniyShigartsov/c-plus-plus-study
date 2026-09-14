@@ -25,6 +25,8 @@ struct CliOptions {
   uint16_t apPort = 14560;  // домашній порт autopilot, сюди шлемо HEARTBEAT/команди
   std::string vehicleHost = "127.0.0.1";
   uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim, сюди шлемо команди від реального оператора
+  std::string gcsHost = "127.0.0.1";
+  uint16_t gcsPort = 14550;  // GCS-порт, куди vehicle_sim дублює телеметрію - звідси беремо реальний місійний час
   std::string configPath = defaultDataDir + "/config.json";
   std::string ammoPath = defaultDataDir + "/ammo.json";
   std::string targetsPath = defaultDataDir + "/targets.json";
@@ -51,6 +53,12 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     }
     else if (key == "--vehicle-port") {
       opts.vehiclePort = static_cast<uint16_t>(std::stoi(value));
+    }
+    else if (key == "--gcs-host") {
+      opts.gcsHost = value;
+    }
+    else if (key == "--gcs-port") {
+      opts.gcsPort = static_cast<uint16_t>(std::stoi(value));
     }
     else if (key == "--operator-scenario") {
       opts.operatorScenario = value;
@@ -196,6 +204,8 @@ int main(int argc, char* argv[])
       << "  ap-port           = " << opts.apPort << '\n'
       << "  vehicle-host      = " << opts.vehicleHost << '\n'
       << "  vehicle-port      = " << opts.vehiclePort << '\n'
+      << "  gcs-host          = " << opts.gcsHost << '\n'
+      << "  gcs-port          = " << opts.gcsPort << '\n'
       << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
       << "  config-path       = " << opts.configPath << '\n'
       << "  ammo-path         = " << opts.ammoPath << '\n'
@@ -236,6 +246,13 @@ int main(int argc, char* argv[])
   }
   const mav::MavlinkEndpoint vehicleEndpoint(vehicleUdp, MAVLINK_COMM_2);
 
+  const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort, opts.gcsPort);
+  if (!gcsUdp.isOpen()) {
+    LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
+    return 1;
+  }
+  const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_3);
+
   const std::chrono::milliseconds kHeartbeatPeriod = std::chrono::milliseconds(500);  // 2 Гц
   std::chrono::steady_clock::time_point lastHeartbeat;
 
@@ -245,6 +262,8 @@ int main(int argc, char* argv[])
   OperatorChannelState channelState;
   float heartbeatDropUntil = -1.0f;
   bool targetsArmed = false;
+  float missionTime = 0.0f;  // реальний час дрона, з його телеметрії
+  bool haveMissionTime = false;
 
   while (true) {
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
@@ -255,6 +274,18 @@ int main(int argc, char* argv[])
     while (nextEventIndex < events.size() && scenarioTime >= events[nextEventIndex].time) {
       executeEvent(events[nextEventIndex], endpoint, channelState, heartbeatDropUntil, targetsArmed);
       nextEventIndex++;
+    }
+
+    for (const mavlink_message_t& msg : gcsEndpoint.poll()) {
+      if (msg.msgid == MAVLINK_MSG_ID_LOCAL_POSITION_NED) {
+        const bool wasMissing = !haveMissionTime;
+        missionTime = static_cast<float>(mav::parse_local_position_ned(msg).time_boot_ms) / 1000.0f;
+        haveMissionTime = true;
+
+        if (wasMissing) {
+          LOG("mission time: synced from vehicle telemetry, t=" << missionTime);
+        }
+      }
     }
 
     if (channelState.rollClearAt >= 0.0f && scenarioTime >= channelState.rollClearAt) {
@@ -273,10 +304,10 @@ int main(int argc, char* argv[])
       lastHeartbeat = now;
     }
 
-    if (targetsArmed) {
+    if (targetsArmed && haveMissionTime) {
       const int targetCount = targetProvider.getTargetCount();
       for (int i = 0; i < targetCount; i++) {
-        const Coord pos = targetProvider.getTarget(scenarioTime, i).pos;
+        const Coord pos = targetProvider.getTarget(missionTime, i).pos;
         endpoint.send(mav::pack_target_designation(mav::kGcs,
                                                    mav::kAutopilot,
                                                    {

@@ -81,7 +81,7 @@ void writeSimulationJson(const std::vector<SimStep>& stepsLog)
     out["steps"].push_back(outStep);
   }
 
-  std::ofstream outJsonFile("simulation.json");
+  std::ofstream outJsonFile("simulation_hm_10.json");
   outJsonFile << out.dump(2);
 }
 

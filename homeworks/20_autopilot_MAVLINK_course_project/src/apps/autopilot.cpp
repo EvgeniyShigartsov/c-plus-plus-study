@@ -1,6 +1,7 @@
 // autopilot — модуль-автопілот
 #include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -17,6 +18,9 @@
 #include "providers/CachedTargetProvider.hpp"
 #include "sim/FileConfigLoader.hpp"
 #include "solvers/TableSolver.hpp"
+#include "third_party/json.hpp"
+
+using json = nlohmann::json;
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -32,6 +36,7 @@ struct CliOptions {
   uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim - туди шлемо RC_CHANNELS_OVERRIDE
   uint16_t ownPort = 14560;  // домашній порт автопілота - сюди отримуємо телеметрію від vehicle_sim
   float heartbeatTimeoutSec = 3.0f;  // Скільки секунд чекати HEARTBEAT від оператора перш ніж перейти у failsafe
+  std::string simOutput = "simulation.json";  // реальний (не заглушковий) лог кроків наведення, легасі-формат ДЗ-09
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -69,12 +74,46 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     else if (key == "--heartbeat-timeout") {
       opts.heartbeatTimeoutSec = std::stof(value);
     }
+    else if (key == "--sim-output") {
+      opts.simOutput = value;
+    }
     else {
       std::cerr << "Unknown argument at autopilot.cpp: " << key << '\n';
     }
   }
 
   return opts;
+}
+
+json toJsonXY(const Coord& coord)
+{
+  return {{"x", coord.x}, {"y", coord.y}};
+}
+
+void writeSimulationJson(const std::vector<SimStep>& stepsLog, const std::string& path)
+{
+  json out;
+
+  out["totalSteps"] = stepsLog.size();
+  out["steps"] = json::array();
+
+  for (const SimStep& step : stepsLog) {
+    json outStep;
+
+    outStep["position"] = toJsonXY(step.pos);
+    outStep["direction"] = step.direction;
+    outStep["state"] = step.state;
+    outStep["targetIndex"] = step.targetIdx;
+    outStep["dropPoint"] = toJsonXY(step.dropPoint);
+    outStep["aimPoint"] = toJsonXY(step.aimPoint);
+    outStep["predictedTarget"] = toJsonXY(step.predictedTarget);
+    outStep["timeSecSinceStart"] = step.timeSecSinceStart;
+
+    out["steps"].push_back(outStep);
+  }
+
+  std::ofstream outJsonFile(path);
+  outJsonFile << out.dump(2);
 }
 
 int main(int argc, char* argv[])
@@ -94,7 +133,8 @@ int main(int argc, char* argv[])
       << "  vehicle-host    = " << opts.vehicleHost << '\n'
       << "  vehicle-port    = " << opts.vehiclePort << '\n'
       << "  own-port        = " << opts.ownPort << '\n'
-      << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec);
+      << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec << '\n'
+      << "  sim-output      = " << opts.simOutput);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
@@ -131,6 +171,7 @@ int main(int argc, char* argv[])
   std::shared_ptr<CachedTargetProvider> targets;
   std::unique_ptr<MissionProcessor> mission;
   SimStep lastStep{};
+  std::vector<SimStep> stepsLog;
 
   constexpr std::chrono::seconds kHeartbeatPeriod = std::chrono::seconds(1);
   std::chrono::steady_clock::time_point lastOwnHeartbeat;
@@ -208,6 +249,7 @@ int main(int argc, char* argv[])
 
         if (hasNextStep) {
           lastStep = mission->step(lastTelemetry);
+          stepsLog.push_back(lastStep);
         }
 
         const bool operatorHeartbeatOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
@@ -228,9 +270,19 @@ int main(int argc, char* argv[])
                                                   .text = "authority -> " + authority.to_string()}));
 
           if (authority.state() == AuthorityState::Complete) {
-            endpoint.send(mav::pack_drop_notification(
-              mav::kAutopilot, mav::kVehicle, {.latitude = lastStep.dropPoint.x, .longitude = lastStep.dropPoint.y, .altitude = 0.0f}));
-            LOG("mission: complete, drop sent at (" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y << ")");
+            endpoint.send(mav::pack_drop_notification(mav::kAutopilot,
+                                                      mav::kVehicle,
+                                                      {.latitude = lastStep.dropPoint.x,
+                                                       .longitude = lastStep.dropPoint.y,
+                                                       .altitude = 0.0f,
+                                                       .target_id = static_cast<uint8_t>(lastStep.targetIdx),
+                                                       .bomb_flight_time_sec = mission->getBombFlightTime()}));
+
+            LOG("mission: complete, drop sent at (" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y
+                                                    << ") target=" << lastStep.targetIdx);
+
+            writeSimulationJson(stepsLog, opts.simOutput);
+            LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
           }
         }
 

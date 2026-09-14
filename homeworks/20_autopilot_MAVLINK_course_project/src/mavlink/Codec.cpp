@@ -341,8 +341,8 @@ mavlink_message_t pack_drop_notification(const Identity& from, const Identity& t
                                 target.compid,
                                 kDropNotificationCommandId,
                                 confirmation,
-                                0.0f,
-                                0.0f,
+                                static_cast<float>(drop.target_id),
+                                drop.bomb_flight_time_sec,
                                 0.0f,
                                 0.0f,
                                 static_cast<float>(drop.latitude),
@@ -360,6 +360,8 @@ DropNotification parse_drop_notification(const mavlink_message_t& msg)
     .latitude = static_cast<double>(raw.param5),
     .longitude = static_cast<double>(raw.param6),
     .altitude = raw.param7,
+    .target_id = static_cast<uint8_t>(raw.param1),
+    .bomb_flight_time_sec = raw.param2,
   };
 }
 

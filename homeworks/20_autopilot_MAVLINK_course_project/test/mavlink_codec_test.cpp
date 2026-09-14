@@ -268,13 +268,16 @@ TEST(MavlinkCodec, TargetDesignationRoundTrip)
 
 TEST(MavlinkCodec, DropNotificationRoundTrip)
 {
-  const mav::DropNotification original = {.latitude = 50.4510, .longitude = 30.5240, .altitude = 42.5f};
+  const mav::DropNotification original = {
+    .latitude = 50.4510, .longitude = 30.5240, .altitude = 42.5f, .target_id = 2, .bomb_flight_time_sec = 3.75f};
 
   const mav::DropNotification parsed = mav::parse_drop_notification(mav::pack_drop_notification(mav::kAutopilot, mav::kVehicle, original));
 
   EXPECT_NEAR(parsed.latitude, original.latitude, 1e-4);
   EXPECT_NEAR(parsed.longitude, original.longitude, 1e-4);
   EXPECT_FLOAT_EQ(parsed.altitude, original.altitude);
+  EXPECT_EQ(parsed.target_id, original.target_id);
+  EXPECT_FLOAT_EQ(parsed.bomb_flight_time_sec, original.bomb_flight_time_sec);
 }
 
 TEST(MavlinkCodec, CommandAckRoundTrip)

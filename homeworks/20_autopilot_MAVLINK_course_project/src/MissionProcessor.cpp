@@ -145,11 +145,18 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
   DEBUG("Step " << sim.step << " pos=(" << sim.CURRENT_POS.x << "," << sim.CURRENT_POS.y << ")");
   DEBUG("  target=" << sim.selectedTargetIndex << " state=" << currentState->name());
 
+  const Coord dir = {cosf(sim.CURRENT_DIR), sinf(sim.CURRENT_DIR)};
+
   const SimStep stepResult = {
     .pos = sim.CURRENT_POS,
     .dropPoint = bestFire,
+    .aimPoint = sim.CURRENT_POS + dir * h,
+    .predictedTarget = bestTargetPredictedXY,
+    .direction = sim.CURRENT_DIR,
     .state = currentState->name(),
     .targetIdx = sim.selectedTargetIndex,
+    .step = sim.step,
+    .timeSecSinceStart = sim.timeSecSinceStart,
   };
 
   sim.prevSelectedTargetIndex = sim.selectedTargetIndex;
@@ -171,6 +178,11 @@ void MissionProcessor::reset()
 DroneCommand MissionProcessor::getLastCommand() const
 {
   return lastCommand;
+}
+
+float MissionProcessor::getBombFlightTime() const
+{
+  return bombFlightTime;
 }
 
 MissionProcessor::~MissionProcessor() = default;

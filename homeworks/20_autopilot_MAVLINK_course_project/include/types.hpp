@@ -67,8 +67,8 @@ struct BombParams {
 struct SimStep {
   Coord pos;
   Coord dropPoint = {0.0f, 0.0f};
-  Coord aimPoint = {0.0f, 0.0f};         // заглушка поки vehicle_sim не лінкує hm20_guidance
-  Coord predictedTarget = {0.0f, 0.0f};  // де мала бути ціль у момент влучання — те саме обмеження
+  Coord aimPoint = {0.0f, 0.0f};
+  Coord predictedTarget = {0.0f, 0.0f};
   float direction = 0.0f;
   std::string state;
   int targetIdx;

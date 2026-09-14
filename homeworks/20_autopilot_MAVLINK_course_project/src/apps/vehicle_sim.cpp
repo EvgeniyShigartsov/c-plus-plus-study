@@ -1,7 +1,6 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <fstream>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -15,9 +14,6 @@
 #include "sim/DronePhysics.hpp"
 #include "sim/FileConfigLoader.hpp"
 #include "sim/JsonTargetProvider.hpp"
-#include "third_party/json.hpp"
-
-using json = nlohmann::json;
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -31,7 +27,6 @@ struct CliOptions {
   std::string gcsHost = "127.0.0.1";  // куди дублюємо телеметрію -- для QGC/чекера
   uint16_t gcsPort = 14550;
   float timeScale = 1.0f;
-  std::string simOutput = "simulation.json";
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -63,9 +58,6 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     else if (key == "--time-scale") {
       opts.timeScale = std::stof(value);
     }
-    else if (key == "--sim-output") {
-      opts.simOutput = value;
-    }
     else {
       std::cerr << "Unknown argument at vehicle_sim.cpp: " << key << '\n';
     }
@@ -86,37 +78,6 @@ VehicleState toVehicleState(const DroneTelemetry& telemetry, const float altitud
     .speed = telemetry.speed,
     .dir = telemetry.dir,
   };
-}
-
-json toJsonXY(const Coord& coord)
-{
-  return {{"x", coord.x}, {"y", coord.y}};
-}
-
-void writeSimulationJson(const std::vector<SimStep>& stepsLog, const std::string& path)
-{
-  json out;
-
-  out["totalSteps"] = stepsLog.size();
-  out["steps"] = json::array();
-
-  for (const SimStep& step : stepsLog) {
-    json outStep;
-
-    outStep["position"] = toJsonXY(step.pos);
-    outStep["direction"] = step.direction;
-    outStep["state"] = step.state;
-    outStep["targetIndex"] = step.targetIdx;
-    outStep["dropPoint"] = toJsonXY(step.dropPoint);
-    outStep["aimPoint"] = toJsonXY(step.aimPoint);
-    outStep["predictedTarget"] = toJsonXY(step.predictedTarget);
-    outStep["timeSecSinceStart"] = step.timeSecSinceStart;
-
-    out["steps"].push_back(outStep);
-  }
-
-  std::ofstream outJsonFile(path);
-  outJsonFile << out.dump(2);
 }
 
 constexpr std::string CONFIG_FILE_FILENAME = "config.json";
@@ -143,8 +104,7 @@ int main(int argc, char* argv[])
       << "  own-port   = " << opts.ownPort << '\n'
       << "  gcs-host   = " << opts.gcsHost << '\n'
       << "  gcs-port   = " << opts.gcsPort << '\n'
-      << "  time-scale = " << opts.timeScale << '\n'
-      << "  sim-output = " << opts.simOutput);
+      << "  time-scale = " << opts.timeScale);
 
   FileConfigLoader loader;
   if (!loader.load(makeScenarioPath(opts.scenario, CONFIG_FILE_FILENAME), makeScenarioPath(opts.scenario, AMMO_FILE_FILENAME))) {
@@ -182,7 +142,6 @@ int main(int argc, char* argv[])
   float accumulator = 0.0f;
   float nextTelemetryLog = 0.0f;
 
-  std::vector<SimStep> stepsLog;
   bool dropped = false;
 
   mav::RadioControlOverride lastAutopilotOverride{.roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral};
@@ -209,23 +168,15 @@ int main(int argc, char* argv[])
         const Coord dropPoint{.x = static_cast<float>(drop.latitude), .y = static_cast<float>(drop.longitude)};
 
         const DroneTelemetry telemetryAtDrop = physics.getTelemetry();
-        const Target targetAtDrop = targets.getTarget(telemetryAtDrop.timeSinceStart, 0);
+        const float impactTime = telemetryAtDrop.timeSinceStart + drop.bomb_flight_time_sec;
+        const Target targetAtImpact = targets.getTarget(impactTime, drop.target_id);
 
-        const float missDistance = std::hypot(dropPoint.x - targetAtDrop.pos.x, dropPoint.y - targetAtDrop.pos.y);
+        const float missDistance = std::hypot(dropPoint.x - targetAtImpact.pos.x, dropPoint.y - targetAtImpact.pos.y);
         const bool hit = missDistance <= droneConfig.hitRadius;
 
-        LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " point=(" << dropPoint.x << "," << dropPoint.y << ") target=("
-                      << targetAtDrop.pos.x << "," << targetAtDrop.pos.y << ") miss=" << missDistance << " -> " << (hit ? "HIT" : "MISS"));
-
-        stepsLog.push_back({
-          .pos = telemetryAtDrop.pos,
-          .dropPoint = dropPoint,
-          .state = "Stopped",  // тимчасова заглушка
-          .targetIdx = 0,      // тимчасова заглушка
-          .step = static_cast<int>(stepsLog.size()),
-          .timeSecSinceStart = telemetryAtDrop.timeSinceStart,
-        });
-        writeSimulationJson(stepsLog, opts.simOutput);
+        LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " point=(" << dropPoint.x << "," << dropPoint.y << ") target#"
+                      << static_cast<int>(drop.target_id) << "@impact(t=" << impactTime << ")=(" << targetAtImpact.pos.x << ","
+                      << targetAtImpact.pos.y << ") miss=" << missDistance << " -> " << (hit ? "HIT" : "MISS"));
       }
     }
 
@@ -258,21 +209,6 @@ int main(int argc, char* argv[])
 
     const DroneTelemetry telemetry = physics.getTelemetry();
     if (telemetry.timeSinceStart >= nextTelemetryLog) {
-      const Target firstTarget = targets.getTarget(telemetry.timeSinceStart, 0);
-      DEBUG("t=" << telemetry.timeSinceStart << " pos=(" << telemetry.pos.x << "," << telemetry.pos.y << ") speed=" << telemetry.speed
-                 << " dir=" << telemetry.dir << " | target0=(" << firstTarget.pos.x << "," << firstTarget.pos.y << ")");
-
-      if (!dropped) {
-        stepsLog.push_back({
-          .pos = telemetry.pos,
-          .direction = telemetry.dir,
-          .state = "Stopped",  // тимчасова зашлушка
-          .targetIdx = 0,      // тимчасова зашлушка
-          .step = static_cast<int>(stepsLog.size()),
-          .timeSecSinceStart = telemetry.timeSinceStart,
-        });
-      }
-
       const VehicleState state = toVehicleState(telemetry, droneConfig.altitude);
       const mavlink_message_t localPositionNed = mav::pack_local_position_ned(mav::kVehicle, state);
       const mavlink_message_t attitude = mav::pack_attitude(mav::kVehicle, state);

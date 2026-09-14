@@ -26,6 +26,7 @@ public:
   [[nodiscard]] bool hasNext() const;
   SimStep step(const DroneTelemetry& telemetry);
   DroneCommand getLastCommand() const;
+  [[nodiscard]] float getBombFlightTime() const;
   void changeSolver(std::unique_ptr<IBallisticSolver> solver);
   void reset();
 

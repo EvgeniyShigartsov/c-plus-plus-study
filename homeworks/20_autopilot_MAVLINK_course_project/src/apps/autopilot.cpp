@@ -20,8 +20,8 @@
 #include "solvers/TableSolver.hpp"
 #include "third_party/json.hpp"
 
-#define AUTOPILOT_LOG(msg) LOG("[AUTOPILOT:] " << msg)
-#define AUTOPILOT_DEBUG(msg) DEBUG("[AUTOPILOT:] " << msg)
+#define AUTOPILOT_LOG(msg) LOG("[AUTOPILOT]: " << msg)
+#define AUTOPILOT_DEBUG(msg) DEBUG("[AUTOPILOT]: " << msg)
 
 using json = nlohmann::json;
 
@@ -128,16 +128,16 @@ int main(int argc, char* argv[])
   const CliOptions opts = parseArgs(args);
 
   AUTOPILOT_LOG("autopilot:\n"
-      << "  config-path     = " << opts.configPath << '\n'
-      << "  ammo-path       = " << opts.ammoPath << '\n'
-      << "  ballistic-table = " << opts.ballisticTable << '\n'
-      << "  gcs-host        = " << opts.gcsHost << '\n'
-      << "  gcs-port        = " << opts.gcsPort << '\n'
-      << "  vehicle-host    = " << opts.vehicleHost << '\n'
-      << "  vehicle-port    = " << opts.vehiclePort << '\n'
-      << "  own-port        = " << opts.ownPort << '\n'
-      << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec << '\n'
-      << "  sim-output      = " << opts.simOutput);
+                << "  config-path     = " << opts.configPath << '\n'
+                << "  ammo-path       = " << opts.ammoPath << '\n'
+                << "  ballistic-table = " << opts.ballisticTable << '\n'
+                << "  gcs-host        = " << opts.gcsHost << '\n'
+                << "  gcs-port        = " << opts.gcsPort << '\n'
+                << "  vehicle-host    = " << opts.vehicleHost << '\n'
+                << "  vehicle-port    = " << opts.vehiclePort << '\n'
+                << "  own-port        = " << opts.ownPort << '\n'
+                << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec << '\n'
+                << "  sim-output      = " << opts.simOutput);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
@@ -154,6 +154,14 @@ int main(int argc, char* argv[])
     AUTOPILOT_LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort << " on own port " << opts.ownPort);
     return 1;
   }
+
+  auto ballisticSolver = std::make_unique<TableSolver>(opts.ballisticTable, ammo, droneConfig);
+
+  if (!ballisticSolver->isLoadSuccess()) {
+    AUTOPILOT_LOG("Failed to load ballistic table " << opts.ballisticTable);
+    return 1;
+  }
+
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
 
   const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort);
@@ -205,15 +213,10 @@ int main(int argc, char* argv[])
         targets->update(designation.target_id, pos, lastTelemetry.timeSinceStart);
 
         if (!mission) {
-          auto solver = std::make_unique<TableSolver>(opts.ballisticTable, ammo, droneConfig);
-          if (!solver->isLoadSuccess()) {
-            AUTOPILOT_LOG("Failed to load ballistic table " << opts.ballisticTable);
-          }
-          mission = std::make_unique<MissionProcessor>(targets, std::move(solver));
-          if (!mission->init(droneConfig)) {
-            AUTOPILOT_LOG("Failed to init mission processor");
-          }
-          AUTOPILOT_LOG("mission: guidance core ready");
+          mission = std::make_unique<MissionProcessor>(targets, std::move(ballisticSolver));
+          const bool isMissionInitSucces = mission->init(droneConfig);
+
+          AUTOPILOT_LOG((isMissionInitSucces ? "mission: guidance core ready" : "mission: failed to init mission processor"));
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT && mav::Identity{.sysid = msg.sysid, .compid = msg.compid} == mav::kGcs) {
@@ -232,7 +235,7 @@ int main(int argc, char* argv[])
 
         if (operatorInDeadband != wasInDeadband) {
           AUTOPILOT_LOG("operator " << (operatorInDeadband ? "released sticks" : "touched sticks") << " roll=" << channels.roll
-                          << " throttle=" << channels.throttle);
+                                    << " throttle=" << channels.throttle);
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kEnableCommandId) {
@@ -265,12 +268,12 @@ int main(int argc, char* argv[])
           .reachedFirePoint = mission && !hasNextStep,
         });
         if (hasAuthorityChanged) {
-          AUTOPILOT_LOG("authority changed to: -> " << authority.to_string());
+          AUTOPILOT_LOG("state changed to: -> " << authority.to_string());
 
           const bool isFailsafe = authority.state() == AuthorityState::Failsafe;
           gcsEndpoint.send(mav::pack_status_text(mav::kAutopilot,
                                                  {.severity = static_cast<uint8_t>(isFailsafe ? MAV_SEVERITY_WARNING : MAV_SEVERITY_INFO),
-                                                  .text = "authority -> " + authority.to_string()}));
+                                                  .text = "state -> " + authority.to_string()}));
 
           if (authority.state() == AuthorityState::Complete) {
             endpoint.send(mav::pack_drop_notification(mav::kAutopilot,
@@ -281,9 +284,8 @@ int main(int argc, char* argv[])
                                                        .target_id = static_cast<uint8_t>(lastStep.targetIdx),
                                                        .bomb_flight_time_sec = mission->getBombFlightTime()}));
 
-            AUTOPILOT_LOG("mission: complete, released at (" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y << ") aiming at ("
-                                                   << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y
-                                                   << ") target=" << lastStep.targetIdx);
+            AUTOPILOT_LOG("mission: complete, aiming at (" << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y
+                                                           << ") target=" << lastStep.targetIdx);
 
             writeSimulationJson(stepsLog, opts.simOutput);
             AUTOPILOT_LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
@@ -295,12 +297,13 @@ int main(int argc, char* argv[])
           endpoint.send(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control));
 
           AUTOPILOT_DEBUG("guidance t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
-                              << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=(" << lastStep.dropPoint.x
-                              << "," << lastStep.dropPoint.y << ") accel=" << control.accel << " turnRate=" << control.turnRate);
+                                        << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=("
+                                        << lastStep.dropPoint.x << "," << lastStep.dropPoint.y << ") accel=" << control.accel
+                                        << " turnRate=" << control.turnRate);
         }
         else {
           AUTOPILOT_DEBUG("telemetry t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
-                               << ") speed=" << lastTelemetry.speed << " dir=" << lastTelemetry.dir);
+                                         << ") speed=" << lastTelemetry.speed << " dir=" << lastTelemetry.dir);
         }
       }
     }

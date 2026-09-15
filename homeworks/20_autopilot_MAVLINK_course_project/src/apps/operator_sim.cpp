@@ -16,6 +16,9 @@
 #include "sim/FileConfigLoader.hpp"
 #include "sim/JsonTargetProvider.hpp"
 
+#define OPERATOR_LOG(msg) LOG("[OPERATOR:] " << msg)
+#define OPERATOR_DEBUG(msg) DEBUG("[OPERATOR:] " << msg)
+
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 const std::string defaultDataDir = "homeworks/20_autopilot_MAVLINK_course_project/data";
@@ -96,7 +99,7 @@ std::vector<TimelineEvent> loadOperatorScenario(const std::string& path)
   std::vector<TimelineEvent> events;
   std::ifstream file(path);
   if (!file) {
-    LOG("Failed to open operator scenario " << path);
+    OPERATOR_LOG("Failed to open operator scenario " << path);
     return events;
   }
 
@@ -138,17 +141,17 @@ void executeEvent(const TimelineEvent& event,
 {
   if (event.action == "heartbeat_drop") {
     if (event.args.empty()) {
-      LOG("event: heartbeat_drop requires 1 arg (duration), skip");
+      OPERATOR_LOG("event: heartbeat_drop requires 1 arg (duration), skip");
       return;
     }
 
     const float duration = std::stof(event.args[0]);
     out_heartbeatDropUntil = event.time + duration;
-    LOG("event: heartbeat_drop for " << duration << "sec");
+    OPERATOR_LOG("event: heartbeat_drop for " << duration << "sec");
   }
   else if (event.action == "channel") {
     if (event.args.size() < 3) {
-      LOG("event: channel requires 3 args (channel offset duration), skip");
+      OPERATOR_LOG("event: channel requires 3 args (channel offset duration), skip");
       return;
     }
 
@@ -166,26 +169,26 @@ void executeEvent(const TimelineEvent& event,
       out_channelState.throttleClearAt = event.time + duration;
     }
     else {
-      LOG("event: unknown channel '" << channel << "'");
+      OPERATOR_LOG("event: unknown channel '" << channel << "'");
       return;
     }
 
-    LOG("event: channel " << channel << " = " << pwm << " on " << duration << "sec");
+    OPERATOR_LOG("event: channel " << channel << " = " << pwm << " on " << duration << "sec");
   }
   else if (event.action == "enable") {
     endpoint.send(mav::pack_enable_command(mav::kGcs, mav::kAutopilot, {.enabled = true}));
-    LOG("event: enable");
+    OPERATOR_LOG("event: enable");
   }
   else if (event.action == "disable") {
     endpoint.send(mav::pack_enable_command(mav::kGcs, mav::kAutopilot, {.enabled = false}));
-    LOG("event: disable");
+    OPERATOR_LOG("event: disable");
   }
   else if (event.action == "designate_targets") {
     out_targetsArmed = true;
-    LOG("event: designate_targets armed");
+    OPERATOR_LOG("event: designate_targets armed");
   }
   else {
-    LOG("event: unknown action '" << event.action << "', skip");
+    OPERATOR_LOG("event: unknown action '" << event.action << "', skip");
   }
 }
 
@@ -199,7 +202,7 @@ int main(int argc, char* argv[])
 
   const bool isScenarioNotPesented = opts.operatorScenario.empty();
 
-  LOG("operator_sim:\n"
+  OPERATOR_LOG("operator_sim:\n"
       << "  ap-host           = " << opts.apHost << '\n'
       << "  ap-port           = " << opts.apPort << '\n'
       << "  vehicle-host      = " << opts.vehicleHost << '\n'
@@ -213,7 +216,7 @@ int main(int argc, char* argv[])
       << "  time-scale        = " << opts.timeScale);
 
   if (isScenarioNotPesented) {
-    LOG("operator-scenario should be presented & have valid markup");
+    OPERATOR_LOG("operator-scenario should be presented & have valid markup");
     return 1;
   }
 
@@ -221,34 +224,34 @@ int main(int argc, char* argv[])
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
-    LOG("Failed to load config or ammo");
+    OPERATOR_LOG("Failed to load config or ammo");
     return 1;
   }
 
   const JsonTargetProvider targetProvider = JsonTargetProvider(opts.targetsPath, loader.getArrayTimeStep(), loader.getConfig().simTimeStep);
 
   if (!targetProvider.isLoadSucces()) {
-    LOG("Failed to load targets " << opts.targetsPath);
+    OPERATOR_LOG("Failed to load targets " << opts.targetsPath);
     return 1;
   }
 
   const UdpLink udp(opts.apHost, opts.apPort);
   if (!udp.isOpen()) {
-    LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort);
+    OPERATOR_LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort);
     return 1;
   }
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
 
   const UdpLink vehicleUdp(opts.vehicleHost, opts.vehiclePort);
   if (!vehicleUdp.isOpen()) {
-    LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort);
+    OPERATOR_LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort);
     return 1;
   }
   const mav::MavlinkEndpoint vehicleEndpoint(vehicleUdp, MAVLINK_COMM_2);
 
   const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort, opts.gcsPort);
   if (!gcsUdp.isOpen()) {
-    LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
+    OPERATOR_LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
     return 1;
   }
   const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_3);
@@ -283,7 +286,7 @@ int main(int argc, char* argv[])
         haveMissionTime = true;
 
         if (wasMissing) {
-          LOG("mission time: synced from vehicle telemetry, t=" << missionTime);
+          OPERATOR_LOG("mission time: synced from vehicle telemetry, t=" << missionTime);
         }
       }
     }

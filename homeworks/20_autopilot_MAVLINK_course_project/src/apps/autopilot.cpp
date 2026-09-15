@@ -20,6 +20,9 @@
 #include "solvers/TableSolver.hpp"
 #include "third_party/json.hpp"
 
+#define AUTOPILOT_LOG(msg) LOG("[AUTOPILOT:] " << msg)
+#define AUTOPILOT_DEBUG(msg) DEBUG("[AUTOPILOT:] " << msg)
+
 using json = nlohmann::json;
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -124,7 +127,7 @@ int main(int argc, char* argv[])
   }
   const CliOptions opts = parseArgs(args);
 
-  LOG("autopilot:\n"
+  AUTOPILOT_LOG("autopilot:\n"
       << "  config-path     = " << opts.configPath << '\n'
       << "  ammo-path       = " << opts.ammoPath << '\n'
       << "  ballistic-table = " << opts.ballisticTable << '\n'
@@ -138,7 +141,7 @@ int main(int argc, char* argv[])
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
-    LOG("Failed to load config or ammo");
+    AUTOPILOT_LOG("Failed to load config or ammo");
     return 1;
   }
   const DroneConfig droneConfig = loader.getConfig();
@@ -148,7 +151,7 @@ int main(int argc, char* argv[])
 
   const UdpLink udp(opts.vehicleHost, opts.vehiclePort, opts.ownPort);
   if (!udp.isOpen()) {
-    LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort << " on own port " << opts.ownPort);
+    AUTOPILOT_LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort << " on own port " << opts.ownPort);
     return 1;
   }
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
@@ -195,7 +198,7 @@ int main(int argc, char* argv[])
 
         if (!targets) {
           targets = std::make_shared<CachedTargetProvider>(designation.target_count);
-          LOG("targets: create cache for " << static_cast<int>(designation.target_count) << " targets");
+          AUTOPILOT_LOG("targets: create cache for " << static_cast<int>(designation.target_count) << " targets");
         }
 
         const Coord pos{.x = static_cast<float>(designation.latitude), .y = static_cast<float>(designation.longitude)};
@@ -204,13 +207,13 @@ int main(int argc, char* argv[])
         if (!mission) {
           auto solver = std::make_unique<TableSolver>(opts.ballisticTable, ammo, droneConfig);
           if (!solver->isLoadSuccess()) {
-            LOG("Failed to load ballistic table " << opts.ballisticTable);
+            AUTOPILOT_LOG("Failed to load ballistic table " << opts.ballisticTable);
           }
           mission = std::make_unique<MissionProcessor>(targets, std::move(solver));
           if (!mission->init(droneConfig)) {
-            LOG("Failed to init mission processor");
+            AUTOPILOT_LOG("Failed to init mission processor");
           }
-          LOG("mission: guidance core ready");
+          AUTOPILOT_LOG("mission: guidance core ready");
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT && mav::Identity{.sysid = msg.sysid, .compid = msg.compid} == mav::kGcs) {
@@ -218,7 +221,7 @@ int main(int argc, char* argv[])
         lastOperatorHeartbeat = std::chrono::steady_clock::now();
 
         if (!wasHeartbeatOk) {
-          LOG("operator heartbeat: restored");
+          AUTOPILOT_LOG("operator heartbeat: restored");
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS) {
@@ -228,14 +231,14 @@ int main(int argc, char* argv[])
         operatorInDeadband = mav::are_channels_in_deadband(channels);
 
         if (operatorInDeadband != wasInDeadband) {
-          LOG("operator " << (operatorInDeadband ? "released sticks" : "touched sticks") << " roll=" << channels.roll
+          AUTOPILOT_LOG("operator " << (operatorInDeadband ? "released sticks" : "touched sticks") << " roll=" << channels.roll
                           << " throttle=" << channels.throttle);
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kEnableCommandId) {
         const mav::EnableCommand command = mav::parse_enable_command(msg);
         enabled = command.enabled;
-        LOG("enable: " << (enabled ? "true" : "false"));
+        AUTOPILOT_LOG("enable: " << (enabled ? "true" : "false"));
 
         gcsEndpoint.send(
           mav::pack_command_acknowledgement(mav::kAutopilot, mav::kGcs, {.command = mav::kEnableCommandId, .result = MAV_RESULT_ACCEPTED}));
@@ -262,7 +265,7 @@ int main(int argc, char* argv[])
           .reachedFirePoint = mission && !hasNextStep,
         });
         if (hasAuthorityChanged) {
-          LOG("authority changed to: -> " << authority.to_string());
+          AUTOPILOT_LOG("authority changed to: -> " << authority.to_string());
 
           const bool isFailsafe = authority.state() == AuthorityState::Failsafe;
           gcsEndpoint.send(mav::pack_status_text(mav::kAutopilot,
@@ -278,12 +281,12 @@ int main(int argc, char* argv[])
                                                        .target_id = static_cast<uint8_t>(lastStep.targetIdx),
                                                        .bomb_flight_time_sec = mission->getBombFlightTime()}));
 
-            LOG("mission: complete, released at (" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y << ") aiming at ("
+            AUTOPILOT_LOG("mission: complete, released at (" << lastStep.dropPoint.x << "," << lastStep.dropPoint.y << ") aiming at ("
                                                    << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y
                                                    << ") target=" << lastStep.targetIdx);
 
             writeSimulationJson(stepsLog, opts.simOutput);
-            LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
+            AUTOPILOT_LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
           }
         }
 
@@ -291,12 +294,12 @@ int main(int argc, char* argv[])
           const ControlSignal control = controller.compute(mission->getLastCommand(), lastTelemetry);
           endpoint.send(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control));
 
-          DEBUG("guidance t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
+          AUTOPILOT_DEBUG("guidance t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
                               << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=(" << lastStep.dropPoint.x
                               << "," << lastStep.dropPoint.y << ") accel=" << control.accel << " turnRate=" << control.turnRate);
         }
         else {
-          DEBUG("telemetry t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
+          AUTOPILOT_DEBUG("telemetry t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
                                << ") speed=" << lastTelemetry.speed << " dir=" << lastTelemetry.dir);
         }
       }

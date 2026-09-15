@@ -15,6 +15,9 @@
 #include "sim/FileConfigLoader.hpp"
 #include "sim/JsonTargetProvider.hpp"
 
+#define VEHICLE_LOG(msg) LOG("[VEHICLE:] " << msg)
+#define VEHICLE_DEBUG(msg) DEBUG("[VEHICLE:] " << msg)
+
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 const std::string defaultDataDir = "homeworks/20_autopilot_MAVLINK_course_project/data";
@@ -97,7 +100,7 @@ int main(int argc, char* argv[])
   }
   const CliOptions opts = parseArgs(args);
 
-  LOG("vehicle_sim:\n"
+  VEHICLE_LOG("vehicle_sim:\n"
       << "  scenario   = " << opts.scenario << '\n'
       << "  ap-host    = " << opts.apHost << '\n'
       << "  ap-port    = " << opts.apPort << '\n'
@@ -108,7 +111,7 @@ int main(int argc, char* argv[])
 
   FileConfigLoader loader;
   if (!loader.load(makeScenarioPath(opts.scenario, CONFIG_FILE_FILENAME), makeScenarioPath(opts.scenario, AMMO_FILE_FILENAME))) {
-    LOG("Failed to load config or ammo");
+    VEHICLE_LOG("Failed to load config or ammo");
     return 1;
   }
 
@@ -126,7 +129,7 @@ int main(int argc, char* argv[])
 
   const UdpLink udp(opts.apHost, opts.apPort, opts.ownPort);
   if (!udp.isOpen()) {
-    LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort << " on own port " << opts.ownPort);
+    VEHICLE_LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort << " on own port " << opts.ownPort);
     return 1;
   }
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
@@ -174,7 +177,7 @@ int main(int argc, char* argv[])
         const float missDistance = std::hypot(aimPoint.x - targetAtImpact.pos.x, aimPoint.y - targetAtImpact.pos.y);
         const bool hit = missDistance <= droneConfig.hitRadius;
 
-        LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ") target#"
+        VEHICLE_LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ") target#"
                       << static_cast<int>(drop.target_id) << "@impact(t=" << impactTime << ")=(" << targetAtImpact.pos.x << ","
                       << targetAtImpact.pos.y << ") miss=" << missDistance << " -> " << (hit ? "HIT" : "MISS"));
       }

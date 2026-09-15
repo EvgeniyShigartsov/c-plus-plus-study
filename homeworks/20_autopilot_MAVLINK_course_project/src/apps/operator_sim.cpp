@@ -203,24 +203,22 @@ int main(int argc, char* argv[])
   const bool isScenarioNotPesented = opts.operatorScenario.empty();
 
   OPERATOR_LOG("operator_sim:\n"
-      << "  ap-host           = " << opts.apHost << '\n'
-      << "  ap-port           = " << opts.apPort << '\n'
-      << "  vehicle-host      = " << opts.vehicleHost << '\n'
-      << "  vehicle-port      = " << opts.vehiclePort << '\n'
-      << "  gcs-host          = " << opts.gcsHost << '\n'
-      << "  gcs-port          = " << opts.gcsPort << '\n'
-      << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
-      << "  config-path       = " << opts.configPath << '\n'
-      << "  ammo-path         = " << opts.ammoPath << '\n'
-      << "  targets           = " << opts.targetsPath << '\n'
-      << "  time-scale        = " << opts.timeScale);
+               << "  ap-host           = " << opts.apHost << '\n'
+               << "  ap-port           = " << opts.apPort << '\n'
+               << "  vehicle-host      = " << opts.vehicleHost << '\n'
+               << "  vehicle-port      = " << opts.vehiclePort << '\n'
+               << "  gcs-host          = " << opts.gcsHost << '\n'
+               << "  gcs-port          = " << opts.gcsPort << '\n'
+               << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
+               << "  config-path       = " << opts.configPath << '\n'
+               << "  ammo-path         = " << opts.ammoPath << '\n'
+               << "  targets           = " << opts.targetsPath << '\n'
+               << "  time-scale        = " << opts.timeScale);
 
   if (isScenarioNotPesented) {
     OPERATOR_LOG("operator-scenario should be presented & have valid markup");
     return 1;
   }
-
-  const std::vector<TimelineEvent> events = loadOperatorScenario(opts.operatorScenario);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
@@ -240,6 +238,13 @@ int main(int argc, char* argv[])
     OPERATOR_LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort);
     return 1;
   }
+
+  const std::vector<TimelineEvent> events = loadOperatorScenario(opts.operatorScenario);
+  if (events.size() == 0) {
+    OPERATOR_LOG("No events found");
+    return 1;
+  }
+
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
 
   const UdpLink vehicleUdp(opts.vehicleHost, opts.vehiclePort);

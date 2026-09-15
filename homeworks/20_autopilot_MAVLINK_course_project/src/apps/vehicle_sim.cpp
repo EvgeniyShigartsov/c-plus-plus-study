@@ -27,7 +27,7 @@ struct CliOptions {
   uint16_t ownPort = 14555;           // домашній порт, сюди autopilot шле RC_CHANNELS_OVERRIDE
   std::string gcsHost = "127.0.0.1";  // куди дублюємо телеметрію -- для QGC/чекера
   uint16_t gcsPort = 14550;
-  float timeScale = 1.0f;
+  float timeScale = -1.0f;  // -1 = не задано явно, береться з config.json
   std::string configPath = defaultDataDir + "/config.json";
   std::string ammoPath = defaultDataDir + "/ammo.json";
 };
@@ -99,8 +99,7 @@ int main(int argc, char* argv[])
               << "  ap-port    = " << opts.apPort << '\n'
               << "  own-port   = " << opts.ownPort << '\n'
               << "  gcs-host   = " << opts.gcsHost << '\n'
-              << "  gcs-port   = " << opts.gcsPort << '\n'
-              << "  time-scale = " << opts.timeScale);
+              << "  gcs-port   = " << opts.gcsPort);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
@@ -110,7 +109,9 @@ int main(int argc, char* argv[])
 
   const DroneConfig droneConfig = loader.getConfig();
   const float physicsTimeStep = loader.getPhysicsTimeStep();
-  const float timeScale = opts.timeScale;
+  const bool timeScaleFromCli = opts.timeScale > 0.0f;
+  const float timeScale = timeScaleFromCli ? opts.timeScale : loader.getTimeScale();
+  VEHICLE_LOG("  time-scale = " << timeScale << (timeScaleFromCli ? " (CLI)" : " (config.json)"));
 
   DronePhysics physics = DronePhysics(droneConfig);
 

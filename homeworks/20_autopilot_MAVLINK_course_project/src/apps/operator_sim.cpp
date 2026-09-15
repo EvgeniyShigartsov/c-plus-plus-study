@@ -34,7 +34,7 @@ struct CliOptions {
   std::string ammoPath = defaultDataDir + "/ammo.json";
   std::string targetsPath = defaultDataDir + "/targets.json";
   std::string operatorScenario;  // timeline-файл дій оператора
-  float timeScale = 1.0f;        // аналогічно vehicle_sim, щоб час сценарію збігався з місією
+  float timeScale = -1.0f;       // -1 = не задано явно, береться з config.json
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -212,8 +212,7 @@ int main(int argc, char* argv[])
                << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
                << "  config-path       = " << opts.configPath << '\n'
                << "  ammo-path         = " << opts.ammoPath << '\n'
-               << "  targets           = " << opts.targetsPath << '\n'
-               << "  time-scale        = " << opts.timeScale);
+               << "  targets           = " << opts.targetsPath);
 
   if (isScenarioNotPesented) {
     OPERATOR_LOG("operator-scenario should be presented & have valid markup");
@@ -225,6 +224,10 @@ int main(int argc, char* argv[])
     OPERATOR_LOG("Failed to load config or ammo");
     return 1;
   }
+
+  const bool timeScaleFromCli = opts.timeScale > 0.0f;
+  const float timeScale = timeScaleFromCli ? opts.timeScale : loader.getTimeScale();
+  OPERATOR_LOG("  time-scale        = " << timeScale << (timeScaleFromCli ? " (CLI)" : " (config.json)"));
 
   const JsonTargetProvider targetProvider = JsonTargetProvider(opts.targetsPath, loader.getArrayTimeStep(), loader.getConfig().simTimeStep);
 
@@ -276,7 +279,7 @@ int main(int argc, char* argv[])
   while (true) {
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-    scenarioTime += std::chrono::duration<float>(now - last).count() * opts.timeScale;
+    scenarioTime += std::chrono::duration<float>(now - last).count() * timeScale;
     last = now;
 
     while (nextEventIndex < events.size() && scenarioTime >= events[nextEventIndex].time) {

@@ -235,20 +235,6 @@ TEST(MavlinkCodec, EnableCommandRoundTrip)
   EXPECT_EQ(mav::parse_enable_command(msg), original);
 }
 
-TEST(MavlinkCodec, EnableCommandCarriesConfirmationForRetries)
-{
-  const uint8_t retry_attempt = 3;
-
-  const mav::EnableCommand cmd = {.enabled = false};
-
-  const mavlink_message_t msg = mav::pack_enable_command(mav::kGcs, mav::kAutopilot, cmd, retry_attempt);
-  mavlink_command_long_t raw{};
-  mavlink_msg_command_long_decode(&msg, &raw);
-
-  EXPECT_EQ(raw.confirmation, retry_attempt);
-  EXPECT_EQ(raw.command, mav::kEnableCommandId);
-}
-
 TEST(MavlinkCodec, TargetDesignationRoundTrip)
 {
   const mav::TargetDesignation original = {
@@ -278,6 +264,16 @@ TEST(MavlinkCodec, DropNotificationRoundTrip)
   EXPECT_FLOAT_EQ(parsed.altitude, original.altitude);
   EXPECT_EQ(parsed.target_id, original.target_id);
   EXPECT_FLOAT_EQ(parsed.bomb_flight_time_sec, original.bomb_flight_time_sec);
+}
+
+TEST(MavlinkCodec, MissionCompleteNotificationRoundTrip)
+{
+  const mav::MissionCompleteNotification original = {.completed = true};
+
+  const mav::MissionCompleteNotification parsed =
+    mav::parse_mission_complete_notification(mav::pack_mission_complete_notification(mav::kAutopilot, mav::kVehicle, original));
+
+  EXPECT_EQ(parsed.completed, original.completed);
 }
 
 TEST(MavlinkCodec, CommandAckRoundTrip)

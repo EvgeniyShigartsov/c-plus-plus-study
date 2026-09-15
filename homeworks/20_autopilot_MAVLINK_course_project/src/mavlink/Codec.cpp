@@ -266,7 +266,7 @@ ControlSignal to_control_signal(const RadioControlOverride& radio_control_overri
   };
 }
 
-mavlink_message_t pack_enable_command(const Identity& from, const Identity& target, const EnableCommand& command, uint8_t confirmation)
+mavlink_message_t pack_enable_command(const Identity& from, const Identity& target, const EnableCommand& command)
 {
   mavlink_message_t msg{};
   mavlink_msg_command_long_pack(from.sysid,
@@ -275,7 +275,7 @@ mavlink_message_t pack_enable_command(const Identity& from, const Identity& targ
                                 target.sysid,
                                 target.compid,
                                 kEnableCommandId,
-                                confirmation,
+                                0,
                                 command.enabled ? 1.0f : 0.0f,
                                 0.0f,
                                 0.0f,
@@ -331,7 +331,7 @@ TargetDesignation parse_target_designation(const mavlink_message_t& msg)
   };
 }
 
-mavlink_message_t pack_drop_notification(const Identity& from, const Identity& target, const DropNotification& drop, uint8_t confirmation)
+mavlink_message_t pack_drop_notification(const Identity& from, const Identity& target, const DropNotification& drop)
 {
   mavlink_message_t msg{};
   mavlink_msg_command_long_pack(from.sysid,
@@ -340,7 +340,7 @@ mavlink_message_t pack_drop_notification(const Identity& from, const Identity& t
                                 target.sysid,
                                 target.compid,
                                 kDropNotificationCommandId,
-                                confirmation,
+                                0,
                                 static_cast<float>(drop.target_id),
                                 drop.bomb_flight_time_sec,
                                 0.0f,
@@ -363,6 +363,35 @@ DropNotification parse_drop_notification(const mavlink_message_t& msg)
     .target_id = static_cast<uint8_t>(raw.param1),
     .bomb_flight_time_sec = raw.param2,
   };
+}
+
+mavlink_message_t pack_mission_complete_notification(const Identity& from,
+                                                     const Identity& target,
+                                                     const MissionCompleteNotification& notification)
+{
+  mavlink_message_t msg{};
+  mavlink_msg_command_long_pack(from.sysid,
+                                from.compid,
+                                &msg,
+                                target.sysid,
+                                target.compid,
+                                kMissionCompleteCommandId,
+                                0,
+                                notification.completed ? 1.0f : 0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f,
+                                0.0f);
+  return msg;
+}
+
+MissionCompleteNotification parse_mission_complete_notification(const mavlink_message_t& msg)
+{
+  mavlink_command_long_t raw{};
+  mavlink_msg_command_long_decode(&msg, &raw);
+  return {.completed = raw.param1 != 0.0f};
 }
 
 mavlink_message_t pack_command_acknowledgement(const Identity& from, const Identity& target, const CommandAcknowledgement& acknowledgement)

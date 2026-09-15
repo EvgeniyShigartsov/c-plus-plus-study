@@ -61,6 +61,7 @@ struct Attitude {
 constexpr uint16_t kEnableCommandId = MAV_CMD_USER_1;
 constexpr uint16_t kTargetDesignationCommandId = MAV_CMD_USER_2;
 constexpr uint16_t kDropNotificationCommandId = MAV_CMD_USER_3;
+constexpr uint16_t kMissionCompleteCommandId = MAV_CMD_USER_4;
 
 // GCS -> автопілот, увімкнути / вимкнути.
 struct EnableCommand {
@@ -88,6 +89,12 @@ struct DropNotification {
   float bomb_flight_time_sec = 0.0f;
 
   bool operator==(const DropNotification&) const = default;
+};
+
+struct MissionCompleteNotification {
+  bool completed = true;
+
+  bool operator==(const MissionCompleteNotification&) const = default;
 };
 
 struct CommandAcknowledgement {
@@ -132,18 +139,19 @@ RadioControlOverride parse_radio_control_channels_override(const mavlink_message
 RadioControlOverride to_radio_control_override(const ControlSignal& control);
 ControlSignal to_control_signal(const RadioControlOverride& radio_control_override);
 
-// confirmation - MAVLink конвенція, де 0 = перша передача, 1..255 = повтор
-mavlink_message_t pack_enable_command(const Identity& from, const Identity& target, const EnableCommand& command, uint8_t confirmation = 0);
+mavlink_message_t pack_enable_command(const Identity& from, const Identity& target, const EnableCommand& command);
 EnableCommand parse_enable_command(const mavlink_message_t& msg);
 
 mavlink_message_t pack_target_designation(const Identity& from, const Identity& target, const TargetDesignation& designation);
 TargetDesignation parse_target_designation(const mavlink_message_t& msg);
 
-mavlink_message_t pack_drop_notification(const Identity& from,
-                                         const Identity& target,
-                                         const DropNotification& drop,
-                                         uint8_t confirmation = 0);
+mavlink_message_t pack_drop_notification(const Identity& from, const Identity& target, const DropNotification& drop);
 DropNotification parse_drop_notification(const mavlink_message_t& msg);
+
+mavlink_message_t pack_mission_complete_notification(const Identity& from,
+                                                     const Identity& target,
+                                                     const MissionCompleteNotification& notification);
+MissionCompleteNotification parse_mission_complete_notification(const mavlink_message_t& msg);
 
 mavlink_message_t pack_command_acknowledgement(const Identity& from, const Identity& target, const CommandAcknowledgement& acknowledgement);
 CommandAcknowledgement parse_command_acknowledgement(const mavlink_message_t& msg);

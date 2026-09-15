@@ -13,23 +13,23 @@
 #include "mavlink/RadioControl.hpp"
 #include "sim/DronePhysics.hpp"
 #include "sim/FileConfigLoader.hpp"
-#include "sim/JsonTargetProvider.hpp"
 
-#define VEHICLE_LOG(msg) LOG("[VEHICLE:] " << msg)
-#define VEHICLE_DEBUG(msg) DEBUG("[VEHICLE:] " << msg)
+#define VEHICLE_LOG(msg) LOG("[VEHICLE]: " << msg)
+#define VEHICLE_DEBUG(msg) DEBUG("[VEHICLE]: " << msg)
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 const std::string defaultDataDir = "homeworks/20_autopilot_MAVLINK_course_project/data";
 
 struct CliOptions {
-  std::string scenario = defaultDataDir;
   std::string apHost = "127.0.0.1";   // куди шлемо телеметрію — хост autopilot
   uint16_t apPort = 14560;            // куди шлемо телеметрію — домашній порт autopilot
   uint16_t ownPort = 14555;           // домашній порт, сюди autopilot шле RC_CHANNELS_OVERRIDE
   std::string gcsHost = "127.0.0.1";  // куди дублюємо телеметрію -- для QGC/чекера
   uint16_t gcsPort = 14550;
   float timeScale = 1.0f;
+  std::string configPath = defaultDataDir + "/config.json";
+  std::string ammoPath = defaultDataDir + "/ammo.json";
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -40,10 +40,7 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     const std::string& key = args[i];
     const std::string& value = args[i + 1];
 
-    if (key == "--scenario") {
-      opts.scenario = value;
-    }
-    else if (key == "--ap-host") {
+    if (key == "--ap-host") {
       opts.apHost = value;
     }
     else if (key == "--ap-port") {
@@ -60,6 +57,12 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     }
     else if (key == "--time-scale") {
       opts.timeScale = std::stof(value);
+    }
+    else if (key == "--config-path") {
+      opts.configPath = value;
+    }
+    else if (key == "--ammo-path") {
+      opts.ammoPath = value;
     }
     else {
       std::cerr << "Unknown argument at vehicle_sim.cpp: " << key << '\n';
@@ -83,15 +86,6 @@ VehicleState toVehicleState(const DroneTelemetry& telemetry, const float altitud
   };
 }
 
-constexpr std::string CONFIG_FILE_FILENAME = "config.json";
-constexpr std::string AMMO_FILE_FILENAME = "ammo.json";
-constexpr std::string TARGETS_FILE_FILENAME = "targets.json";
-
-std::string makeScenarioPath(const std::string& scenario, const std::string& filename)
-{
-  return scenario + "/" + filename;
-}
-
 int main(int argc, char* argv[])
 {
   std::vector<std::string> args;
@@ -101,16 +95,15 @@ int main(int argc, char* argv[])
   const CliOptions opts = parseArgs(args);
 
   VEHICLE_LOG("vehicle_sim:\n"
-      << "  scenario   = " << opts.scenario << '\n'
-      << "  ap-host    = " << opts.apHost << '\n'
-      << "  ap-port    = " << opts.apPort << '\n'
-      << "  own-port   = " << opts.ownPort << '\n'
-      << "  gcs-host   = " << opts.gcsHost << '\n'
-      << "  gcs-port   = " << opts.gcsPort << '\n'
-      << "  time-scale = " << opts.timeScale);
+              << "  ap-host    = " << opts.apHost << '\n'
+              << "  ap-port    = " << opts.apPort << '\n'
+              << "  own-port   = " << opts.ownPort << '\n'
+              << "  gcs-host   = " << opts.gcsHost << '\n'
+              << "  gcs-port   = " << opts.gcsPort << '\n'
+              << "  time-scale = " << opts.timeScale);
 
   FileConfigLoader loader;
-  if (!loader.load(makeScenarioPath(opts.scenario, CONFIG_FILE_FILENAME), makeScenarioPath(opts.scenario, AMMO_FILE_FILENAME))) {
+  if (!loader.load(opts.configPath, opts.ammoPath)) {
     VEHICLE_LOG("Failed to load config or ammo");
     return 1;
   }
@@ -120,12 +113,6 @@ int main(int argc, char* argv[])
   const float timeScale = opts.timeScale;
 
   DronePhysics physics = DronePhysics(droneConfig);
-  const JsonTargetProvider targets =
-    JsonTargetProvider(makeScenarioPath(opts.scenario, TARGETS_FILE_FILENAME), loader.getArrayTimeStep(), droneConfig.simTimeStep);
-
-  if (!targets.isLoadSucces()) {
-    return 1;
-  }
 
   const UdpLink udp(opts.apHost, opts.apPort, opts.ownPort);
   if (!udp.isOpen()) {
@@ -171,15 +158,8 @@ int main(int argc, char* argv[])
         const Coord aimPoint{.x = static_cast<float>(drop.latitude), .y = static_cast<float>(drop.longitude)};
 
         const DroneTelemetry telemetryAtDrop = physics.getTelemetry();
-        const float impactTime = telemetryAtDrop.timeSinceStart + drop.bomb_flight_time_sec;
-        const Target targetAtImpact = targets.getTarget(impactTime, drop.target_id);
 
-        const float missDistance = std::hypot(aimPoint.x - targetAtImpact.pos.x, aimPoint.y - targetAtImpact.pos.y);
-        const bool hit = missDistance <= droneConfig.hitRadius;
-
-        VEHICLE_LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ") target#"
-                      << static_cast<int>(drop.target_id) << "@impact(t=" << impactTime << ")=(" << targetAtImpact.pos.x << ","
-                      << targetAtImpact.pos.y << ") miss=" << missDistance << " -> " << (hit ? "HIT" : "MISS"));
+        VEHICLE_LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ")");
       }
     }
 

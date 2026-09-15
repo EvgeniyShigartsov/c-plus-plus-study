@@ -29,7 +29,7 @@ struct CliOptions {
   std::string vehicleHost = "127.0.0.1";
   uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim, сюди шлемо команди від реального оператора
   std::string gcsHost = "127.0.0.1";
-  uint16_t gcsPort = 14550;  // GCS-порт, куди vehicle_sim дублює телеметрію - звідси беремо реальний місійний час
+  uint16_t gcsPort = 14550;  // GCS-порт, сюди vehicle_sim шле телеметрію, а автопілот статуc/etc.
   std::string configPath = defaultDataDir + "/config.json";
   std::string ammoPath = defaultDataDir + "/ammo.json";
   std::string targetsPath = defaultDataDir + "/targets.json";
@@ -233,8 +233,8 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  const UdpLink udp(opts.apHost, opts.apPort);
-  if (!udp.isOpen()) {
+  const UdpLink autopilotUdp(opts.apHost, opts.apPort);
+  if (!autopilotUdp.isOpen()) {
     OPERATOR_LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort);
     return 1;
   }
@@ -245,7 +245,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
+  const mav::MavlinkEndpoint endpoint(autopilotUdp, MAVLINK_COMM_1);
 
   const UdpLink vehicleUdp(opts.vehicleHost, opts.vehiclePort);
   if (!vehicleUdp.isOpen()) {

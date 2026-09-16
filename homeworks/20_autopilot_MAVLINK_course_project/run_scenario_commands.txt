@@ -31,13 +31,35 @@
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 9
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 10
 
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 1
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 2
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 3
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 4
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 5
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 6
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 7
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 8
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 9
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_never_enabled 10
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 1
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 2
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 3
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 4
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 5
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 6
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 7
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 8
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 9
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_link_recovered 10
+
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 1
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 2
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 3
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 4
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 5
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 6
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 7
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 8
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 9
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_link_lost_early 10
+
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 1
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 2
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 3
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 4
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 5
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 6
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 7
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 8
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 9
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 06_never_enabled 10

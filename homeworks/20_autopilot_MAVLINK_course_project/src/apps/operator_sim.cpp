@@ -320,7 +320,7 @@ int main(int argc, char* argv[])
       lastHeartbeat = now;
     }
 
-    if (targetsArmed && haveMissionTime) {
+    if (targetsArmed && haveMissionTime && !heartbeatDropped) {
       const int targetCount = targetProvider.getTargetCount();
       for (int i = 0; i < targetCount; i++) {
         const Coord pos = targetProvider.getTarget(missionTime, i).pos;

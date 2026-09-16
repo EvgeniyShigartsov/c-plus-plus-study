@@ -150,8 +150,8 @@ int main(int argc, char* argv[])
 
   const DroneController controller(droneConfig);
 
-  const UdpLink ownUdp(opts.vehicleHost, opts.vehiclePort, opts.ownPort);
-  if (!ownUdp.isOpen()) {
+  const UdpLink homeUdp(opts.vehicleHost, opts.vehiclePort, opts.ownPort);
+  if (!homeUdp.isOpen()) {
     AUTOPILOT_LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort << " on own port " << opts.ownPort);
     return 1;
   }
@@ -163,9 +163,13 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  const mav::MavlinkEndpoint ownEndpoint(ownUdp, MAVLINK_COMM_1);
+  const mav::MavlinkEndpoint homeEndpoint(homeUdp, MAVLINK_COMM_1);
 
   const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort);
+  if (!gcsUdp.isOpen()) {
+    AUTOPILOT_LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
+    return 1;
+  }
   const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_2);
 
   AuthorityStateMachine authority;
@@ -191,7 +195,7 @@ int main(int argc, char* argv[])
   bool MISSION_COMPLETE = false;
 
   while (!MISSION_COMPLETE) {
-    for (const mavlink_message_t& msg : ownEndpoint.poll()) {
+    for (const mavlink_message_t& msg : homeEndpoint.poll()) {
       bool telemetryUpdated = false;
 
       if (msg.msgid == MAVLINK_MSG_ID_LOCAL_POSITION_NED) {
@@ -279,13 +283,13 @@ int main(int argc, char* argv[])
                                                   .text = "state -> " + authority.to_string()}));
 
           if (authority.state() == AuthorityState::Complete) {
-            ownEndpoint.send(mav::pack_drop_notification(mav::kAutopilot,
-                                                         mav::kVehicle,
-                                                         {.latitude = lastStep.predictedTarget.x,
-                                                          .longitude = lastStep.predictedTarget.y,
-                                                          .altitude = 0.0f,
-                                                          .target_id = static_cast<uint8_t>(lastStep.targetIdx),
-                                                          .bomb_flight_time_sec = mission->getBombFlightTime()}));
+            homeEndpoint.send(mav::pack_drop_notification(mav::kAutopilot,
+                                                          mav::kVehicle,
+                                                          {.latitude = lastStep.predictedTarget.x,
+                                                           .longitude = lastStep.predictedTarget.y,
+                                                           .altitude = 0.0f,
+                                                           .target_id = static_cast<uint8_t>(lastStep.targetIdx),
+                                                           .bomb_flight_time_sec = mission->getBombFlightTime()}));
 
             AUTOPILOT_LOG("mission: complete, aiming at (" << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y
                                                            << ") target=" << lastStep.targetIdx);
@@ -295,7 +299,7 @@ int main(int argc, char* argv[])
 
             const mavlink_message_t missionCompleteMsg =
               mav::pack_mission_complete_notification(mav::kAutopilot, mav::kVehicle, {.completed = true});
-            ownEndpoint.send(missionCompleteMsg);
+            homeEndpoint.send(missionCompleteMsg);
             gcsEndpoint.send(missionCompleteMsg);
 
             MISSION_COMPLETE = true;
@@ -305,7 +309,7 @@ int main(int argc, char* argv[])
 
         if (hasNextStep && authority.hasControl()) {
           const ControlSignal control = controller.compute(mission->getLastCommand(), lastTelemetry);
-          ownEndpoint.send(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control));
+          homeEndpoint.send(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control));
 
           AUTOPILOT_DEBUG("guidance t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
                                         << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=("

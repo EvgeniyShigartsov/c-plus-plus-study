@@ -15,8 +15,8 @@
 #include "sim/DronePhysics.hpp"
 #include "sim/FileConfigLoader.hpp"
 
-#define VEHICLE_LOG(msg) LOG("[VEHICLE]: " << msg)
-#define VEHICLE_DEBUG(msg) DEBUG("[VEHICLE]: " << msg)
+#define DRONE_LOG(msg) LOG("[DRONE]: " << msg)
+#define DRONE_DEBUG(msg) DEBUG("[DRONE]: " << msg)
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -66,7 +66,7 @@ CliOptions parseArgs(const std::vector<std::string>& args)
       opts.ammoPath = value;
     }
     else {
-      std::cerr << "Unknown argument at vehicle_sim.cpp: " << key << '\n';
+      std::cerr << "Unknown argument at drone_sim.cpp: " << key << '\n';
     }
   }
 
@@ -95,16 +95,16 @@ int main(int argc, char* argv[])
   }
   const CliOptions opts = parseArgs(args);
 
-  VEHICLE_LOG("vehicle_sim:\n"
-              << "  ap-host    = " << opts.apHost << '\n'
-              << "  ap-port    = " << opts.apPort << '\n'
-              << "  own-port   = " << opts.ownPort << '\n'
-              << "  gcs-host   = " << opts.gcsHost << '\n'
-              << "  gcs-port   = " << opts.gcsPort);
+  DRONE_LOG("drone_sim:\n"
+            << "  ap-host    = " << opts.apHost << '\n'
+            << "  ap-port    = " << opts.apPort << '\n'
+            << "  own-port   = " << opts.ownPort << '\n'
+            << "  gcs-host   = " << opts.gcsHost << '\n'
+            << "  gcs-port   = " << opts.gcsPort);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
-    VEHICLE_LOG("Failed to load config or ammo");
+    DRONE_LOG("Failed to load config or ammo");
     return 1;
   }
 
@@ -112,13 +112,13 @@ int main(int argc, char* argv[])
   const float physicsTimeStep = loader.getPhysicsTimeStep();
   const bool timeScaleFromCli = opts.timeScale > 0.0f;
   const float timeScale = timeScaleFromCli ? opts.timeScale : loader.getTimeScale();
-  VEHICLE_LOG("  time-scale = " << timeScale << (timeScaleFromCli ? " (CLI)" : " (config.json)"));
+  DRONE_LOG("  time-scale = " << timeScale << (timeScaleFromCli ? " (CLI)" : " (config.json)"));
 
   DronePhysics physics = DronePhysics(droneConfig);
 
   const UdpLink udp(opts.apHost, opts.apPort, opts.ownPort);
   if (!udp.isOpen()) {
-    VEHICLE_LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort << " on own port " << opts.ownPort);
+    DRONE_LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort << " on own port " << opts.ownPort);
     return 1;
   }
   const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
   // Дублювання телеметрії на GCS
   const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort);
   if (!gcsUdp.isOpen()) {
-    VEHICLE_LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
+    DRONE_LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
     return 1;
   }
   const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_2);
@@ -167,10 +167,10 @@ int main(int argc, char* argv[])
 
         const DroneTelemetry telemetryAtDrop = physics.getTelemetry();
 
-        VEHICLE_LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ")");
+        DRONE_LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ")");
       }
       else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kMissionCompleteCommandId) {
-        VEHICLE_LOG("mission complete notification received");
+        DRONE_LOG("mission complete notification received");
         MISSION_COMPLETE = true;
       }
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Спрощений запуск vehicle_sim + autopilot + operator_sim для тестування.
+# Спрощений запуск drone_sim + autopilot + operator_sim для тестування.
 # Використання: ./run_scenario.sh [сценарій-оператора] [номер-тесту]
 #   сценарій-оператора - ім'я файлу в data/scenarios/ без розширення .txt. Дефолт: 01_clean_attack
 #   номер-тесту        - який тесткейс з testing_data використати, 1=01_sample_circles, 2=02_eliptic_trajectories, etc. Дефолт: 1
@@ -42,7 +42,7 @@ echo
 
 PIDS=()
 
-"$BIN/hm20_vehicle_sim" --config-path "$CONFIG" --ammo-path "$AMMO" --time-scale "$TIME_SCALE" &
+"$BIN/hm20_drone_sim" --config-path "$CONFIG" --ammo-path "$AMMO" --time-scale "$TIME_SCALE" &
 PIDS+=("$!")
 "$BIN/hm20_autopilot" --config-path "$CONFIG" --ammo-path "$AMMO" --ballistic-table "$BALLISTIC" --sim-output "$REPO_ROOT/simulation.json" --time-scale "$TIME_SCALE" &
 PIDS+=("$!")

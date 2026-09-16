@@ -41,7 +41,7 @@ add_library(hm20_sim STATIC src/sim/DronePhysics.cpp src/sim/JsonTargetProvider.
 target_include_directories(hm20_sim PUBLIC include)
 target_compile_options(hm20_sim PRIVATE ${HM20_WARNINGS})
 
-foreach(APP autopilot vehicle_sim operator_sim verdict)
+foreach(APP autopilot drone_sim operator_sim verdict)
     add_executable(hm20_${APP} src/apps/${APP}.cpp)
     target_link_libraries(hm20_${APP} PRIVATE hm20_guidance hm20_mavlink hm20_sim)
     target_compile_options(hm20_${APP} PRIVATE ${HM20_WARNINGS})

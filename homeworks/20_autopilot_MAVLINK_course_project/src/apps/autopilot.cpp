@@ -36,9 +36,9 @@ struct CliOptions {
   std::string ballisticTable = defaultDataDir + "/ballistic_table.txt";
   std::string gcsHost = "127.0.0.1";
   uint16_t gcsPort = 14550;
-  std::string vehicleHost = "127.0.0.1";
-  uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim - туди шлемо RC_CHANNELS_OVERRIDE
-  uint16_t ownPort = 14560;  // домашній порт автопілота - сюди отримуємо телеметрію від vehicle_sim
+  std::string droneHost = "127.0.0.1";
+  uint16_t dronePort = 14555;  // домашній порт drone_sim - туди шлемо RC_CHANNELS_OVERRIDE
+  uint16_t ownPort = 14560;  // домашній порт автопілота - сюди отримуємо телеметрію від drone_sim
   float heartbeatTimeoutSec =
     3.0f;  // Скільки секунд чекати HEARTBEAT від оператора перш ніж перейти у failsafe, ділиться на timeScale щоб час йшов консистентно
   float dropRefusalTimeoutSec = 5.0f;  // Якщо HEARTBEAT оператора мовчить довше цього - значить нема актуальних даних по цілям, розрахунок
@@ -71,11 +71,11 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     else if (key == "--gcs-port") {
       opts.gcsPort = static_cast<uint16_t>(std::stoi(value));
     }
-    else if (key == "--vehicle-host") {
-      opts.vehicleHost = value;
+    else if (key == "--drone-host") {
+      opts.droneHost = value;
     }
-    else if (key == "--vehicle-port") {
-      opts.vehiclePort = static_cast<uint16_t>(std::stoi(value));
+    else if (key == "--drone-port") {
+      opts.dronePort = static_cast<uint16_t>(std::stoi(value));
     }
     else if (key == "--own-port") {
       opts.ownPort = static_cast<uint16_t>(std::stoi(value));
@@ -145,8 +145,8 @@ int main(int argc, char* argv[])
                 << "  ballistic-table = " << opts.ballisticTable << '\n'
                 << "  gcs-host        = " << opts.gcsHost << '\n'
                 << "  gcs-port        = " << opts.gcsPort << '\n'
-                << "  vehicle-host    = " << opts.vehicleHost << '\n'
-                << "  vehicle-port    = " << opts.vehiclePort << '\n'
+                << "  drone-host      = " << opts.droneHost << '\n'
+                << "  drone-port      = " << opts.dronePort << '\n'
                 << "  own-port        = " << opts.ownPort << '\n'
                 << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec << '\n'
                 << "  drop-refusal-timeout = " << opts.dropRefusalTimeoutSec << '\n'
@@ -166,9 +166,9 @@ int main(int argc, char* argv[])
 
   const DroneController controller(droneConfig);
 
-  const UdpLink homeUdp(opts.vehicleHost, opts.vehiclePort, opts.ownPort);
+  const UdpLink homeUdp(opts.droneHost, opts.dronePort, opts.ownPort);
   if (!homeUdp.isOpen()) {
-    AUTOPILOT_LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort << " on own port " << opts.ownPort);
+    AUTOPILOT_LOG("Failed to open UDP link to " << opts.droneHost << ":" << opts.dronePort << " on own port " << opts.ownPort);
     return 1;
   }
 

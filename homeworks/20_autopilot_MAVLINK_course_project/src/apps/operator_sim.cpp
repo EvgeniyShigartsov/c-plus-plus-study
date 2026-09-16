@@ -26,10 +26,10 @@ const std::string defaultDataDir = "homeworks/20_autopilot_MAVLINK_course_projec
 struct CliOptions {
   std::string apHost = "127.0.0.1";
   uint16_t apPort = 14560;  // домашній порт autopilot, сюди шлемо HEARTBEAT/команди
-  std::string vehicleHost = "127.0.0.1";
-  uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim, сюди шлемо команди від реального оператора
+  std::string droneHost = "127.0.0.1";
+  uint16_t dronePort = 14555;  // домашній порт drone_sim, сюди шлемо команди від реального оператора
   std::string gcsHost = "127.0.0.1";
-  uint16_t gcsPort = 14550;  // GCS-порт, сюди vehicle_sim шле телеметрію, а автопілот статуc/etc.
+  uint16_t gcsPort = 14550;  // GCS-порт, сюди drone_sim шле телеметрію, а автопілот статуc/etc.
   std::string configPath = defaultDataDir + "/config.json";
   std::string ammoPath = defaultDataDir + "/ammo.json";
   std::string targetsPath = defaultDataDir + "/targets.json";
@@ -51,11 +51,11 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     else if (key == "--ap-port") {
       opts.apPort = static_cast<uint16_t>(std::stoi(value));
     }
-    else if (key == "--vehicle-host") {
-      opts.vehicleHost = value;
+    else if (key == "--drone-host") {
+      opts.droneHost = value;
     }
-    else if (key == "--vehicle-port") {
-      opts.vehiclePort = static_cast<uint16_t>(std::stoi(value));
+    else if (key == "--drone-port") {
+      opts.dronePort = static_cast<uint16_t>(std::stoi(value));
     }
     else if (key == "--gcs-host") {
       opts.gcsHost = value;
@@ -205,8 +205,8 @@ int main(int argc, char* argv[])
   OPERATOR_LOG("operator_sim:\n"
                << "  ap-host           = " << opts.apHost << '\n'
                << "  ap-port           = " << opts.apPort << '\n'
-               << "  vehicle-host      = " << opts.vehicleHost << '\n'
-               << "  vehicle-port      = " << opts.vehiclePort << '\n'
+               << "  drone-host        = " << opts.droneHost << '\n'
+               << "  drone-port        = " << opts.dronePort << '\n'
                << "  gcs-host          = " << opts.gcsHost << '\n'
                << "  gcs-port          = " << opts.gcsPort << '\n'
                << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
@@ -250,12 +250,12 @@ int main(int argc, char* argv[])
 
   const mav::MavlinkEndpoint endpoint(autopilotUdp, MAVLINK_COMM_1);
 
-  const UdpLink vehicleUdp(opts.vehicleHost, opts.vehiclePort);
-  if (!vehicleUdp.isOpen()) {
-    OPERATOR_LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort);
+  const UdpLink droneUdp(opts.droneHost, opts.dronePort);
+  if (!droneUdp.isOpen()) {
+    OPERATOR_LOG("Failed to open UDP link to " << opts.droneHost << ":" << opts.dronePort);
     return 1;
   }
-  const mav::MavlinkEndpoint vehicleEndpoint(vehicleUdp, MAVLINK_COMM_2);
+  const mav::MavlinkEndpoint droneEndpoint(droneUdp, MAVLINK_COMM_2);
 
   const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort, opts.gcsPort);
   if (!gcsUdp.isOpen()) {
@@ -295,7 +295,7 @@ int main(int argc, char* argv[])
         haveMissionTime = true;
 
         if (wasMissing) {
-          OPERATOR_LOG("mission time: synced from vehicle telemetry, t=" << missionTime);
+          OPERATOR_LOG("mission time: synced from drone telemetry, t=" << missionTime);
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kMissionCompleteCommandId) {
@@ -335,7 +335,7 @@ int main(int argc, char* argv[])
       }
     }
 
-    vehicleEndpoint.send(mav::pack_radio_control_channels_override(
+    droneEndpoint.send(mav::pack_radio_control_channels_override(
       mav::kGcs, mav::kVehicle, mav::to_control_signal({.roll = channelState.roll, .throttle = channelState.throttle})));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));

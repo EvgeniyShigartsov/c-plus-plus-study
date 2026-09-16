@@ -1,6 +1,7 @@
 // autopilot — модуль-автопілот
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -149,8 +150,8 @@ int main(int argc, char* argv[])
 
   const DroneController controller(droneConfig);
 
-  const UdpLink udp(opts.vehicleHost, opts.vehiclePort, opts.ownPort);
-  if (!udp.isOpen()) {
+  const UdpLink ownUdp(opts.vehicleHost, opts.vehiclePort, opts.ownPort);
+  if (!ownUdp.isOpen()) {
     AUTOPILOT_LOG("Failed to open UDP link to " << opts.vehicleHost << ":" << opts.vehiclePort << " on own port " << opts.ownPort);
     return 1;
   }
@@ -162,7 +163,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
+  const mav::MavlinkEndpoint ownEndpoint(ownUdp, MAVLINK_COMM_1);
 
   const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort);
   const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_2);
@@ -187,8 +188,10 @@ int main(int argc, char* argv[])
   constexpr std::chrono::seconds kHeartbeatPeriod = std::chrono::seconds(1);
   std::chrono::steady_clock::time_point lastOwnHeartbeat;
 
-  while (true) {
-    for (const mavlink_message_t& msg : endpoint.poll()) {
+  bool MISSION_COMPLETE = false;
+
+  while (!MISSION_COMPLETE) {
+    for (const mavlink_message_t& msg : ownEndpoint.poll()) {
       bool telemetryUpdated = false;
 
       if (msg.msgid == MAVLINK_MSG_ID_LOCAL_POSITION_NED) {
@@ -276,25 +279,33 @@ int main(int argc, char* argv[])
                                                   .text = "state -> " + authority.to_string()}));
 
           if (authority.state() == AuthorityState::Complete) {
-            endpoint.send(mav::pack_drop_notification(mav::kAutopilot,
-                                                      mav::kVehicle,
-                                                      {.latitude = lastStep.predictedTarget.x,
-                                                       .longitude = lastStep.predictedTarget.y,
-                                                       .altitude = 0.0f,
-                                                       .target_id = static_cast<uint8_t>(lastStep.targetIdx),
-                                                       .bomb_flight_time_sec = mission->getBombFlightTime()}));
+            ownEndpoint.send(mav::pack_drop_notification(mav::kAutopilot,
+                                                         mav::kVehicle,
+                                                         {.latitude = lastStep.predictedTarget.x,
+                                                          .longitude = lastStep.predictedTarget.y,
+                                                          .altitude = 0.0f,
+                                                          .target_id = static_cast<uint8_t>(lastStep.targetIdx),
+                                                          .bomb_flight_time_sec = mission->getBombFlightTime()}));
 
             AUTOPILOT_LOG("mission: complete, aiming at (" << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y
                                                            << ") target=" << lastStep.targetIdx);
 
             writeSimulationJson(stepsLog, opts.simOutput);
             AUTOPILOT_LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
+
+            const mavlink_message_t missionCompleteMsg =
+              mav::pack_mission_complete_notification(mav::kAutopilot, mav::kVehicle, {.completed = true});
+            ownEndpoint.send(missionCompleteMsg);
+            gcsEndpoint.send(missionCompleteMsg);
+
+            MISSION_COMPLETE = true;
+            AUTOPILOT_LOG("mission complete");
           }
         }
 
         if (hasNextStep && authority.hasControl()) {
           const ControlSignal control = controller.compute(mission->getLastCommand(), lastTelemetry);
-          endpoint.send(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control));
+          ownEndpoint.send(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, control));
 
           AUTOPILOT_DEBUG("guidance t=" << lastTelemetry.timeSinceStart << " pos=(" << lastTelemetry.pos.x << "," << lastTelemetry.pos.y
                                         << ") state=" << lastStep.state << " target=" << lastStep.targetIdx << " dropPoint=("
@@ -318,6 +329,11 @@ int main(int argc, char* argv[])
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+
+  if (MISSION_COMPLETE) {
+    // Виключно для зручності тестування, щоб не вбивати процесс вручну
+    std::exit(0);
   }
 }
 

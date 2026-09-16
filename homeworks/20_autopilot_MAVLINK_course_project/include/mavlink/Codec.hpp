@@ -32,8 +32,6 @@ struct LocalPositionNed {
   float velocity_north = 0.0f;
   float velocity_east = 0.0f;
   float velocity_down = 0.0f;
-
-  bool operator==(const LocalPositionNed&) const = default;
 };
 
 struct RadioControlChannels {
@@ -47,15 +45,11 @@ struct RadioControlChannels {
 struct RadioControlOverride {
   uint16_t roll = 0;
   uint16_t throttle = 0;
-
-  bool operator==(const RadioControlOverride&) const = default;
 };
 
 struct Attitude {
   uint32_t time_boot_ms = 0;  // час від старту, мс
   float yaw = 0.0f;           // курс, куди дивиться ніс, у системі NED (за годинниковою)
-
-  bool operator==(const Attitude&) const = default;
 };
 
 constexpr uint16_t kEnableCommandId = MAV_CMD_USER_1;
@@ -76,8 +70,6 @@ struct TargetDesignation {
   uint8_t target_count = 0;
   double latitude = 0.0;
   double longitude = 0.0;
-
-  bool operator==(const TargetDesignation&) const = default;
 };
 
 // автопілот -> борт/GCS
@@ -87,14 +79,10 @@ struct DropNotification {
   float altitude = 0.0f;
   uint8_t target_id = 0;
   float bomb_flight_time_sec = 0.0f;
-
-  bool operator==(const DropNotification&) const = default;
 };
 
 struct MissionCompleteNotification {
   bool completed = true;
-
-  bool operator==(const MissionCompleteNotification&) const = default;
 };
 
 struct CommandAcknowledgement {

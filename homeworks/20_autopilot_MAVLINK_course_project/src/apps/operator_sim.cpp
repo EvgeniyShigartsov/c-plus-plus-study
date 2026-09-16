@@ -264,7 +264,7 @@ int main(int argc, char* argv[])
   }
   const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_3);
 
-  const std::chrono::milliseconds kHeartbeatPeriod = std::chrono::milliseconds(500);  // 2 Гц
+  const std::chrono::milliseconds heartbeatPeriod = std::chrono::milliseconds(500);  // 2 Гц
   std::chrono::steady_clock::time_point lastHeartbeat;
 
   std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
@@ -275,8 +275,9 @@ int main(int argc, char* argv[])
   bool targetsArmed = false;
   float missionTime = 0.0f;  // реальний час дрона, з його телеметрії
   bool haveMissionTime = false;
+  bool MISSION_COMPLETE = false;
 
-  while (true) {
+  while (!MISSION_COMPLETE) {
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
     scenarioTime += std::chrono::duration<float>(now - last).count() * timeScale;
@@ -297,6 +298,10 @@ int main(int argc, char* argv[])
           OPERATOR_LOG("mission time: synced from vehicle telemetry, t=" << missionTime);
         }
       }
+      else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kMissionCompleteCommandId) {
+        OPERATOR_LOG("mission complete notification received");
+        MISSION_COMPLETE = true;
+      }
     }
 
     if (channelState.rollClearAt >= 0.0f && scenarioTime >= channelState.rollClearAt) {
@@ -310,7 +315,7 @@ int main(int argc, char* argv[])
 
     const bool heartbeatDropped = scenarioTime < heartbeatDropUntil;
 
-    if (!heartbeatDropped && now - lastHeartbeat >= kHeartbeatPeriod) {
+    if (!heartbeatDropped && now - lastHeartbeat >= heartbeatPeriod) {
       endpoint.send(mav::pack_heartbeat(mav::kGcs, {.type = MAV_TYPE_GCS}));
       lastHeartbeat = now;
     }
@@ -334,6 +339,11 @@ int main(int argc, char* argv[])
       mav::kGcs, mav::kVehicle, mav::to_control_signal({.roll = channelState.roll, .throttle = channelState.throttle})));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+
+  if (MISSION_COMPLETE) {
+    // Виключно для зручності тестування, щоб не вбивати процесс вручну
+    std::exit(0);
   }
 }
 

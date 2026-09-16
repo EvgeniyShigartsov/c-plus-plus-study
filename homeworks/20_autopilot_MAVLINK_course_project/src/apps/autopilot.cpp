@@ -40,6 +40,9 @@ struct CliOptions {
   uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim - туди шлемо RC_CHANNELS_OVERRIDE
   uint16_t ownPort = 14560;  // домашній порт автопілота - сюди отримуємо телеметрію від vehicle_sim
   float heartbeatTimeoutSec = 3.0f;  // Скільки секунд чекати HEARTBEAT від оператора перш ніж перейти у failsafe
+  float dropRefusalTimeoutSec =
+    5.0f;  // Якщо HEARTBEAT оператора мовчить довше цього - значить нема актуальних даних по цілям, розрахунок
+           // точки скиду з кожним тіком стає менш точним, але якщо дрон досяг точки скиду раніше за цей таймаут - спробувати уразити ціль.
   std::string simOutput = "simulation.json";  // реальний (не заглушковий) лог кроків наведення, легасі-формат ДЗ-09
 };
 
@@ -77,6 +80,9 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     }
     else if (key == "--heartbeat-timeout") {
       opts.heartbeatTimeoutSec = std::stof(value);
+    }
+    else if (key == "--drop-refusal-timeout") {
+      opts.dropRefusalTimeoutSec = std::stof(value);
     }
     else if (key == "--sim-output") {
       opts.simOutput = value;
@@ -138,6 +144,7 @@ int main(int argc, char* argv[])
                 << "  vehicle-port    = " << opts.vehiclePort << '\n'
                 << "  own-port        = " << opts.ownPort << '\n'
                 << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec << '\n'
+                << "  drop-refusal-timeout = " << opts.dropRefusalTimeoutSec << '\n'
                 << "  sim-output      = " << opts.simOutput);
 
   FileConfigLoader loader;
@@ -176,7 +183,9 @@ int main(int argc, char* argv[])
   bool enabled = false;
   bool operatorInDeadband = true;
   const auto heartbeatTimeout = std::chrono::duration<float>(opts.heartbeatTimeoutSec);
+  const auto dropRefusalTimeout = std::chrono::duration<float>(opts.dropRefusalTimeoutSec);
   std::chrono::steady_clock::time_point lastOperatorHeartbeat;
+  bool dropRefusedLogged = false;
 
   mav::LocalPositionNed lastPosition{};
   mav::Attitude lastAttitude{};
@@ -281,8 +290,19 @@ int main(int argc, char* argv[])
           gcsEndpoint.send(mav::pack_status_text(mav::kAutopilot,
                                                  {.severity = static_cast<uint8_t>(isFailsafe ? MAV_SEVERITY_WARNING : MAV_SEVERITY_INFO),
                                                   .text = "state -> " + authority.to_string()}));
+        }
 
-          if (authority.state() == AuthorityState::Complete) {
+        if (authority.state() == AuthorityState::Complete && !MISSION_COMPLETE) {
+          const bool heartbeatTooStaleToDrop = std::chrono::steady_clock::now() - lastOperatorHeartbeat > dropRefusalTimeout;
+
+          if (heartbeatTooStaleToDrop) {
+            if (!dropRefusedLogged) {
+              AUTOPILOT_LOG("mission: reached fire point, but operator heartbeat expired > " << opts.dropRefusalTimeoutSec
+                                                                                             << "s -- refusing to drop, waiting");
+              dropRefusedLogged = true;
+            }
+          }
+          else {
             homeEndpoint.send(mav::pack_drop_notification(mav::kAutopilot,
                                                           mav::kVehicle,
                                                           {.latitude = lastStep.predictedTarget.x,

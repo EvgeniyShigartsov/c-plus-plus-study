@@ -5,4 +5,4 @@
 
 0.2 designate_targets
 0.5 enable
-2.0 heartbeat_drop 60
+15.0 heartbeat_drop 60

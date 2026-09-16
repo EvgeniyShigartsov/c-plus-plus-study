@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -124,6 +125,10 @@ int main(int argc, char* argv[])
 
   // Дублювання телеметрії на GCS
   const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort);
+  if (!gcsUdp.isOpen()) {
+    VEHICLE_LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
+    return 1;
+  }
   const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_2);
 
   constexpr std::chrono::seconds heartbeatPeriod = std::chrono::seconds(1);
@@ -138,7 +143,9 @@ int main(int argc, char* argv[])
   mav::RadioControlOverride lastAutopilotOverride{.roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral};
   mav::RadioControlOverride lastOperatorOverride{.roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral};
 
-  while (true) {
+  bool MISSION_COMPLETE = false;
+
+  while (!MISSION_COMPLETE) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
       if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE) {
         const mav::RadioControlOverride rc_override = mav::parse_radio_control_channels_override(msg);
@@ -161,6 +168,10 @@ int main(int argc, char* argv[])
         const DroneTelemetry telemetryAtDrop = physics.getTelemetry();
 
         VEHICLE_LOG("DROP t=" << telemetryAtDrop.timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ")");
+      }
+      else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kMissionCompleteCommandId) {
+        VEHICLE_LOG("mission complete notification received");
+        MISSION_COMPLETE = true;
       }
     }
 
@@ -216,6 +227,11 @@ int main(int argc, char* argv[])
     }
 
     std::this_thread::sleep_for(std::chrono::duration<float>(physicsTimeStep / timeScale));
+  }
+
+  if (MISSION_COMPLETE) {
+    // Виключно для зручності тестування, щоб не вбивати процесс вручну
+    std::exit(0);
   }
 }
 

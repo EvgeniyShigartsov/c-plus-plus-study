@@ -189,7 +189,7 @@ int main(int argc, char* argv[])
   SimStep lastStep{};
   std::vector<SimStep> stepsLog;
 
-  constexpr std::chrono::seconds kHeartbeatPeriod = std::chrono::seconds(1);
+  constexpr std::chrono::seconds heartbeatPeriod = std::chrono::seconds(1);
   std::chrono::steady_clock::time_point lastOwnHeartbeat;
 
   bool MISSION_COMPLETE = false;
@@ -325,7 +325,7 @@ int main(int argc, char* argv[])
 
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-    if (now - lastOwnHeartbeat >= kHeartbeatPeriod) {
+    if (now - lastOwnHeartbeat >= heartbeatPeriod) {
       gcsEndpoint.send(mav::pack_heartbeat(
         mav::kAutopilot,
         {.type = MAV_TYPE_ONBOARD_CONTROLLER, .custom_mode = static_cast<uint32_t>(authority.state()), .system_status = MAV_STATE_ACTIVE}));

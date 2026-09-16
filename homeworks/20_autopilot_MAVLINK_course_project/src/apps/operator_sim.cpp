@@ -264,7 +264,7 @@ int main(int argc, char* argv[])
   }
   const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_3);
 
-  const std::chrono::milliseconds heartbeatPeriod = std::chrono::milliseconds(500);  // 2 Гц
+  const std::chrono::duration<float> heartbeatPeriod = std::chrono::duration<float>(0.5f / timeScale);
   std::chrono::steady_clock::time_point lastHeartbeat;
 
   std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();

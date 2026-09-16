@@ -34,7 +34,7 @@ TARGETS="$TEST_DIR/${NUM}_targets.json"
 AMMO="data/ammo.json"
 BALLISTIC="data/ballistic_table.txt"
 OPERATOR_SCENARIO="data/scenarios/$SCENARIO.txt"
-TIME_SCALE="1"
+TIME_SCALE="10"
 
 echo "сценарій:  $OPERATOR_SCENARIO"
 echo "тест:      $TEST_N ($DIR)"
@@ -44,7 +44,7 @@ PIDS=()
 
 "$BIN/hm20_vehicle_sim" --config-path "$CONFIG" --ammo-path "$AMMO" --time-scale "$TIME_SCALE" &
 PIDS+=("$!")
-"$BIN/hm20_autopilot" --config-path "$CONFIG" --ammo-path "$AMMO" --ballistic-table "$BALLISTIC" --sim-output "$REPO_ROOT/simulation.json" &
+"$BIN/hm20_autopilot" --config-path "$CONFIG" --ammo-path "$AMMO" --ballistic-table "$BALLISTIC" --sim-output "$REPO_ROOT/simulation.json" --time-scale "$TIME_SCALE" &
 PIDS+=("$!")
 sleep 1
 "$BIN/hm20_operator_sim" --operator-scenario "$OPERATOR_SCENARIO" --config-path "$CONFIG" --ammo-path "$AMMO" --targets "$TARGETS" --time-scale "$TIME_SCALE" &

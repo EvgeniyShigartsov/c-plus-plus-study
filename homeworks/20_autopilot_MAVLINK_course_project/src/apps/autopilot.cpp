@@ -39,10 +39,12 @@ struct CliOptions {
   std::string vehicleHost = "127.0.0.1";
   uint16_t vehiclePort = 14555;  // домашній порт vehicle_sim - туди шлемо RC_CHANNELS_OVERRIDE
   uint16_t ownPort = 14560;  // домашній порт автопілота - сюди отримуємо телеметрію від vehicle_sim
-  float heartbeatTimeoutSec = 3.0f;  // Скільки секунд чекати HEARTBEAT від оператора перш ніж перейти у failsafe
-  float dropRefusalTimeoutSec =
-    5.0f;  // Якщо HEARTBEAT оператора мовчить довше цього - значить нема актуальних даних по цілям, розрахунок
-           // точки скиду з кожним тіком стає менш точним, але якщо дрон досяг точки скиду раніше за цей таймаут - спробувати уразити ціль.
+  float heartbeatTimeoutSec =
+    3.0f;  // Скільки секунд чекати HEARTBEAT від оператора перш ніж перейти у failsafe, ділиться на timeScale щоб час йшов консистентно
+  float dropRefusalTimeoutSec = 5.0f;  // Якщо HEARTBEAT оператора мовчить довше цього - значить нема актуальних даних по цілям, розрахунок
+                                       // точки скиду з кожним тіком стає менш точним, але якщо дрон досяг точки скиду раніше за цей таймаут
+                                       // - спробувати уразити ціль. Так само ділиться на timeScale для консистентності часу.
+  float timeScale = -1.0f;             // -1 = не задано явно, береться з config.json
   std::string simOutput = "simulation.json";  // реальний (не заглушковий) лог кроків наведення, легасі-формат ДЗ-09
 };
 
@@ -83,6 +85,9 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     }
     else if (key == "--drop-refusal-timeout") {
       opts.dropRefusalTimeoutSec = std::stof(value);
+    }
+    else if (key == "--time-scale") {
+      opts.timeScale = std::stof(value);
     }
     else if (key == "--sim-output") {
       opts.simOutput = value;
@@ -155,6 +160,10 @@ int main(int argc, char* argv[])
   const DroneConfig droneConfig = loader.getConfig();
   const BombParams ammo = loader.getAmmoParams();
 
+  const bool timeScaleFromCli = opts.timeScale > 0.0f;
+  const float timeScale = timeScaleFromCli ? opts.timeScale : loader.getTimeScale();
+  AUTOPILOT_LOG("  time-scale = " << timeScale << (timeScaleFromCli ? " (CLI)" : " (config.json)"));
+
   const DroneController controller(droneConfig);
 
   const UdpLink homeUdp(opts.vehicleHost, opts.vehiclePort, opts.ownPort);
@@ -182,8 +191,9 @@ int main(int argc, char* argv[])
   AuthorityStateMachine authority;
   bool enabled = false;
   bool operatorInDeadband = true;
-  const auto heartbeatTimeout = std::chrono::duration<float>(opts.heartbeatTimeoutSec);
-  const auto dropRefusalTimeout = std::chrono::duration<float>(opts.dropRefusalTimeoutSec);
+
+  const auto heartbeatTimeout = std::chrono::duration<float>(opts.heartbeatTimeoutSec / timeScale);
+  const auto dropRefusalTimeout = std::chrono::duration<float>(opts.dropRefusalTimeoutSec / timeScale);
   std::chrono::steady_clock::time_point lastOperatorHeartbeat;
   bool dropRefusedLogged = false;
 

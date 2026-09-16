@@ -3,6 +3,7 @@
 # Використання: ./run_scenario.sh [сценарій-оператора] [номер-тесту]
 #   сценарій-оператора - ім'я файлу в data/scenarios/ без розширення .txt. Дефолт: 01_clean_attack
 #   номер-тесту        - який тесткейс з testing_data використати, 1=01_sample_circles, 2=02_eliptic_trajectories, etc. Дефолт: 1
+
 set -u
 cd "$(dirname "$0")"
 
@@ -39,11 +40,16 @@ echo "сценарій:  $OPERATOR_SCENARIO"
 echo "тест:      $TEST_N ($DIR)"
 echo
 
-trap 'kill 0' EXIT INT TERM
+PIDS=()
 
 "$BIN/hm20_vehicle_sim" --config-path "$CONFIG" --ammo-path "$AMMO" --time-scale "$TIME_SCALE" &
+PIDS+=("$!")
 "$BIN/hm20_autopilot" --config-path "$CONFIG" --ammo-path "$AMMO" --ballistic-table "$BALLISTIC" --sim-output "$REPO_ROOT/simulation.json" &
+PIDS+=("$!")
 sleep 1
 "$BIN/hm20_operator_sim" --operator-scenario "$OPERATOR_SCENARIO" --config-path "$CONFIG" --ammo-path "$AMMO" --targets "$TARGETS" --time-scale "$TIME_SCALE" &
+PIDS+=("$!")
+
+trap 'kill "${PIDS[@]}" 2>/dev/null' INT TERM
 
 wait

@@ -14,7 +14,6 @@ struct VehicleState {
   float vy = 0.0f;     // швидкість по осі Y, м/с
   float speed = 0.0f;  // горизонтальна швидкість
   float dir = 0.0f;
-  uint8_t state = 0;  //  стан стейт-машини донаведення (0..4) TODO: замінити на enum коли буде додано.
 };
 
 struct Coord {

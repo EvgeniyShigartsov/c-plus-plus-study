@@ -94,6 +94,7 @@ struct Simulation {
   DroneConfig dc = {};
   float droneAcceleration = 0.0f;
   float timeSecSinceStart = 0.0f;
+  bool connectionLost = false;  // втрата зв'язку з оператором
 
   Simulation() = default;
   Simulation(DroneConfig& droneConfig)
@@ -109,11 +110,11 @@ struct Target {
   Coord velocity;
 };
 
-enum DroneState { Stopped, Turning, Accelerating, Moving, Decelerating };
+enum DroneState { Stopped, Turning, Accelerating, Moving, Decelerating, WaitingForConnection };
 
 struct DroneCommand {
-  DroneState state;
-  float targetDir;
+  DroneState state = DroneState::Stopped;
+  float targetDir = 0.0f;
 };
 
 struct DroneTelemetry {

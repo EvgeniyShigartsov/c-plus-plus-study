@@ -1,8 +1,8 @@
 {
   "drone": {
     "position": {
-      "x": 250,
-      "y": 250
+      "x": 200,
+      "y": 200
     },
     "altitude": 120,
     "initialDirection": 1,

@@ -88,13 +88,18 @@ struct Simulation {
   bool needsManeuver = false;
   bool reachedManeuverPoint = false;
 
-  // new fields
   float deltaAngle = 0.0f;
   float dirToFire = 0.0f;
   DroneConfig dc = {};
   float droneAcceleration = 0.0f;
   float timeSecSinceStart = 0.0f;
   bool connectionLost = false;  // втрата зв'язку з оператором
+
+  // Остання розрахована точка скиду, на випадок втрати зв'язку
+  Coord dropPoint = {.x = 0.0f, .y = 0.0f};
+
+  // Остання розрахована позиція прогнозованої цілі, на випадок втрати зв'язку
+  Coord predictedTarget = {0.0f, 0.0f};
 
   Simulation() = default;
   Simulation(DroneConfig& droneConfig)

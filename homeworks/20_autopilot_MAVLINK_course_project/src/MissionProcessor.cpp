@@ -37,102 +37,109 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
   return sim.step <= MAX_STEPS && !sim.reachedFirePoint;
 }
 
-SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
+SimStep MissionProcessor::step(const DroneTelemetry& telemetry, const bool connectionLost)
 {
   sim.CURRENT_POS = telemetry.pos;
   sim.CURRENT_DIR = telemetry.dir;
   sim.CURRENT_SPEED = telemetry.speed;
   sim.timeSecSinceStart = telemetry.timeSinceStart;
+  sim.connectionLost = connectionLost;
 
-  int bestTarget = 0;
-  float bestTime = -1.0f;
-  Coord bestFire{};
-  Coord bestTargetPredictedXY{};
-  Coord actualDist{};
+  if (!connectionLost) {
+    int bestTarget = 0;
+    float bestTime = -1.0f;
+    Coord bestFire{};
+    Coord bestTargetPredictedXY{};
+    Coord actualDist{};
 
-  for (int i = 0; i < targetsCount; i++) {
-    const Target target = targetProvider->getTarget(i);
+    for (int i = 0; i < targetsCount; i++) {
+      const Target target = targetProvider->getTarget(i);
 
-    // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
-    Coord currentFire = ballisticSolver->solve(target.pos, sim.CURRENT_POS, h);
-    const float timeToCurrentFire = length(currentFire - sim.CURRENT_POS) / sim.dc.v0 + bombFlightTime;
+      // 1. Розрахувати орієнтовний час прильоту дрона до точки скиду (totalTime) для поточної позиції цілі
+      Coord currentFire = ballisticSolver->solve(target.pos, sim.CURRENT_POS, h);
+      const float timeToCurrentFire = length(currentFire - sim.CURRENT_POS) / sim.dc.v0 + bombFlightTime;
 
-    // 2. Обчислити швидкість цілі (targetVx, targetVy) через кінцеві різниці
-    // Дані вже у target.velocity
+      // 2. Обчислити швидкість цілі (targetVx, targetVy) через кінцеві різниці
+      // Дані вже у target.velocity
 
-    // 3. Інтерполювати прогнозовану позицію цілі на момент currentTime + totalTime
-    const Coord targetPredictedXY = target.pos + target.velocity * timeToCurrentFire;
+      // 3. Інтерполювати прогнозовану позицію цілі на момент currentTime + totalTime
+      const Coord targetPredictedXY = target.pos + target.velocity * timeToCurrentFire;
 
-    // 4. Перерахувати балістику до прогнозованої позиції
-    Coord predictedFire = ballisticSolver->solve(targetPredictedXY, sim.CURRENT_POS, h);
-    const float timeToPredictedFire = length(predictedFire - sim.CURRENT_POS) / sim.dc.v0 + bombFlightTime;
+      // 4. Перерахувати балістику до прогнозованої позиції
+      Coord predictedFire = ballisticSolver->solve(targetPredictedXY, sim.CURRENT_POS, h);
+      const float timeToPredictedFire = length(predictedFire - sim.CURRENT_POS) / sim.dc.v0 + bombFlightTime;
 
-    float totalTime = timeToPredictedFire;
+      float totalTime = timeToPredictedFire;
 
-    if (i != sim.selectedTargetIndex) {
-      float timeToChangeTarget = 0.0f;  // STOPPED стан або deltaAngle < turnThreshold;
+      if (i != sim.selectedTargetIndex) {
+        float timeToChangeTarget = 0.0f;  // STOPPED стан або deltaAngle < turnThreshold;
 
-      const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, predictedFire);
-      const float deltaAngle = fabsf(normalizeAngle(dirToFire - sim.CURRENT_DIR));
+        const float dirToFire = getDirectionFromTo(sim.CURRENT_POS, predictedFire);
+        const float deltaAngle = fabsf(normalizeAngle(dirToFire - sim.CURRENT_DIR));
 
-      if (deltaAngle > sim.dc.turnThreshold) {
-        // Додавання часу повороту
-        timeToChangeTarget += deltaAngle / sim.dc.angularSpeed;
+        if (deltaAngle > sim.dc.turnThreshold) {
+          // Додавання часу повороту
+          timeToChangeTarget += deltaAngle / sim.dc.angularSpeed;
 
-        // Додавання часу залежно від поточної дії дрону
-        timeToChangeTarget += currentState->getManeuverReadyTime(sim);
+          // Додавання часу залежно від поточної дії дрону
+          timeToChangeTarget += currentState->getManeuverReadyTime(sim);
 
-        // Додавання часу на розгін
-        timeToChangeTarget += sim.dc.v0 / sim.droneAcceleration;
+          // Додавання часу на розгін
+          timeToChangeTarget += sim.dc.v0 / sim.droneAcceleration;
+        }
+        totalTime += timeToChangeTarget;
       }
-      totalTime += timeToChangeTarget;
+
+      // Обрано ціль з мінімальним загальним часом
+      if (bestTime == -1 || totalTime < bestTime) {
+        bestTime = totalTime;
+        bestTarget = i;
+        bestFire = predictedFire;
+        bestTargetPredictedXY = targetPredictedXY;
+      }
     }
 
-    // Обрано ціль з мінімальним загальним часом
-    if (bestTime == -1 || totalTime < bestTime) {
-      bestTime = totalTime;
-      bestTarget = i;
-      bestFire = predictedFire;
-      bestTargetPredictedXY = targetPredictedXY;
+    if (!sim.needsManeuver) {
+      sim.selectedTargetIndex = bestTarget;
     }
-  }
 
-  if (!sim.needsManeuver) {
-    sim.selectedTargetIndex = bestTarget;
-  }
+    if (sim.selectedTargetIndex != sim.prevSelectedTargetIndex || sim.step == 0) {
+      sim.reachedManeuverPoint = false;
 
-  if (sim.selectedTargetIndex != sim.prevSelectedTargetIndex || sim.step == 0) {
-    sim.reachedManeuverPoint = false;
+      float distDroneToTarget = length(sim.CURRENT_POS - bestTargetPredictedXY);
+      float distFireToTarget = length(bestFire - bestTargetPredictedXY);
 
-    float distDroneToTarget = length(sim.CURRENT_POS - bestTargetPredictedXY);
-    float distFireToTarget = length(bestFire - bestTargetPredictedXY);
-
-    if (distFireToTarget > distDroneToTarget) {
-      // дрон між ціллю і точкою скиду - треба відлетіти далі
-      const float dirAwayFromTarget = getDirectionFromTo(bestTargetPredictedXY, sim.CURRENT_POS);
-      sim.needsManeuver = true;
-      sim.maneuverPoint.x = sim.CURRENT_POS.x + (cosf(dirAwayFromTarget) * (h + sim.dc.accelerationPath) * 2);
-      sim.maneuverPoint.y = sim.CURRENT_POS.y + (sinf(dirAwayFromTarget) * (h + sim.dc.accelerationPath) * 2);
+      if (distFireToTarget > distDroneToTarget) {
+        // дрон між ціллю і точкою скиду - треба відлетіти далі
+        const float dirAwayFromTarget = getDirectionFromTo(bestTargetPredictedXY, sim.CURRENT_POS);
+        sim.needsManeuver = true;
+        sim.maneuverPoint.x = sim.CURRENT_POS.x + (cosf(dirAwayFromTarget) * (h + sim.dc.accelerationPath) * 2);
+        sim.maneuverPoint.y = sim.CURRENT_POS.y + (sinf(dirAwayFromTarget) * (h + sim.dc.accelerationPath) * 2);
+      }
     }
+
+    actualDist = sim.needsManeuver && !sim.reachedManeuverPoint ? sim.maneuverPoint : bestFire;
+
+    if (!sim.reachedManeuverPoint && length(sim.CURRENT_POS - actualDist) <= sim.dc.hitRadius) {
+      sim.reachedManeuverPoint = true;
+      sim.needsManeuver = false;
+      actualDist = bestFire;
+    }
+
+    // Скид, коли відстань до точки скиду менша за один крок польоту або hitRadius
+    const float fireThreshold = fminf(sim.dc.hitRadius, sim.dc.v0 * sim.dc.simTimeStep);
+    if (length(sim.CURRENT_POS - bestFire) <= fireThreshold && !sim.needsManeuver) {
+      sim.reachedFirePoint = true;
+    }
+
+    // Перевірено кут повороту та змінено стан відповідно вибраної цілі
+    sim.dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
+    sim.deltaAngle = fabsf(normalizeAngle(sim.dirToFire - sim.CURRENT_DIR));
+
+    // Заморожуються (не оновлюються), поки connectionLost - див. коментар у types.hpp
+    sim.dropPoint = bestFire;
+    sim.predictedTarget = bestTargetPredictedXY;
   }
-
-  actualDist = sim.needsManeuver && !sim.reachedManeuverPoint ? sim.maneuverPoint : bestFire;
-
-  if (!sim.reachedManeuverPoint && length(sim.CURRENT_POS - actualDist) <= sim.dc.hitRadius) {
-    sim.reachedManeuverPoint = true;
-    sim.needsManeuver = false;
-    actualDist = bestFire;
-  }
-
-  // Скид, коли відстань до точки скиду менша за один крок польоту або hitRadius
-  const float fireThreshold = fminf(sim.dc.hitRadius, sim.dc.v0 * sim.dc.simTimeStep);
-  if (length(sim.CURRENT_POS - bestFire) <= fireThreshold && !sim.needsManeuver) {
-    sim.reachedFirePoint = true;
-  }
-
-  // Перевірено кут повороту та змінено стан відповідно вибраної цілі
-  sim.dirToFire = getDirectionFromTo(sim.CURRENT_POS, actualDist);
-  sim.deltaAngle = fabsf(normalizeAngle(sim.dirToFire - sim.CURRENT_DIR));
 
   // Оновлення координати, швидкість та стан дрона відповідно до поточної фази
   auto [nextState, cmd] = currentState->execute(sim);
@@ -149,9 +156,9 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry)
 
   const SimStep stepResult = {
     .pos = sim.CURRENT_POS,
-    .dropPoint = bestFire,
+    .dropPoint = sim.dropPoint,
     .aimPoint = sim.CURRENT_POS + dir * h,
-    .predictedTarget = bestTargetPredictedXY,
+    .predictedTarget = sim.predictedTarget,
     .direction = sim.CURRENT_DIR,
     .state = currentState->name(),
     .targetIdx = sim.selectedTargetIndex,

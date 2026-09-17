@@ -196,6 +196,7 @@ int main(int argc, char* argv[])
   const auto dropRefusalTimeout = std::chrono::duration<float>(opts.dropRefusalTimeoutSec / timeScale);
   std::chrono::steady_clock::time_point lastOperatorHeartbeat;
   bool dropRefusedLogged = false;
+  bool navigationPausedLogged = false;
 
   mav::LocalPositionNed lastPosition{};
   mav::Attitude lastAttitude{};
@@ -278,9 +279,20 @@ int main(int argc, char* argv[])
         lastTelemetry = mav::to_drone_telemetry(state);
 
         const bool hasNextStep = mission && mission->hasNext();
+        const bool connectionLost = std::chrono::steady_clock::now() - lastOperatorHeartbeat > dropRefusalTimeout;
 
         if (hasNextStep) {
-          lastStep = mission->step(lastTelemetry);
+          if (connectionLost && !navigationPausedLogged) {
+            AUTOPILOT_LOG("navigation: operator heartbeat expired more than " << opts.dropRefusalTimeoutSec
+                                                                              << "s - holding position, waiting for connection");
+            navigationPausedLogged = true;
+          }
+          else if (!connectionLost && navigationPausedLogged) {
+            AUTOPILOT_LOG("navigation: connection restored, resuming");
+            navigationPausedLogged = false;
+          }
+
+          lastStep = mission->step(lastTelemetry, connectionLost);
           stepsLog.push_back(lastStep);
         }
 
@@ -303,12 +315,10 @@ int main(int argc, char* argv[])
         }
 
         if (authority.state() == AuthorityState::Complete && !MISSION_COMPLETE) {
-          const bool heartbeatTooStaleToDrop = std::chrono::steady_clock::now() - lastOperatorHeartbeat > dropRefusalTimeout;
-
-          if (heartbeatTooStaleToDrop) {
+          if (connectionLost) {
             if (!dropRefusedLogged) {
-              AUTOPILOT_LOG("mission: reached fire point, but operator heartbeat expired > " << opts.dropRefusalTimeoutSec
-                                                                                             << "s -- refusing to drop, waiting");
+              AUTOPILOT_LOG("mission: reached fire point, but operator heartbeat expired more than" << opts.dropRefusalTimeoutSec
+                                                                                                    << "s - refusing to drop, waiting");
               dropRefusedLogged = true;
             }
           }

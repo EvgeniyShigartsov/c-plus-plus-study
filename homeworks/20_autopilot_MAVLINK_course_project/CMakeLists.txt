@@ -28,7 +28,8 @@ add_library(
     src/states/StateDecelerating.cpp
     src/states/StateMoving.cpp
     src/states/StateStopped.cpp
-    src/states/StateTurning.cpp)
+    src/states/StateTurning.cpp
+    src/states/StateWaitingForConnection.cpp)
 target_include_directories(hm20_guidance PUBLIC include)
 target_compile_options(hm20_guidance PRIVATE ${HM20_WARNINGS})
 

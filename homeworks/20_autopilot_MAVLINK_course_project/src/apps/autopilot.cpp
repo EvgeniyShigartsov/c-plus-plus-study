@@ -216,6 +216,27 @@ int main(int argc, char* argv[])
 
   bool MISSION_COMPLETE = false;
 
+  // Хендлер завершення місії (скидання = завершення місії), може викликатись бо автопілот виконав місію, або оператор сам дав команду скиду
+  const auto performDrop = [&](const Coord& aimPoint, int targetIdx, float bombFlightTime) {
+    homeEndpoint.send(mav::pack_drop_notification(mav::kAutopilot,
+                                                  mav::kVehicle,
+                                                  {.latitude = aimPoint.x,
+                                                   .longitude = aimPoint.y,
+                                                   .altitude = 0.0f,
+                                                   .target_id = static_cast<uint8_t>(targetIdx),
+                                                   .bomb_flight_time_sec = bombFlightTime}));
+
+    writeSimulationJson(stepsLog, opts.simOutput);
+    AUTOPILOT_LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
+
+    const mavlink_message_t missionCompleteMsg =
+      mav::pack_mission_complete_notification(mav::kAutopilot, mav::kVehicle, {.completed = true});
+    homeEndpoint.send(missionCompleteMsg);
+    gcsEndpoint.send(missionCompleteMsg);
+
+    MISSION_COMPLETE = true;
+  };
+
   while (!MISSION_COMPLETE) {
     for (const mavlink_message_t& msg : homeEndpoint.poll()) {
       bool telemetryUpdated = false;
@@ -276,6 +297,18 @@ int main(int argc, char* argv[])
         gcsEndpoint.send(
           mav::pack_command_acknowledgement(mav::kAutopilot, mav::kGcs, {.command = mav::kEnableCommandId, .result = MAV_RESULT_ACCEPTED}));
       }
+      else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kManualDropCommandId) {
+        if (mission && !MISSION_COMPLETE) {
+          AUTOPILOT_LOG("MANUAL DROP: operator command received - dropping at ("
+                        << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y << ") target=" << lastStep.targetIdx
+                        << " - operator responsible for accuracy");
+
+          performDrop(lastStep.predictedTarget, lastStep.targetIdx, mission->getBombFlightTime());
+        }
+        else {
+          AUTOPILOT_LOG("MANUAL DROP: ignored, no active mission target data yet");
+        }
+      }
 
       if (telemetryUpdated && havePosition && haveAttitude) {
         const VehicleState state = mav::to_vehicle_state(lastPosition, lastAttitude);
@@ -330,26 +363,11 @@ int main(int argc, char* argv[])
             }
           }
           else {
-            homeEndpoint.send(mav::pack_drop_notification(mav::kAutopilot,
-                                                          mav::kVehicle,
-                                                          {.latitude = lastStep.predictedTarget.x,
-                                                           .longitude = lastStep.predictedTarget.y,
-                                                           .altitude = 0.0f,
-                                                           .target_id = static_cast<uint8_t>(lastStep.targetIdx),
-                                                           .bomb_flight_time_sec = mission->getBombFlightTime()}));
-
             AUTOPILOT_LOG("mission: complete, aiming at (" << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y
                                                            << ") target=" << lastStep.targetIdx);
 
-            writeSimulationJson(stepsLog, opts.simOutput);
-            AUTOPILOT_LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
+            performDrop(lastStep.predictedTarget, lastStep.targetIdx, mission->getBombFlightTime());
 
-            const mavlink_message_t missionCompleteMsg =
-              mav::pack_mission_complete_notification(mav::kAutopilot, mav::kVehicle, {.completed = true});
-            homeEndpoint.send(missionCompleteMsg);
-            gcsEndpoint.send(missionCompleteMsg);
-
-            MISSION_COMPLETE = true;
             AUTOPILOT_LOG("mission complete");
           }
         }

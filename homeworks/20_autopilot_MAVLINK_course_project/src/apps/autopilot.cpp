@@ -329,7 +329,7 @@ int main(int argc, char* argv[])
             navigationPausedLogged = false;
           }
 
-          lastStep = mission->step(lastTelemetry, connectionLost);
+          lastStep = mission->step(lastTelemetry, connectionLost, authority.state() == AuthorityState::Yielding);
           stepsLog.push_back(lastStep);
         }
 

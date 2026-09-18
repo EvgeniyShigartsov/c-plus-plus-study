@@ -1,4 +1,4 @@
-# Базовий сценарій, автопілот ввімкнено, оператор шле цілі, автопілот приймає рішення про ураження зі зв'язком.
+# Базовий сценарій, автопілот ввімкнено, оператор шле цілі, автопілот приймає рішення про ураження, зі зв'язком.
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 1
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 2
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 3
@@ -30,7 +30,7 @@
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 3
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 7
 
-# Теж саме що й попереднє, але складні цілі та екстремальний конфіг (5 та 10 тести ДЗ 09), іноді є влучання, іноді ні.
+# Теж саме що й попереднє, але складні цілі та екстремальний конфіг (5 та 10 тести ДЗ 09), іноді є влучання, іноді ні (більше ні).
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 5
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 10
 
@@ -39,13 +39,6 @@
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_manual_drop 1
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_manual_drop 2
 
+# Автопілот ніколи не вмикається, оператор керує дроном сам, сценарій більше як тесткейс.
+# Завершення місії тут немає, тому треба зупинити процес в терміналі вручну.
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 1
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 2
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 3
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 4
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 5
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 6
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 7
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 8
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 9
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 10

@@ -37,7 +37,7 @@ MissionProcessor::MissionProcessor(std::shared_ptr<ITargetProvider> provider, st
   return sim.step <= MAX_STEPS && !sim.reachedFirePoint;
 }
 
-SimStep MissionProcessor::step(const DroneTelemetry& telemetry, const bool connectionLost)
+SimStep MissionProcessor::step(const DroneTelemetry& telemetry, const bool connectionLost, const bool isOperatorManualHandle)
 {
   sim.CURRENT_POS = telemetry.pos;
   sim.CURRENT_DIR = telemetry.dir;
@@ -120,7 +120,7 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry, const bool conne
 
     actualDist = sim.needsManeuver && !sim.reachedManeuverPoint ? sim.maneuverPoint : bestFire;
 
-    if (!sim.reachedManeuverPoint && length(sim.CURRENT_POS - actualDist) <= sim.dc.hitRadius) {
+    if (!sim.reachedManeuverPoint && length(sim.CURRENT_POS - actualDist) <= sim.dc.hitRadius && !isOperatorManualHandle) {
       sim.reachedManeuverPoint = true;
       sim.needsManeuver = false;
       actualDist = bestFire;
@@ -128,7 +128,7 @@ SimStep MissionProcessor::step(const DroneTelemetry& telemetry, const bool conne
 
     // Скид, коли відстань до точки скиду менша за один крок польоту або hitRadius
     const float fireThreshold = fminf(sim.dc.hitRadius, sim.dc.v0 * sim.dc.simTimeStep);
-    if (length(sim.CURRENT_POS - bestFire) <= fireThreshold && !sim.needsManeuver) {
+    if (length(sim.CURRENT_POS - bestFire) <= fireThreshold && !sim.needsManeuver && !isOperatorManualHandle) {
       sim.reachedFirePoint = true;
     }
 

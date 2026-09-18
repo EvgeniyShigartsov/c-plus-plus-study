@@ -24,7 +24,7 @@ public:
   MissionProcessor(std::shared_ptr<ITargetProvider> provider, std::unique_ptr<IBallisticSolver> solver);
   [[nodiscard]] bool init(const DroneConfig& config);
   [[nodiscard]] bool hasNext() const;
-  SimStep step(const DroneTelemetry& telemetry, const bool connectionLost);
+  SimStep step(const DroneTelemetry& telemetry, const bool connectionLost, const bool isOperatorManualHandle);
   DroneCommand getLastCommand() const;
   [[nodiscard]] float getBombFlightTime() const;
   void changeSolver(std::unique_ptr<IBallisticSolver> solver);

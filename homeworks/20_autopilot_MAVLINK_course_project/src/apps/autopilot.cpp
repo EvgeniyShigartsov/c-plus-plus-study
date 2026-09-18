@@ -287,11 +287,10 @@ int main(int argc, char* argv[])
         if (hasNextStep) {
           if (connectionLost && !navigationPausedLogged) {
             AUTOPILOT_LOG("NAVIGATION: OPERATOR HEARTBEAT EXPIRED MORE THAN " << opts.dropRefusalTimeoutSec
-                                                                              << "S - HOLDING POSITION, WAITING FOR CONNECTION");
+                                                                              << "s - HOLDING POSITION, WAITING FOR CONNECTION");
             navigationPausedLogged = true;
           }
           else if (!connectionLost && navigationPausedLogged) {
-            AUTOPILOT_LOG("NAVIGATION: CONNECTION RESTORED, RESUMING");
             navigationPausedLogged = false;
           }
 

@@ -197,6 +197,7 @@ int main(int argc, char* argv[])
   std::chrono::steady_clock::time_point lastOperatorHeartbeat;
   bool dropRefusedLogged = false;
   bool navigationPausedLogged = false;
+  bool wasOperatorHeartbeatOk = true;
 
   mav::LocalPositionNed lastPosition{};
   mav::Attitude lastAttitude{};
@@ -251,7 +252,7 @@ int main(int argc, char* argv[])
         lastOperatorHeartbeat = std::chrono::steady_clock::now();
 
         if (!wasHeartbeatOk) {
-          AUTOPILOT_LOG("operator heartbeat: restored");
+          AUTOPILOT_LOG("OPERATOR HEARTBEAT: RESTORED");
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS) {
@@ -283,12 +284,12 @@ int main(int argc, char* argv[])
 
         if (hasNextStep) {
           if (connectionLost && !navigationPausedLogged) {
-            AUTOPILOT_LOG("navigation: operator heartbeat expired more than " << opts.dropRefusalTimeoutSec
-                                                                              << "s - holding position, waiting for connection");
+            AUTOPILOT_LOG("NAVIGATION: OPERATOR HEARTBEAT EXPIRED MORE THAN " << opts.dropRefusalTimeoutSec
+                                                                              << "S - HOLDING POSITION, WAITING FOR CONNECTION");
             navigationPausedLogged = true;
           }
           else if (!connectionLost && navigationPausedLogged) {
-            AUTOPILOT_LOG("navigation: connection restored, resuming");
+            AUTOPILOT_LOG("NAVIGATION: CONNECTION RESTORED, RESUMING");
             navigationPausedLogged = false;
           }
 
@@ -297,6 +298,11 @@ int main(int argc, char* argv[])
         }
 
         const bool operatorHeartbeatOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
+
+        if (!operatorHeartbeatOk && wasOperatorHeartbeatOk) {
+          AUTOPILOT_LOG("OPERATOR HEARTBEAT: LOST");
+        }
+        wasOperatorHeartbeatOk = operatorHeartbeatOk;
 
         const bool hasAuthorityChanged = authority.update({
           .enabled = enabled,
@@ -317,8 +323,8 @@ int main(int argc, char* argv[])
         if (authority.state() == AuthorityState::Complete && !MISSION_COMPLETE) {
           if (connectionLost) {
             if (!dropRefusedLogged) {
-              AUTOPILOT_LOG("mission: reached fire point, but operator heartbeat expired more than" << opts.dropRefusalTimeoutSec
-                                                                                                    << "s - refusing to drop, waiting");
+              AUTOPILOT_LOG("MISSION: REACHED FIRE POINT, BUT OPERATOR HEARTBEAT EXPIRED MORE THAN " << opts.dropRefusalTimeoutSec
+                                                                                                     << "S - REFUSING TO DROP, WAITING");
               dropRefusedLogged = true;
             }
           }

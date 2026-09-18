@@ -280,7 +280,12 @@ int main(int argc, char* argv[])
   while (!MISSION_COMPLETE) {
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-    scenarioTime += std::chrono::duration<float>(now - last).count() * timeScale;
+    // Годинник сценарію не рухається, поки не прийшов перший пакет телеметрії - інакше
+    // scenarioTime рахувався б від моменту запуску ЦЬОГО процесу, а не від моменту, коли
+    // місія реально почалась, ліпше кажучи - синхронізація часу місії та симуляції оператора
+    if (haveMissionTime) {
+      scenarioTime += std::chrono::duration<float>(now - last).count() * timeScale;
+    }
     last = now;
 
     while (nextEventIndex < events.size() && scenarioTime >= events[nextEventIndex].time) {
@@ -295,6 +300,7 @@ int main(int argc, char* argv[])
         haveMissionTime = true;
 
         if (wasMissing) {
+          scenarioTime = missionTime;
           OPERATOR_LOG("mission time: synced from drone telemetry, t=" << missionTime);
         }
       }

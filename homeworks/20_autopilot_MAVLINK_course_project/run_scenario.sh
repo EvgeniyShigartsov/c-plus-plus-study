@@ -46,7 +46,7 @@ PIDS=()
 PIDS+=("$!")
 "$BIN/hm20_autopilot" --config-path "$CONFIG" --ammo-path "$AMMO" --ballistic-table "$BALLISTIC" --sim-output "$REPO_ROOT/simulation.json" --time-scale "$TIME_SCALE" &
 PIDS+=("$!")
-sleep 1
+sleep 0.2
 "$BIN/hm20_operator_sim" --operator-scenario "$OPERATOR_SCENARIO" --config-path "$CONFIG" --ammo-path "$AMMO" --targets "$TARGETS" --time-scale "$TIME_SCALE" &
 PIDS+=("$!")
 

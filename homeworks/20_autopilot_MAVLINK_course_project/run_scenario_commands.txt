@@ -10,7 +10,7 @@
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 9
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 10
 
-# Базовий сценарій, але тут оператор на певний період часу забирає керування, і певний час керує польотом.
+# Базовий сценарій, але тут оператор на певний період часу забирає керування, і певний час керує польотом, потім віддає назад автопілоту.
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 02_operator_interrupt 1
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 02_operator_interrupt 2
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 02_operator_interrupt 3
@@ -33,6 +33,11 @@
 # Теж саме що й попереднє, але складні цілі та екстремальний конфіг (5 та 10 тести ДЗ 09), іноді є влучання, іноді ні.
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 5
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 10
+
+# Оператор забирає керування собі, веде дрон та дає команду скиду самостійно, відповідальність за влучання - на операторі.
+# В даній конфігурації очікується політ дрона в "район зосередження" цілей та скид снаряду за командою оператора.
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_manual_drop 1
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 04_manual_drop 2
 
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 1
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 2

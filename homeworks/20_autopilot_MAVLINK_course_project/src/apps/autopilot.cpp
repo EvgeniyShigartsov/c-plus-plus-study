@@ -217,7 +217,7 @@ int main(int argc, char* argv[])
   bool MISSION_COMPLETE = false;
 
   // Хендлер завершення місії (скидання = завершення місії), може викликатись бо автопілот виконав місію, або оператор сам дав команду скиду
-  const auto performDrop = [&](const Coord& aimPoint, int targetIdx, float bombFlightTime) {
+  const auto processDrop = [&](const Coord& aimPoint, int targetIdx, float bombFlightTime) {
     homeEndpoint.send(mav::pack_drop_notification(mav::kAutopilot,
                                                   mav::kVehicle,
                                                   {.latitude = aimPoint.x,
@@ -299,11 +299,10 @@ int main(int argc, char* argv[])
       }
       else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kManualDropCommandId) {
         if (mission && !MISSION_COMPLETE) {
-          AUTOPILOT_LOG("MANUAL DROP: operator command received - dropping at ("
-                        << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y << ") target=" << lastStep.targetIdx
-                        << " - operator responsible for accuracy");
+          AUTOPILOT_LOG("MANUAL DROP: operator command received - dropping at (" << lastStep.aimPoint.x << "," << lastStep.aimPoint.y
+                                                                                 << ") target=" << lastStep.targetIdx);
 
-          performDrop(lastStep.predictedTarget, lastStep.targetIdx, mission->getBombFlightTime());
+          processDrop(lastStep.aimPoint, lastStep.targetIdx, mission->getBombFlightTime());
         }
         else {
           AUTOPILOT_LOG("MANUAL DROP: ignored, no active mission target data yet");
@@ -317,7 +316,10 @@ int main(int argc, char* argv[])
         const bool hasNextStep = mission && mission->hasNext();
         const bool connectionLost = std::chrono::steady_clock::now() - lastOperatorHeartbeat > dropRefusalTimeout;
 
-        if (hasNextStep) {
+        // Якщо керування ручне - автопілот не має визначати чи є наступний крок, він точно є бо керування ручне.
+        const bool shouldKeepTracking = mission && (hasNextStep || authority.state() == AuthorityState::Yielding);
+
+        if (shouldKeepTracking) {
           if (connectionLost && !navigationPausedLogged) {
             AUTOPILOT_LOG("NAVIGATION: OPERATOR HEARTBEAT EXPIRED MORE THAN " << opts.dropRefusalTimeoutSec
                                                                               << "s - HOLDING POSITION, WAITING FOR CONNECTION");
@@ -366,7 +368,7 @@ int main(int argc, char* argv[])
             AUTOPILOT_LOG("mission: complete, aiming at (" << lastStep.predictedTarget.x << "," << lastStep.predictedTarget.y
                                                            << ") target=" << lastStep.targetIdx);
 
-            performDrop(lastStep.predictedTarget, lastStep.targetIdx, mission->getBombFlightTime());
+            processDrop(lastStep.predictedTarget, lastStep.targetIdx, mission->getBombFlightTime());
 
             AUTOPILOT_LOG("mission complete");
           }

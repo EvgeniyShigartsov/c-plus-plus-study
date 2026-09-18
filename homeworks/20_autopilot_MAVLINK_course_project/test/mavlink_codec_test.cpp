@@ -276,6 +276,17 @@ TEST(MavlinkCodec, MissionCompleteNotificationRoundTrip)
   EXPECT_EQ(parsed.completed, original.completed);
 }
 
+TEST(MavlinkCodec, ManualDropCommandRoundTrip)
+{
+  const mavlink_message_t msg = mav::pack_manual_drop_command(mav::kGcs, mav::kAutopilot, {});
+
+  EXPECT_EQ(msg.msgid, MAVLINK_MSG_ID_COMMAND_LONG);
+  EXPECT_EQ(mavlink_msg_command_long_get_command(&msg), mav::kManualDropCommandId);
+  EXPECT_EQ((mav::Identity{.sysid = msg.sysid, .compid = msg.compid}), mav::kGcs);
+
+  mav::parse_manual_drop_command(msg);
+}
+
 TEST(MavlinkCodec, CommandAckRoundTrip)
 {
   const mav::CommandAcknowledgement original = {.command = mav::kEnableCommandId, .result = MAV_RESULT_ACCEPTED};

@@ -394,6 +394,19 @@ MissionCompleteNotification parse_mission_complete_notification(const mavlink_me
   return {.completed = raw.param1 != 0.0f};
 }
 
+mavlink_message_t pack_manual_drop_command(const Identity& from, const Identity& target, const ManualDropCommand& /* command */)
+{
+  mavlink_message_t msg{};
+  mavlink_msg_command_long_pack(
+    from.sysid, from.compid, &msg, target.sysid, target.compid, kManualDropCommandId, 0, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+  return msg;
+}
+
+ManualDropCommand parse_manual_drop_command(const mavlink_message_t& /* msg */)
+{
+  return {.makeDrop = true};
+}
+
 mavlink_message_t pack_command_acknowledgement(const Identity& from, const Identity& target, const CommandAcknowledgement& acknowledgement)
 {
   constexpr uint8_t kProgressUnused = 0;

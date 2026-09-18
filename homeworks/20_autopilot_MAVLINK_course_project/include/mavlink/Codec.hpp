@@ -56,6 +56,7 @@ constexpr uint16_t kEnableCommandId = MAV_CMD_USER_1;
 constexpr uint16_t kTargetDesignationCommandId = MAV_CMD_USER_2;
 constexpr uint16_t kDropNotificationCommandId = MAV_CMD_USER_3;
 constexpr uint16_t kMissionCompleteCommandId = MAV_CMD_USER_4;
+constexpr uint16_t kManualDropCommandId = MAV_CMD_USER_5;
 
 // GCS -> автопілот, увімкнути / вимкнути.
 struct EnableCommand {
@@ -83,6 +84,10 @@ struct DropNotification {
 
 struct MissionCompleteNotification {
   bool completed = true;
+};
+
+struct ManualDropCommand {
+  bool makeDrop = true;
 };
 
 struct CommandAcknowledgement {
@@ -140,6 +145,9 @@ mavlink_message_t pack_mission_complete_notification(const Identity& from,
                                                      const Identity& target,
                                                      const MissionCompleteNotification& notification);
 MissionCompleteNotification parse_mission_complete_notification(const mavlink_message_t& msg);
+
+mavlink_message_t pack_manual_drop_command(const Identity& from, const Identity& target, const ManualDropCommand& command);
+ManualDropCommand parse_manual_drop_command(const mavlink_message_t& msg);
 
 mavlink_message_t pack_command_acknowledgement(const Identity& from, const Identity& target, const CommandAcknowledgement& acknowledgement);
 CommandAcknowledgement parse_command_acknowledgement(const mavlink_message_t& msg);

@@ -91,11 +91,6 @@ bool FileConfigLoader::load(const std::string& pathToConfig, const std::string& 
   const bool isConfigLoadOk = readDroneConfig(pathToConfig);
   const bool isBombParamsLoadOk = readBombParams(bombParamsPath);
 
-  if (isConfigLoadOk && isBombParamsLoadOk) {
-    LOG("Config loaded: speed=" << droneConfig.v0);
-    LOG("Ammo found: " << bombParams.name);
-  }
-
   return isConfigLoadOk && isBombParamsLoadOk;
 }
 

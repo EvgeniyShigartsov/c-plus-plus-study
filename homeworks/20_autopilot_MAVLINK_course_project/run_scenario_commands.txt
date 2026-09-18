@@ -1,3 +1,4 @@
+# Базовий сценарій, автопілот ввімкнено, оператор шле цілі, автопілот приймає рішення про ураження зі зв'язком.
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 1
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 2
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 3
@@ -9,6 +10,7 @@
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 9
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 01_clean_attack 10
 
+# Базовий сценарій, але тут оператор на певний період часу забирає керування, і певний час керує польотом.
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 02_operator_interrupt 1
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 02_operator_interrupt 2
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 02_operator_interrupt 3
@@ -20,15 +22,16 @@
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 02_operator_interrupt 9
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 02_operator_interrupt 10
 
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 1
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 2
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 3
+# Failsafe "чистий" - зв'язок втрачено, але ціль ще актуальна (точка скиду ще "свіжа"), атакуємо, очікується влучання
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 4
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 5
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 6
+
+ # Failsafe + очікування зв'язку -> продовження місії, очікується влучання
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 3
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 7
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 8
-./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 9
+
+# Теж саме що й попереднє, але складні цілі та екстремальний конфіг (5 та 10 тести ДЗ 09), іноді є влучання, іноді ні.
+./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 5
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 03_link_lost_failsafe 10
 
 ./homeworks/20_autopilot_MAVLINK_course_project/run_scenario.sh 05_never_enabled 1

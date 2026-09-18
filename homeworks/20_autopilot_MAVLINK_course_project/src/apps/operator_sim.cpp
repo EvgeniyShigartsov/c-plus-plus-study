@@ -187,6 +187,10 @@ void executeEvent(const TimelineEvent& event,
     out_targetsArmed = true;
     OPERATOR_LOG("event: designate_targets armed");
   }
+  else if (event.action == "manual_drop") {
+    endpoint.send(mav::pack_manual_drop_command(mav::kGcs, mav::kAutopilot, {.makeDrop = true}));
+    OPERATOR_LOG("event: manual drop command sent");
+  }
   else {
     OPERATOR_LOG("event: unknown action '" << event.action << "', skip");
   }

@@ -197,7 +197,7 @@ int main(int argc, char* argv[])
   std::chrono::steady_clock::time_point lastOperatorHeartbeat;
   bool dropRefusedLogged = false;
   bool navigationPausedLogged = false;
-  bool wasOperatorHeartbeatOk = true;
+  bool wasOperatorHeartbeatOk = false;  // -> true при першому отриманому heartbeat, для коректного логування реальної втрати зв'язку
 
   mav::LocalPositionNed lastPosition{};
   mav::Attitude lastAttitude{};

@@ -139,18 +139,18 @@ int main(int argc, char* argv[])
   }
   const CliOptions opts = parseArgs(args);
 
-  AUTOPILOT_LOG("autopilot:\n"
-                << "  config-path     = " << opts.configPath << '\n'
-                << "  ammo-path       = " << opts.ammoPath << '\n'
-                << "  ballistic-table = " << opts.ballisticTable << '\n'
-                << "  gcs-host        = " << opts.gcsHost << '\n'
-                << "  gcs-port        = " << opts.gcsPort << '\n'
-                << "  drone-host      = " << opts.droneHost << '\n'
-                << "  drone-port      = " << opts.dronePort << '\n'
-                << "  own-port        = " << opts.ownPort << '\n'
-                << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec << '\n'
-                << "  drop-refusal-timeout = " << opts.dropRefusalTimeoutSec << '\n'
-                << "  sim-output      = " << opts.simOutput);
+  AUTOPILOT_DEBUG("autopilot:\n"
+                  << "  config-path     = " << opts.configPath << '\n'
+                  << "  ammo-path       = " << opts.ammoPath << '\n'
+                  << "  ballistic-table = " << opts.ballisticTable << '\n'
+                  << "  gcs-host        = " << opts.gcsHost << '\n'
+                  << "  gcs-port        = " << opts.gcsPort << '\n'
+                  << "  drone-host      = " << opts.droneHost << '\n'
+                  << "  drone-port      = " << opts.dronePort << '\n'
+                  << "  own-port        = " << opts.ownPort << '\n'
+                  << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec << '\n'
+                  << "  drop-refusal-timeout = " << opts.dropRefusalTimeoutSec << '\n'
+                  << "  sim-output      = " << opts.simOutput);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
@@ -198,6 +198,7 @@ int main(int argc, char* argv[])
   bool dropRefusedLogged = false;
   bool navigationPausedLogged = false;
   bool wasOperatorHeartbeatOk = false;  // -> true при першому отриманому heartbeat, для коректного логування реальної втрати зв'язку
+  bool firstHeartbeatReceived = false;
 
   mav::LocalPositionNed lastPosition{};
   mav::Attitude lastAttitude{};
@@ -251,9 +252,10 @@ int main(int argc, char* argv[])
         const bool wasHeartbeatOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
         lastOperatorHeartbeat = std::chrono::steady_clock::now();
 
-        if (!wasHeartbeatOk) {
+        if (!wasHeartbeatOk && firstHeartbeatReceived) {
           AUTOPILOT_LOG("OPERATOR HEARTBEAT: RESTORED");
         }
+        firstHeartbeatReceived = true;
       }
       else if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS) {
         const mav::RadioControlChannels channels = mav::parse_radio_control_channels(msg);

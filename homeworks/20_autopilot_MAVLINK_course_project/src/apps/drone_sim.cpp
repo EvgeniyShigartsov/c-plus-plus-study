@@ -95,12 +95,12 @@ int main(int argc, char* argv[])
   }
   const CliOptions opts = parseArgs(args);
 
-  DRONE_LOG("drone_sim:\n"
-            << "  ap-host    = " << opts.apHost << '\n'
-            << "  ap-port    = " << opts.apPort << '\n'
-            << "  own-port   = " << opts.ownPort << '\n'
-            << "  gcs-host   = " << opts.gcsHost << '\n'
-            << "  gcs-port   = " << opts.gcsPort);
+  DRONE_DEBUG("drone_sim:\n"
+              << "  ap-host    = " << opts.apHost << '\n'
+              << "  ap-port    = " << opts.apPort << '\n'
+              << "  own-port   = " << opts.ownPort << '\n'
+              << "  gcs-host   = " << opts.gcsHost << '\n'
+              << "  gcs-port   = " << opts.gcsPort);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {

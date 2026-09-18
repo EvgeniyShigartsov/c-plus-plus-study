@@ -202,17 +202,17 @@ int main(int argc, char* argv[])
 
   const bool isScenarioNotPesented = opts.operatorScenario.empty();
 
-  OPERATOR_LOG("operator_sim:\n"
-               << "  ap-host           = " << opts.apHost << '\n'
-               << "  ap-port           = " << opts.apPort << '\n'
-               << "  drone-host        = " << opts.droneHost << '\n'
-               << "  drone-port        = " << opts.dronePort << '\n'
-               << "  gcs-host          = " << opts.gcsHost << '\n'
-               << "  gcs-port          = " << opts.gcsPort << '\n'
-               << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
-               << "  config-path       = " << opts.configPath << '\n'
-               << "  ammo-path         = " << opts.ammoPath << '\n'
-               << "  targets           = " << opts.targetsPath);
+  OPERATOR_DEBUG("operator_sim:\n"
+                 << "  ap-host           = " << opts.apHost << '\n'
+                 << "  ap-port           = " << opts.apPort << '\n'
+                 << "  drone-host        = " << opts.droneHost << '\n'
+                 << "  drone-port        = " << opts.dronePort << '\n'
+                 << "  gcs-host          = " << opts.gcsHost << '\n'
+                 << "  gcs-port          = " << opts.gcsPort << '\n'
+                 << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
+                 << "  config-path       = " << opts.configPath << '\n'
+                 << "  ammo-path         = " << opts.ammoPath << '\n'
+                 << "  targets           = " << opts.targetsPath);
 
   if (isScenarioNotPesented) {
     OPERATOR_LOG("operator-scenario should be presented & have valid markup");

@@ -38,13 +38,19 @@ target_include_directories(hm20_mavlink PUBLIC include)
 target_include_directories(hm20_mavlink SYSTEM PUBLIC ${MAVLINK_DIR})
 target_compile_options(hm20_mavlink PRIVATE ${HM20_WARNINGS})
 
-add_library(hm20_sim STATIC src/sim/DronePhysics.cpp src/sim/JsonTargetProvider.cpp src/sim/FileConfigLoader.cpp)
+add_library(hm20_sim STATIC src/sim/DronePhysics.cpp src/sim/JsonTargetProvider.cpp
+                            src/sim/FileConfigLoader.cpp)
 target_include_directories(hm20_sim PUBLIC include)
 target_compile_options(hm20_sim PRIVATE ${HM20_WARNINGS})
 
+add_library(hm20_drone STATIC src/drone/DroneNode.cpp)
+target_include_directories(hm20_drone PUBLIC include)
+target_link_libraries(hm20_drone PUBLIC hm20_mavlink hm20_sim)
+target_compile_options(hm20_drone PRIVATE ${HM20_WARNINGS})
+
 foreach(APP autopilot drone_sim operator_sim verdict)
     add_executable(hm20_${APP} src/apps/${APP}.cpp)
-    target_link_libraries(hm20_${APP} PRIVATE hm20_guidance hm20_mavlink hm20_sim)
+    target_link_libraries(hm20_${APP} PRIVATE hm20_guidance hm20_mavlink hm20_sim hm20_drone)
     target_compile_options(hm20_${APP} PRIVATE ${HM20_WARNINGS})
 endforeach()
 
@@ -63,6 +69,11 @@ if(NOT CMAKE_CROSSCOMPILING)
         target_link_libraries(hm20_sim_test PRIVATE hm20_sim GTest::gtest_main)
         target_compile_options(hm20_sim_test PRIVATE ${HM20_WARNINGS})
         gtest_discover_tests(hm20_sim_test)
+
+        add_executable(hm20_drone_test test/drone_node_test.cpp)
+        target_link_libraries(hm20_drone_test PRIVATE hm20_drone GTest::gtest_main)
+        target_compile_options(hm20_drone_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_drone_test)
 
         add_executable(hm20_guidance_test test/authority_test.cpp)
         target_link_libraries(hm20_guidance_test PRIVATE hm20_guidance GTest::gtest_main)

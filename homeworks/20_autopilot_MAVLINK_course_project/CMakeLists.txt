@@ -33,7 +33,8 @@ add_library(
 target_include_directories(hm20_guidance PUBLIC include)
 target_compile_options(hm20_guidance PRIVATE ${HM20_WARNINGS})
 
-add_library(hm20_mavlink STATIC src/mavlink/Codec.cpp src/mavlink/Endpoint.cpp src/link/UdpLink.cpp)
+add_library(hm20_mavlink STATIC src/mavlink/Codec.cpp src/mavlink/Endpoint.cpp src/link/UdpLink.cpp
+                                src/link/SerialLink.cpp)
 target_include_directories(hm20_mavlink PUBLIC include)
 target_include_directories(hm20_mavlink SYSTEM PUBLIC ${MAVLINK_DIR})
 target_compile_options(hm20_mavlink PRIVATE ${HM20_WARNINGS})
@@ -64,6 +65,11 @@ if(NOT CMAKE_CROSSCOMPILING)
         target_link_libraries(hm20_mavlink_test PRIVATE hm20_mavlink GTest::gtest_main)
         target_compile_options(hm20_mavlink_test PRIVATE ${HM20_WARNINGS})
         gtest_discover_tests(hm20_mavlink_test)
+
+        add_executable(hm20_serial_test test/serial_link_test.cpp)
+        target_link_libraries(hm20_serial_test PRIVATE hm20_mavlink GTest::gtest_main)
+        target_compile_options(hm20_serial_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_serial_test)
 
         add_executable(hm20_sim_test test/sim_test.cpp)
         target_link_libraries(hm20_sim_test PRIVATE hm20_sim GTest::gtest_main)

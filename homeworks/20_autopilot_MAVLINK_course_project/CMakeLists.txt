@@ -49,6 +49,15 @@ target_include_directories(hm20_drone PUBLIC include)
 target_link_libraries(hm20_drone PUBLIC hm20_mavlink hm20_sim)
 target_compile_options(hm20_drone PRIVATE ${HM20_WARNINGS})
 
+add_library(hm20_bridge STATIC src/bridge/SerialBridge.cpp)
+target_include_directories(hm20_bridge PUBLIC include)
+target_link_libraries(hm20_bridge PUBLIC hm20_mavlink)
+target_compile_options(hm20_bridge PRIVATE ${HM20_WARNINGS})
+
+add_executable(hm20_serial_bridge src/apps/serial_bridge.cpp)
+target_link_libraries(hm20_serial_bridge PRIVATE hm20_bridge hm20_mavlink)
+target_compile_options(hm20_serial_bridge PRIVATE ${HM20_WARNINGS})
+
 foreach(APP autopilot drone_sim operator_sim verdict)
     add_executable(hm20_${APP} src/apps/${APP}.cpp)
     target_link_libraries(hm20_${APP} PRIVATE hm20_guidance hm20_mavlink hm20_sim hm20_drone)
@@ -70,6 +79,11 @@ if(NOT CMAKE_CROSSCOMPILING)
         target_link_libraries(hm20_serial_test PRIVATE hm20_mavlink GTest::gtest_main)
         target_compile_options(hm20_serial_test PRIVATE ${HM20_WARNINGS})
         gtest_discover_tests(hm20_serial_test)
+
+        add_executable(hm20_bridge_test test/serial_bridge_test.cpp)
+        target_link_libraries(hm20_bridge_test PRIVATE hm20_bridge GTest::gtest_main)
+        target_compile_options(hm20_bridge_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_bridge_test)
 
         add_executable(hm20_sim_test test/sim_test.cpp)
         target_link_libraries(hm20_sim_test PRIVATE hm20_sim GTest::gtest_main)

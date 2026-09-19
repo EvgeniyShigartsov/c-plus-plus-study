@@ -3,13 +3,17 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "Logger.hpp"
 #include "drone/DroneNode.hpp"
 #include "interfaces/IDroneOutput.hpp"
+#include "link/ILink.hpp"
+#include "link/SerialLink.hpp"
 #include "link/UdpLink.hpp"
 #include "mavlink/Endpoint.hpp"
 #include "sim/FileConfigLoader.hpp"
@@ -28,6 +32,11 @@ struct CliOptions {
   uint16_t ownPort = 14555;           // домашній порт, сюди autopilot шле RC_CHANNELS_OVERRIDE
   std::string gcsHost = "127.0.0.1";  // куди дублюємо телеметрію -- для QGC/чекера
   uint16_t gcsPort = 14550;
+  // Якщо задано - замість UDP дані шлються по UART (імітація ESP32), а приймає їх окремий
+  // процесс SerialBridge (на залізі це Raspberry PI), і вже він розсилає дані решті системи по UDP.
+  // Режим для імітації ESP32 при перевірці SerialBridge без реального заліза
+  std::string serialDevice;
+  int baudRate = 115200;
   float timeScale = -1.0f;  // -1 = не задано явно, береться з config.json
   std::string configPath = defaultDataDir + "/config.json";
   std::string ammoPath = defaultDataDir + "/ammo.json";
@@ -56,6 +65,12 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     else if (key == "--gcs-port") {
       opts.gcsPort = static_cast<uint16_t>(std::stoi(value));
     }
+    else if (key == "--serial-device") {
+      opts.serialDevice = value;
+    }
+    else if (key == "--baud") {
+      opts.baudRate = std::stoi(value);
+    }
     else if (key == "--time-scale") {
       opts.timeScale = std::stof(value);
     }
@@ -73,18 +88,20 @@ CliOptions parseArgs(const std::vector<std::string>& args)
   return opts;
 }
 
-class UdpDroneOutput : public IDroneOutput {
+// DroneNode віддає повідомлення у кожен із заданих ендпоінтів.
+// UDP-режим: автопілот і GCS (QGC/чекер). Serial-режим: лише UART порт, далі розсилає міст
+class DroneOutput : public IDroneOutput {
 public:
-  UdpDroneOutput(const mav::MavlinkEndpoint& autopilotEndpoint, const mav::MavlinkEndpoint& gcsEndpoint)
-    : autopilotEndpoint(autopilotEndpoint)
-    , gcsEndpoint(gcsEndpoint)
+  explicit DroneOutput(std::vector<const mav::MavlinkEndpoint*> endpoints)
+    : endpoints(std::move(endpoints))
   {
   }
 
   void send(const mavlink_message_t& msg) override
   {
-    autopilotEndpoint.send(msg);
-    gcsEndpoint.send(msg);
+    for (const mav::MavlinkEndpoint* endpoint : endpoints) {
+      endpoint->send(msg);
+    }
   }
 
   void onDrop(const Coord& aimPoint, const float timeSinceStart) override
@@ -95,8 +112,7 @@ public:
   void onMissionComplete() override { DRONE_LOG("mission complete notification received"); }
 
 private:
-  const mav::MavlinkEndpoint& autopilotEndpoint;
-  const mav::MavlinkEndpoint& gcsEndpoint;
+  std::vector<const mav::MavlinkEndpoint*> endpoints;
 };
 
 int main(int argc, char* argv[])
@@ -112,7 +128,8 @@ int main(int argc, char* argv[])
               << "  ap-port    = " << opts.apPort << '\n'
               << "  own-port   = " << opts.ownPort << '\n'
               << "  gcs-host   = " << opts.gcsHost << '\n'
-              << "  gcs-port   = " << opts.gcsPort);
+              << "  gcs-port   = " << opts.gcsPort << '\n'
+              << "  serial     = " << (opts.serialDevice.empty() ? "(off, UDP mode)" : opts.serialDevice) << " @" << opts.baudRate);
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
@@ -126,28 +143,50 @@ int main(int argc, char* argv[])
   const float timeScale = timeScaleFromCli ? opts.timeScale : loader.getTimeScale();
   DRONE_LOG("  time-scale = " << timeScale << (timeScaleFromCli ? " (CLI)" : " (config.json)"));
 
-  const UdpLink udp(opts.apHost, opts.apPort, opts.ownPort);
-  if (!udp.isOpen()) {
-    DRONE_LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort << " on own port " << opts.ownPort);
-    return 1;
-  }
-  const mav::MavlinkEndpoint endpoint(udp, MAVLINK_COMM_1);
+  const bool isSerialMode = !opts.serialDevice.empty();
 
-  // Дублювання телеметрії на GCS
-  const UdpLink gcsUdp(opts.gcsHost, opts.gcsPort);
-  if (!gcsUdp.isOpen()) {
-    DRONE_LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
-    return 1;
+  // Основний канал: UDP до автопілота або UART порт до моста
+  std::unique_ptr<ILink> link;
+  if (isSerialMode) {
+    link = std::make_unique<SerialLink>(opts.serialDevice, opts.baudRate);
+    if (!link->isOpen()) {
+      DRONE_LOG("Failed to open serial device " << opts.serialDevice << " @" << opts.baudRate);
+      return 1;
+    }
+    DRONE_LOG("Serial mode: " << opts.serialDevice << " @" << opts.baudRate);
   }
-  const mav::MavlinkEndpoint gcsEndpoint(gcsUdp, MAVLINK_COMM_2);
+  else {
+    link = std::make_unique<UdpLink>(opts.apHost, opts.apPort, opts.ownPort);
+    if (!link->isOpen()) {
+      DRONE_LOG("Failed to open UDP link to " << opts.apHost << ":" << opts.apPort << " on own port " << opts.ownPort);
+      return 1;
+    }
+  }
+  const mav::MavlinkEndpoint mainEndpoint(*link, MAVLINK_COMM_1);
 
-  UdpDroneOutput output(endpoint, gcsEndpoint);
+  std::vector<const mav::MavlinkEndpoint*> outputs{&mainEndpoint};
+
+  // Дублювання телеметрії на GCS: лише в UDP-режимі, у serial-режимі це робить SerialBridge
+  std::unique_ptr<UdpLink> gcsUdp;
+  std::unique_ptr<mav::MavlinkEndpoint> gcsEndpoint;
+  if (!isSerialMode) {
+    gcsUdp = std::make_unique<UdpLink>(opts.gcsHost, opts.gcsPort);
+
+    if (!gcsUdp->isOpen()) {
+      DRONE_LOG("Failed to open UDP link to " << opts.gcsHost << ":" << opts.gcsPort);
+      return 1;
+    }
+    gcsEndpoint = std::make_unique<mav::MavlinkEndpoint>(*gcsUdp, MAVLINK_COMM_2);
+    outputs.push_back(gcsEndpoint.get());
+  }
+
+  DroneOutput output(std::move(outputs));
   DroneNode node(droneConfig, physicsTimeStep, timeScale, output);
 
   std::chrono::time_point last = std::chrono::steady_clock::now();
 
   while (!node.isMissionComplete()) {
-    for (const mavlink_message_t& msg : endpoint.poll()) {
+    for (const mavlink_message_t& msg : mainEndpoint.poll()) {
       node.onMessage(msg);
     }
 

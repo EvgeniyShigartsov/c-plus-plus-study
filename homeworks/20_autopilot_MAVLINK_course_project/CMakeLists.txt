@@ -1,41 +1,105 @@
 cmake_minimum_required(VERSION 3.20)
-project(drone_telemetry_with_MAVLINK CXX)
+project(autopilot_mavlink CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ДЗ 17 збирається тільки локально у емуляторі Linux, на MacOS це Lima. Для цього треба вручну
+# ДЗ 20 збирається тільки локально у емуляторі Linux, на MacOS це Lima. Для цього треба вручну
 # клонувати  MAVLink c_library_v2
 set(MAVLINK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/third_party/c_library_v2)
 if(NOT EXISTS ${MAVLINK_DIR}/common/mavlink.h)
-    message(STATUS "MAVLink c_library_v2 not found at ${MAVLINK_DIR} - skipping homeworks/17.")
+    message(STATUS "MAVLink c_library_v2 not found at ${MAVLINK_DIR} - skipping homeworks/20.")
     return()
 endif()
 
+set(HM20_WARNINGS -Wall -Wextra -pedantic)
+
 add_library(
-    drone_telemetry_with_MAVLINK STATIC
-    src/main.cpp
-    src/link/UartLink.cpp
-    src/link/UdpLink.cpp
-    src/link/MavlinkUtil.cpp
-    src/link/MavlinkReporter.cpp
-    src/link/MavlinkDrop.cpp
-    src/link/PacketMappers.cpp
-    src/link/MissionConfig.cpp
-    src/gpio/GpioSignals.cpp
-    src/providers/UartTargetProvider.cpp
+    hm20_guidance STATIC
+    src/authority/AuthorityStateMachine.cpp
     src/control/DroneController.cpp
     src/utils/MathUtils.cpp
     src/MissionProcessor.cpp
+    src/providers/CachedTargetProvider.cpp
     src/solvers/TableSolver.cpp
     src/BallisticTable.cpp
     src/states/StateAccelerating.cpp
     src/states/StateDecelerating.cpp
     src/states/StateMoving.cpp
     src/states/StateStopped.cpp
-    src/states/StateTurning.cpp)
+    src/states/StateTurning.cpp
+    src/states/StateWaitingForConnection.cpp)
+target_include_directories(hm20_guidance PUBLIC include)
+target_compile_options(hm20_guidance PRIVATE ${HM20_WARNINGS})
 
-target_include_directories(drone_telemetry_with_MAVLINK PRIVATE include)
-target_include_directories(drone_telemetry_with_MAVLINK SYSTEM PRIVATE ${MAVLINK_DIR})
-target_compile_options(drone_telemetry_with_MAVLINK PRIVATE -Wall -Wextra -pedantic)
+add_library(hm20_mavlink STATIC src/mavlink/Codec.cpp src/mavlink/Endpoint.cpp src/link/UdpLink.cpp
+                                src/link/SerialLink.cpp)
+target_include_directories(hm20_mavlink PUBLIC include)
+target_include_directories(hm20_mavlink SYSTEM PUBLIC ${MAVLINK_DIR})
+target_compile_options(hm20_mavlink PRIVATE ${HM20_WARNINGS})
+
+add_library(hm20_sim STATIC src/sim/DronePhysics.cpp src/sim/JsonTargetProvider.cpp
+                            src/sim/FileConfigLoader.cpp)
+target_include_directories(hm20_sim PUBLIC include)
+target_compile_options(hm20_sim PRIVATE ${HM20_WARNINGS})
+
+add_library(hm20_drone STATIC src/drone/DroneNode.cpp)
+target_include_directories(hm20_drone PUBLIC include)
+target_link_libraries(hm20_drone PUBLIC hm20_mavlink hm20_sim)
+target_compile_options(hm20_drone PRIVATE ${HM20_WARNINGS})
+
+add_library(hm20_bridge STATIC src/bridge/SerialBridge.cpp)
+target_include_directories(hm20_bridge PUBLIC include)
+target_link_libraries(hm20_bridge PUBLIC hm20_mavlink)
+target_compile_options(hm20_bridge PRIVATE ${HM20_WARNINGS})
+
+add_executable(hm20_serial_bridge src/apps/serial_bridge.cpp)
+target_link_libraries(hm20_serial_bridge PRIVATE hm20_bridge hm20_mavlink)
+target_compile_options(hm20_serial_bridge PRIVATE ${HM20_WARNINGS})
+
+foreach(APP autopilot drone_sim operator_sim verdict)
+    add_executable(hm20_${APP} src/apps/${APP}.cpp)
+    target_link_libraries(hm20_${APP} PRIVATE hm20_guidance hm20_mavlink hm20_sim hm20_drone)
+    target_compile_options(hm20_${APP} PRIVATE ${HM20_WARNINGS})
+endforeach()
+
+if(NOT CMAKE_CROSSCOMPILING)
+    if(NOT TARGET GTest::gtest_main)
+        find_package(GTest QUIET)
+    endif()
+    if(TARGET GTest::gtest_main)
+        include(GoogleTest)
+        add_executable(hm20_mavlink_test test/mavlink_codec_test.cpp)
+        target_link_libraries(hm20_mavlink_test PRIVATE hm20_mavlink GTest::gtest_main)
+        target_compile_options(hm20_mavlink_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_mavlink_test)
+
+        add_executable(hm20_serial_test test/serial_link_test.cpp)
+        target_link_libraries(hm20_serial_test PRIVATE hm20_mavlink GTest::gtest_main)
+        target_compile_options(hm20_serial_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_serial_test)
+
+        add_executable(hm20_bridge_test test/serial_bridge_test.cpp)
+        target_link_libraries(hm20_bridge_test PRIVATE hm20_bridge GTest::gtest_main)
+        target_compile_options(hm20_bridge_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_bridge_test)
+
+        add_executable(hm20_sim_test test/sim_test.cpp)
+        target_link_libraries(hm20_sim_test PRIVATE hm20_sim GTest::gtest_main)
+        target_compile_options(hm20_sim_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_sim_test)
+
+        add_executable(hm20_drone_test test/drone_node_test.cpp)
+        target_link_libraries(hm20_drone_test PRIVATE hm20_drone GTest::gtest_main)
+        target_compile_options(hm20_drone_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_drone_test)
+
+        add_executable(hm20_guidance_test test/authority_test.cpp)
+        target_link_libraries(hm20_guidance_test PRIVATE hm20_guidance GTest::gtest_main)
+        target_compile_options(hm20_guidance_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_guidance_test)
+    else()
+        message(STATUS "GTest not found - skipping homeworks/20 tests.")
+    endif()
+endif()

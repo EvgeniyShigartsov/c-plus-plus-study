@@ -4,6 +4,7 @@
 #include "interfaces/IDroneState.hpp"
 #include "types.hpp"
 #include "states/StateAccelerating.hpp"
+#include "states/StateDecelerating.hpp"
 #include "states/StateTurning.hpp"
 
 std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateStopped::execute(Simulation &sim)
@@ -12,6 +13,11 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateStopped::execute(Simu
     .state = DroneState::Stopped,
     .targetDir = sim.dirToFire,
   };
+
+  if (sim.connectionLost) {
+    command.state = DroneState::Decelerating;
+    return {std::make_unique<StateDecelerating>(), command};
+  }
 
   if (sim.deltaAngle > sim.dc.turnThreshold) {
     command.state = DroneState::Turning;

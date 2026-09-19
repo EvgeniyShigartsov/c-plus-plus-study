@@ -1,7 +1,20 @@
 #pragma once
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <string>
+
+// Конвенція осей: x = схід, y = північ, dir = математичний курс, проти годинникової стрілки, старт зі сходу.
+struct VehicleState {
+  uint32_t mission_time_ms = 0;  // час від старту місії у мілісекундах
+  float x = 0.0f;
+  float y = 0.0f;
+  float z = 0.0f;      // висота, метри
+  float vx = 0.0f;     // швидкість по осі X, м/с
+  float vy = 0.0f;     // швидкість по осі Y, м/с
+  float speed = 0.0f;  // горизонтальна швидкість
+  float dir = 0.0f;
+};
 
 struct Coord {
   float x;
@@ -52,9 +65,14 @@ struct BombParams {
 
 struct SimStep {
   Coord pos;
-  Coord dropPoint;
+  Coord dropPoint = {0.0f, 0.0f};
+  Coord aimPoint = {0.0f, 0.0f};
+  Coord predictedTarget = {0.0f, 0.0f};
+  float direction = 0.0f;
   std::string state;
   int targetIdx;
+  int step = 0;
+  float timeSecSinceStart = 0.0f;
 };
 
 struct Simulation {
@@ -70,12 +88,18 @@ struct Simulation {
   bool needsManeuver = false;
   bool reachedManeuverPoint = false;
 
-  // new fields
   float deltaAngle = 0.0f;
   float dirToFire = 0.0f;
   DroneConfig dc = {};
   float droneAcceleration = 0.0f;
   float timeSecSinceStart = 0.0f;
+  bool connectionLost = false;  // втрата зв'язку з оператором
+
+  // Остання розрахована точка скиду, на випадок втрати зв'язку
+  Coord dropPoint = {.x = 0.0f, .y = 0.0f};
+
+  // Остання розрахована позиція прогнозованої цілі, на випадок втрати зв'язку
+  Coord predictedTarget = {0.0f, 0.0f};
 
   Simulation() = default;
   Simulation(DroneConfig& droneConfig)
@@ -91,11 +115,11 @@ struct Target {
   Coord velocity;
 };
 
-enum DroneState { Stopped, Turning, Accelerating, Moving, Decelerating };
+enum DroneState { Stopped, Turning, Accelerating, Moving, Decelerating, WaitingForConnection };
 
 struct DroneCommand {
-  DroneState state;
-  float targetDir;
+  DroneState state = DroneState::Stopped;
+  float targetDir = 0.0f;
 };
 
 struct DroneTelemetry {

@@ -1,0 +1,7 @@
+# 02_operator_interrupt: оператор вмикає модуль, а посеред атаки на 2с
+# перебирає керування джойстиком (roll), потім відпускає.
+# Очікувано: Armed -> Engaged -> Yielding -> Engaged -> Complete.
+
+0.2 designate_targets
+0.5 enable
+6.0 channel roll 400 2

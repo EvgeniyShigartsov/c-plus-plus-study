@@ -4,6 +4,7 @@
 #include <cmath>
 #include <numbers>
 
+#include "link/UdpLink.hpp"
 #include "mavlink/Codec.hpp"
 #include "mavlink/Endpoint.hpp"
 #include "mavlink/Frames.hpp"

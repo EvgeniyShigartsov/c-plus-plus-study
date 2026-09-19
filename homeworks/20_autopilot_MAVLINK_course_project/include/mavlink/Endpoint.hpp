@@ -3,13 +3,13 @@
 
 #include <common/mavlink.h>
 
-#include "link/UdpLink.hpp"
+#include "link/ILink.hpp"
 
 namespace mav {
 
 class MavlinkEndpoint {
 public:
-  MavlinkEndpoint(const UdpLink& udp, const mavlink_channel_t rxChannel);
+  MavlinkEndpoint(const ILink& link, const mavlink_channel_t rxChannel);
 
   // Відправляємо mavlink повідомлення
   void send(const mavlink_message_t& msg) const;
@@ -19,7 +19,7 @@ public:
 
 private:
   // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-  const UdpLink& udp;
+  const ILink& link;
   mavlink_channel_t rxChannel;
 };
 

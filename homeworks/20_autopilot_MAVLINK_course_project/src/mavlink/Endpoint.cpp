@@ -6,8 +6,8 @@
 
 namespace mav {
 
-MavlinkEndpoint::MavlinkEndpoint(const UdpLink& udp, const mavlink_channel_t rxChannel)
-  : udp(udp)
+MavlinkEndpoint::MavlinkEndpoint(const ILink& link, const mavlink_channel_t rxChannel)
+  : link(link)
   , rxChannel(rxChannel)
 {
 }
@@ -16,7 +16,7 @@ void MavlinkEndpoint::send(const mavlink_message_t& msg) const
 {
   std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buffer{};
   const uint16_t length = mavlink_msg_to_send_buffer(buffer.data(), &msg);
-  udp.sendFrame(buffer.data(), length);
+  link.sendFrame(buffer.data(), length);
 }
 
 std::vector<mavlink_message_t> MavlinkEndpoint::poll() const
@@ -25,7 +25,7 @@ std::vector<mavlink_message_t> MavlinkEndpoint::poll() const
   std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buffer{};
 
   while (true) {
-    const ssize_t bytesRead = udp.receive(buffer.data(), buffer.size());
+    const ssize_t bytesRead = link.receive(buffer.data(), buffer.size());
     if (bytesRead <= 0) {
       break;
     }

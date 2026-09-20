@@ -92,6 +92,7 @@ targets.json
 output.txt
 config.json
 simulation.json
+simulation_hardware.json
 
 *.log
 /tmp

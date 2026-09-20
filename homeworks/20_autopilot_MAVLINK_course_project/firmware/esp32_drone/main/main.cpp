@@ -1,3 +1,4 @@
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 
@@ -29,9 +30,23 @@ constexpr int kLinkBaudRate = 115200;          // Швидкість перед�
 
 // Частота головного циклу = крок фізики (10 мс): команди від оператора мають оброблятись за <= 10 мс
 constexpr TickType_t kLoopPeriod = pdMS_TO_TICKS(10);
-constexpr uint32_t kIterationsPerReport = 1000;  // Тимчасово для перевірок, скільки оборотів запізнилось
+
+// Лог телеметрії раз на 10 секунд (летить 10 на секунду)
+constexpr uint32_t kTelemetryLogEvery = 100;
 
 constexpr uint32_t kRestartDelayMs = 500;
+
+void droneLog(const char* format, ...)
+{
+  std::printf("[LOG]: [ESP_32 DRONE]: ");
+
+  va_list args;
+  va_start(args, format);
+  std::vprintf(format, args);
+  va_end(args);
+
+  std::printf("\n");
+}
 
 class DroneOutput : public IDroneOutput {
 public:
@@ -48,27 +63,25 @@ public:
       return;
     }
 
-    // Другування позиції в лог раз на секунду (про всяк випадок)
-    if (telemetryCount++ % 10 == 0) {
+    // Друк позиції в лог раз на 10 секунд (про всяк випадок)
+    if (telemetryCount++ % kTelemetryLogEvery == 0) {
       const mav::LocalPositionNed position = mav::parse_local_position_ned(msg);
-      std::printf("time %u ms  position %.2f %.2f  velocity %.2f %.2f\n",
-                  static_cast<unsigned>(position.time_boot_ms),
-                  static_cast<double>(position.north),
-                  static_cast<double>(position.east),
-                  static_cast<double>(position.velocity_north),
-                  static_cast<double>(position.velocity_east));
+      droneLog("telemetry t=%u ms pos=(%.2f,%.2f) velocity=(%.2f,%.2f)",
+               static_cast<unsigned>(position.time_boot_ms),
+               static_cast<double>(position.north),
+               static_cast<double>(position.east),
+               static_cast<double>(position.velocity_north),
+               static_cast<double>(position.velocity_east));
     }
   }
 
   void onDrop(const Coord& aimPoint, const float timeSinceStart) override
   {
-    std::printf("drop at %.2f s  aim %.2f %.2f\n",
-                static_cast<double>(timeSinceStart),
-                static_cast<double>(aimPoint.x),
-                static_cast<double>(aimPoint.y));
+    droneLog(
+      "DROP t=%.4f aim=(%.3f,%.3f)", static_cast<double>(timeSinceStart), static_cast<double>(aimPoint.x), static_cast<double>(aimPoint.y));
   }
 
-  void onMissionComplete() override { std::printf("mission complete notification received\n"); }
+  void onMissionComplete() override { droneLog("mission complete notification received"); }
 
 private:
   const mav::MavlinkEndpoint& endpoint;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
@@ -86,7 +99,7 @@ extern "C" void app_main()
 {
   const EspUartLink link(kLinkUart, kLinkTxPin, kLinkRxPin, kLinkBaudRate);
   if (!link.isOpen()) {
-    std::printf("failed to open UART %d\n", static_cast<int>(kLinkUart));
+    droneLog("Failed to open UART %d", static_cast<int>(kLinkUart));
     return;
   }
   const mav::MavlinkEndpoint endpoint(link, MAVLINK_COMM_1);
@@ -94,16 +107,14 @@ extern "C" void app_main()
   DroneOutput output(endpoint);
   DroneNode droneNode(kConfig, kPhysicsTimeStep, kTimeScale, output);
 
-  std::printf("esp32_drone started  config %d %s  position %.0f %.0f\n",
-              DRONE_CONFIG,
-              kEmbeddedConfig.name,
-              static_cast<double>(kConfig.startPos.x),
-              static_cast<double>(kConfig.startPos.y));
+  droneLog("MISSION STARTED with config %d %s position=(%.0f,%.0f)",
+           DRONE_CONFIG,
+           kEmbeddedConfig.name,
+           static_cast<double>(kConfig.startPos.x),
+           static_cast<double>(kConfig.startPos.y));
 
   int64_t lastUpdateMicroseconds = esp_timer_get_time();
   TickType_t lastWakeTime = xTaskGetTickCount();
-  uint32_t iterations = 0;
-  uint32_t lateIterations = 0;
 
   while (!droneNode.isMissionComplete()) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
@@ -117,16 +128,10 @@ extern "C" void app_main()
     lastUpdateMicroseconds = nowMicroseconds;
 
     // Приспати процес до наступної точки розкладу (обробки даних)
-    if (xTaskDelayUntil(&lastWakeTime, kLoopPeriod) == pdFALSE) {
-      lateIterations++;
-    }
-
-    if (++iterations % kIterationsPerReport == 0) {
-      std::printf("loop iterations %u  late %u\n", static_cast<unsigned>(iterations), static_cast<unsigned>(lateIterations));
-    }
+    xTaskDelayUntil(&lastWakeTime, kLoopPeriod);
   }
 
-  std::printf("mission complete, restarting\n");
+  droneLog("mission complete, restarting");
   vTaskDelay(pdMS_TO_TICKS(kRestartDelayMs));
 
   // Перезавантаження заліза для наступного тесту

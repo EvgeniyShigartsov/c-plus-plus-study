@@ -11,3 +11,7 @@ idf_component_register(
 
 target_include_directories(${COMPONENT_LIB} SYSTEM
                            PUBLIC "${HM20_ROOT}/include/third_party/c_library_v2")
+
+# Який конфіг дрона (1..10, як номер тесту) вшити в прошивку: idf.py build -DDRONE_CONFIG=N. Змінити тест = перезібрати й перепрошити
+set(DRONE_CONFIG 1 CACHE STRING "Номер вшитого конфігу дрона (1..10)")
+target_compile_definitions(${COMPONENT_LIB} PRIVATE DRONE_CONFIG=${DRONE_CONFIG})

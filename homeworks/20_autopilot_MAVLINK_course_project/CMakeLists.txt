@@ -85,6 +85,12 @@ if(NOT CMAKE_CROSSCOMPILING)
         target_compile_options(hm20_bridge_test PRIVATE ${HM20_WARNINGS})
         gtest_discover_tests(hm20_bridge_test)
 
+        add_executable(hm20_embedded_configs_test test/embedded_configs_test.cpp)
+        target_link_libraries(hm20_embedded_configs_test PRIVATE hm20_sim GTest::gtest_main)
+        target_compile_definitions(hm20_embedded_configs_test PRIVATE HM20_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+        target_compile_options(hm20_embedded_configs_test PRIVATE ${HM20_WARNINGS})
+        gtest_discover_tests(hm20_embedded_configs_test)
+
         add_executable(hm20_sim_test test/sim_test.cpp)
         target_link_libraries(hm20_sim_test PRIVATE hm20_sim GTest::gtest_main)
         target_compile_options(hm20_sim_test PRIVATE ${HM20_WARNINGS})

@@ -2,6 +2,7 @@
 #include <cstdio>
 
 #include "drone/DroneNode.hpp"
+#include "drone/EmbeddedConfigs.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "interfaces/IDroneOutput.hpp"
@@ -10,19 +11,12 @@
 
 namespace {
 
-// TMP
-constexpr DroneConfig kConfig = {
-  .startPos = {.x = 150.0f, .y = 150.0f},
-  .altitude = 100.0f,
-  .initialDir = 0.0f,
-  .v0 = 10.0f,
-  .accelerationPath = 10.0f,
-  .simTimeStep = 0.1f,
-  .hitRadius = 3.0f,
-  .angularSpeed = 1.0f,
-  .turnThreshold = 0.1f,
-};
-constexpr float kPhysicsTimeStep = 0.01f;
+// Номер конфігу (1..10) задається при збірці: idf.py build -DDRONE_CONFIG=N, див. main/CMakeLists.txt
+static_assert(DRONE_CONFIG >= 1 && DRONE_CONFIG <= static_cast<int>(kEmbeddedDroneConfigs.size()), "DRONE_CONFIG поза межами");
+
+constexpr const EmbeddedDroneConfig& kEmbeddedConfig = kEmbeddedDroneConfigs[DRONE_CONFIG - 1];
+constexpr const DroneConfig& kConfig = kEmbeddedConfig.drone;
+constexpr float kPhysicsTimeStep = kEmbeddedConfig.physicsTimeStep;
 constexpr float kTimeScale = 1.0f;  // на залізі реальний час
 
 // Друкування в консоль повідомлень ядра, замість відправки по UART
@@ -66,8 +60,11 @@ extern "C" void app_main()
   ConsoleOutput output;
   DroneNode droneNode(kConfig, kPhysicsTimeStep, kTimeScale, output);
 
-  std::printf(
-    "esp32_drone started  position %.0f %.0f\n", static_cast<double>(kConfig.startPos.x), static_cast<double>(kConfig.startPos.y));
+  std::printf("esp32_drone started  config %d %s  position %.0f %.0f\n",
+              DRONE_CONFIG,
+              kEmbeddedConfig.name,
+              static_cast<double>(kConfig.startPos.x),
+              static_cast<double>(kConfig.startPos.y));
 
   // Даємо газ, як автопілот, щоб у консолі було видно рух
   droneNode.onMessage(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, {.accel = 1.0f, .turnRate = 0.0f}));

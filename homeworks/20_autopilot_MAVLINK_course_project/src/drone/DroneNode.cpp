@@ -64,6 +64,9 @@ void DroneNode::onMessage(const mavlink_message_t& msg)
     output.onMissionComplete();
     MISSION_COMPLETE = true;
   }
+  else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kRebootCommandId) {
+    REBOOT_REQUESTED = true;
+  }
 }
 
 void DroneNode::update(const float realDeltaSec)
@@ -95,6 +98,11 @@ void DroneNode::update(const float realDeltaSec)
 bool DroneNode::isMissionComplete() const
 {
   return MISSION_COMPLETE;
+}
+
+bool DroneNode::isRebootRequested() const
+{
+  return REBOOT_REQUESTED;
 }
 
 void DroneNode::sendHeartbeat() const

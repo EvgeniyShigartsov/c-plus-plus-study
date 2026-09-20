@@ -158,6 +158,19 @@ TEST(DroneNodeTest, DropIsReportedOnlyOnce)
   EXPECT_FLOAT_EQ(output.drops[0].y, 250.0f);
 }
 
+TEST(DroneNodeTest, RebootCommandRequestsReboot)
+{
+  RecordingOutput output;
+  DroneNode node(makeConfig(), kPhysicsTimeStep, kTimeScale, output);
+
+  EXPECT_FALSE(node.isRebootRequested());
+
+  node.onMessage(mav::pack_reboot_command(mav::kAutopilot, mav::kVehicle));
+
+  EXPECT_TRUE(node.isRebootRequested());
+  EXPECT_FALSE(node.isMissionComplete());
+}
+
 TEST(DroneNodeTest, MissionCompleteNotificationFinishesMission)
 {
   RecordingOutput output;

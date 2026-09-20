@@ -58,6 +58,7 @@ constexpr uint16_t kTargetDesignationCommandId = MAV_CMD_USER_2;
 constexpr uint16_t kDropNotificationCommandId = MAV_CMD_USER_3;
 constexpr uint16_t kMissionCompleteCommandId = MAV_CMD_USER_4;
 constexpr uint16_t kManualDropCommandId = MAV_CMD_USER_5;
+constexpr uint16_t kRebootCommandId = MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN;
 
 // GCS -> автопілот, увімкнути / вимкнути.
 struct EnableCommand {
@@ -149,6 +150,9 @@ MissionCompleteNotification parse_mission_complete_notification(const mavlink_me
 
 mavlink_message_t pack_manual_drop_command(const Identity& from, const Identity& target, const ManualDropCommand& command);
 ManualDropCommand parse_manual_drop_command(const mavlink_message_t& msg);
+
+// Команда на дрон перезавантажитись, щоб годинник місії йшов з нуля
+mavlink_message_t pack_reboot_command(const Identity& from, const Identity& target);
 
 mavlink_message_t pack_command_acknowledgement(const Identity& from, const Identity& target, const CommandAcknowledgement& acknowledgement);
 CommandAcknowledgement parse_command_acknowledgement(const mavlink_message_t& msg);

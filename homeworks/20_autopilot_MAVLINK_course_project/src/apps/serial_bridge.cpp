@@ -1,4 +1,4 @@
-// serial_bridge - міст між дроном на послідовному порту (ESP32) і рештою системи по UDP
+// serial_bridge - міст між дроном на UART порту (ESP32) і рештою системи по UDP
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -11,6 +11,7 @@
 #include "bridge/SerialBridge.hpp"
 #include "link/SerialLink.hpp"
 #include "link/UdpLink.hpp"
+#include "mavlink/Codec.hpp"
 #include "mavlink/Endpoint.hpp"
 
 #define BRIDGE_LOG(msg) LOG("[BRIDGE]: " << msg)
@@ -25,15 +26,26 @@ struct CliOptions {
   uint16_t apPort = 14560;  // домашній порт автопілота, сюди пересилається телеметрія дрона
   std::string gcsHost = "127.0.0.1";
   uint16_t gcsPort = 14550;
+  bool resetDrone = false;  // при старті перезавантажити дрон, щоб його годинник місії йшов з нуля
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
 {
   CliOptions opts;
 
-  for (size_t i = 0; i + 1 < args.size(); i += 2) {
+  for (size_t i = 0; i < args.size(); i++) {
     const std::string& key = args[i];
-    const std::string& value = args[i + 1];
+
+    if (key == "--reset-drone") {
+      opts.resetDrone = true;
+      continue;
+    }
+
+    if (i + 1 >= args.size()) {
+      std::cerr << "Missing value for argument at serial_bridge.cpp: " << key << '\n';
+      break;
+    }
+    const std::string& value = args[++i];
 
     if (key == "--serial-device") {
       opts.serialDevice = value;
@@ -99,6 +111,11 @@ int main(int argc, char* argv[])
 
   BRIDGE_LOG("serial " << opts.serialDevice << " @" << opts.baudRate << " <-> UDP: drone port " << opts.dronePort << ", autopilot "
                        << opts.apHost << ":" << opts.apPort << ", gcs " << opts.gcsHost << ":" << opts.gcsPort);
+
+  if (opts.resetDrone) {
+    drone.send(mav::pack_reboot_command(mav::kAutopilot, mav::kVehicle));
+    BRIDGE_LOG("reset drone: reboot command sent");
+  }
 
   while (!bridge.isMissionComplete()) {
     bridge.pump();

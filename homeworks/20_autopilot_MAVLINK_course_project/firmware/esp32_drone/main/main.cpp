@@ -107,7 +107,7 @@ extern "C" void app_main()
   DroneOutput output(endpoint);
   DroneNode droneNode(kConfig, kPhysicsTimeStep, kTimeScale, output);
 
-  droneLog("MISSION STARTED with config %d %s position=(%.0f,%.0f)",
+  droneLog("CHIP LOADED, config %d %s position=(%.0f,%.0f)",
            DRONE_CONFIG,
            kEmbeddedConfig.name,
            static_cast<double>(kConfig.startPos.x),
@@ -116,7 +116,7 @@ extern "C" void app_main()
   int64_t lastUpdateMicroseconds = esp_timer_get_time();
   TickType_t lastWakeTime = xTaskGetTickCount();
 
-  while (!droneNode.isMissionComplete()) {
+  while (!droneNode.isMissionComplete() && !droneNode.isRebootRequested()) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
       droneNode.onMessage(msg);
     }
@@ -131,7 +131,7 @@ extern "C" void app_main()
     xTaskDelayUntil(&lastWakeTime, kLoopPeriod);
   }
 
-  droneLog("mission complete, restarting");
+  droneLog(droneNode.isRebootRequested() ? "reboot requested, restarting" : "mission complete, restarting");
   vTaskDelay(pdMS_TO_TICKS(kRestartDelayMs));
 
   // Перезавантаження заліза для наступного тесту

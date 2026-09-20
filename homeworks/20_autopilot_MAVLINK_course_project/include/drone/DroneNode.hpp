@@ -20,6 +20,9 @@ public:
 
   [[nodiscard]] bool isMissionComplete() const;
 
+  // Прийшла команда перезавантажитись, саме перезавантаження робить дрон
+  [[nodiscard]] bool isRebootRequested() const;
+
 private:
   DronePhysics physics;
   IDroneOutput& output;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
@@ -33,6 +36,7 @@ private:
 
   bool dropped = false;
   bool MISSION_COMPLETE = false;
+  bool REBOOT_REQUESTED = false;
 
   // Симульований час (реальні секунди * timeScale), який уже минув, але фізика його ще не відкрокувала
   float pendingPhysicsTimeSec = 0.0f;

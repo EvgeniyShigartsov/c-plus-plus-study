@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Запуск на Raspberry Pi: serial_bridge + autopilot + operator_sim, дрон - ESP32 по UART (/dev/serial0).
-# ESP32 має бути прошита з DRONE_CONFIG=<номер-тесту> (idf.py build -DDRONE_CONFIG=N) і ТІЛЬКИ ЩО перезавантажена (RESET):
-# годинник дрона йде від його старту, а оператор бере з нього час сценарію і положення цілей.
+# ESP32 має бути прошита з DRONE_CONFIG=<номер-тесту> (idf.py build -DDRONE_CONFIG=N).
+# Годинник дрона йде від його старту, а оператор на основі годиннику дрона бере час сценарію і положення цілей, тому міст перезавантажує дрон (--reset-drone), потім після перезавантаження стартують автопілот і оператор
 # Використання: ./run_hardware.sh [сценарій-оператора] [номер-тесту] [time-scale]
 #   сценарій-оператора - ім'я файлу в data/scenarios/ без розширення .txt. Дефолт: 01_clean_attack
 #   номер-тесту        - який тесткейс з testing_data використати, 1=01_sample_circles, 2=02_eliptic_trajectories, etc. Дефолт: 1
@@ -38,16 +38,19 @@ AMMO="data/ammo.json"
 BALLISTIC="data/ballistic_table.txt"
 OPERATOR_SCENARIO="data/scenarios/$SCENARIO.txt"
 SERIAL_DEVICE="/dev/serial0"
+DRONE_REBOOT_WAIT_SEC=3  # скільки чекати поки ESP32 перезавантажиться після команди рестарту
 
 echo "сценарій:  $OPERATOR_SCENARIO"
 echo "тест:      $TEST_N ($DIR), time-scale $TIME_SCALE"
-echo "ESP32 має бути прошита з DRONE_CONFIG=$TEST_N і щойно перезавантажена"
+echo "ESP32 має бути прошита з DRONE_CONFIG=$TEST_N (перезавантажується мостом автоматично)"
 echo
 
 PIDS=()
 
-"$BIN/hm20_serial_bridge" --serial-device "$SERIAL_DEVICE" &
+"$BIN/hm20_serial_bridge" --serial-device "$SERIAL_DEVICE" --reset-drone &
 PIDS+=("$!")
+echo "Відправлено команду на перезавантаження дрона, зачекайте $DRONE_REBOOT_WAIT_SEC секунди"
+sleep "$DRONE_REBOOT_WAIT_SEC"
 "$BIN/hm20_autopilot" --config-path "$CONFIG" --ammo-path "$AMMO" --ballistic-table "$BALLISTIC" --time-scale "$TIME_SCALE" &
 PIDS+=("$!")
 sleep 0.2

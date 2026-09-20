@@ -393,6 +393,16 @@ TEST(MavlinkCodec, SimStepRejectsForeignDebugFloatArray)
   EXPECT_FALSE(mav::parse_sim_step(msg).has_value());
 }
 
+TEST(MavlinkCodec, RebootCommandIsStandardRebootRequest)
+{
+  const mavlink_message_t msg = mav::pack_reboot_command(mav::kAutopilot, mav::kVehicle);
+
+  ASSERT_EQ(msg.msgid, static_cast<uint32_t>(MAVLINK_MSG_ID_COMMAND_LONG));
+  EXPECT_EQ(mavlink_msg_command_long_get_command(&msg), MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN);
+  EXPECT_FLOAT_EQ(mavlink_msg_command_long_get_param1(&msg), 1.0f);
+  EXPECT_EQ(mavlink_msg_command_long_get_target_system(&msg), mav::kVehicle.sysid);
+}
+
 TEST(MavlinkEndpoint, ConstructsAndPollsIdleSocketCleanly)
 {
   const UdpLink udp("127.0.0.1", 15020);

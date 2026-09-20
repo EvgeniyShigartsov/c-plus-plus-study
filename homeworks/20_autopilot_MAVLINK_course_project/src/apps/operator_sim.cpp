@@ -1,8 +1,11 @@
 // operator_sim — тестовий скриптований оператор
 #include <chrono>
+#include <csignal>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -15,6 +18,7 @@
 #include "mavlink/RadioControl.hpp"
 #include "sim/FileConfigLoader.hpp"
 #include "sim/JsonTargetProvider.hpp"
+#include "sim/SimulationLog.hpp"
 
 #define OPERATOR_LOG(msg) LOG("[OPERATOR:] " << msg)
 #define OPERATOR_DEBUG(msg) DEBUG("[OPERATOR:] " << msg)
@@ -35,6 +39,7 @@ struct CliOptions {
   std::string targetsPath = defaultDataDir + "/targets.json";
   std::string operatorScenario;  // timeline-файл дій оператора
   float timeScale = -1.0f;       // -1 = не задано явно, береться з config.json
+  std::string simOutput = "simulation.json";
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -77,6 +82,9 @@ CliOptions parseArgs(const std::vector<std::string>& args)
     }
     else if (key == "--time-scale") {
       opts.timeScale = std::stof(value);
+    }
+    else if (key == "--sim-output") {
+      opts.simOutput = value;
     }
     else {
       std::cerr << "Unknown argument at operator_sim.cpp: " << key << '\n';
@@ -124,6 +132,30 @@ std::vector<TimelineEvent> loadOperatorScenario(const std::string& path)
   }
 
   return events;
+}
+
+// Виставляється хендлером сигналів SIGINT/SIGTERM/SIGHUP
+volatile std::sig_atomic_t stopRequested = 0;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+
+void onStopSignal(int /* signal */)
+{
+  stopRequested = 1;
+}
+
+void saveSimulationLog(const std::map<int, SimStep>& stepsByIndex, const std::string& path)
+{
+  std::vector<SimStep> steps;
+  steps.reserve(stepsByIndex.size());
+  for (const auto& [index, step] : stepsByIndex) {
+    steps.push_back(step);
+  }
+
+  if (writeSimulationJson(steps, path)) {
+    OPERATOR_LOG("simulation log written: " << steps.size() << " steps -> " << path);
+  }
+  else {
+    OPERATOR_LOG("failed to write " << path);
+  }
 }
 
 struct OperatorChannelState {
@@ -216,7 +248,8 @@ int main(int argc, char* argv[])
                  << "  operator-scenario = " << (isScenarioNotPesented ? "(not presented)" : opts.operatorScenario) << '\n'
                  << "  config-path       = " << opts.configPath << '\n'
                  << "  ammo-path         = " << opts.ammoPath << '\n'
-                 << "  targets           = " << opts.targetsPath);
+                 << "  targets           = " << opts.targetsPath << '\n'
+                 << "  sim-output        = " << opts.simOutput);
 
   if (isScenarioNotPesented) {
     OPERATOR_LOG("operator-scenario should be presented & have valid markup");
@@ -280,8 +313,13 @@ int main(int argc, char* argv[])
   float missionTime = 0.0f;  // реальний час дрона, з його телеметрії
   bool haveMissionTime = false;
   bool MISSION_COMPLETE = false;
+  std::map<int, SimStep> simSteps;  // ключ = номер кроку
 
-  while (!MISSION_COMPLETE) {
+  std::signal(SIGINT, onStopSignal);
+  std::signal(SIGTERM, onStopSignal);
+  std::signal(SIGHUP, onStopSignal);
+
+  while (!MISSION_COMPLETE && stopRequested == 0) {
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
     // Годинник сценарію не рухається, поки не прийшов перший пакет телеметрії - інакше
@@ -306,6 +344,13 @@ int main(int argc, char* argv[])
         if (wasMissing) {
           scenarioTime = missionTime;
           OPERATOR_LOG("mission time: synced from drone telemetry, t=" << missionTime);
+        }
+      }
+      else if (msg.msgid == MAVLINK_MSG_ID_DEBUG_FLOAT_ARRAY) {
+        const std::optional<SimStep> maybeStep = mav::parse_sim_step(msg);
+
+        if (maybeStep.has_value()) {
+          simSteps[maybeStep->step] = *maybeStep;
         }
       }
       else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kMissionCompleteCommandId) {
@@ -350,6 +395,11 @@ int main(int argc, char* argv[])
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
+
+  if (stopRequested != 0) {
+    OPERATOR_LOG("stop signal received, saving simulation log");
+  }
+  saveSimulationLog(simSteps, opts.simOutput);
 
   if (MISSION_COMPLETE) {
     // Виключно для зручності тестування, щоб не вбивати процесс вручну

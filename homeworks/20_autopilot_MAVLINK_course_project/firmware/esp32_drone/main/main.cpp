@@ -3,11 +3,12 @@
 
 #include "drone/DroneNode.hpp"
 #include "drone/EmbeddedConfigs.hpp"
+#include "EspUartLink.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "interfaces/IDroneOutput.hpp"
 #include "mavlink/Codec.hpp"
-#include "mavlink/Identity.hpp"
+#include "mavlink/Endpoint.hpp"
 
 namespace {
 
@@ -19,15 +20,27 @@ constexpr const DroneConfig& kConfig = kEmbeddedConfig.drone;
 constexpr float kPhysicsTimeStep = kEmbeddedConfig.physicsTimeStep;
 constexpr float kTimeScale = 1.0f;  // на залізі реальний час
 
-// Друкування в консоль повідомлень ядра, замість відправки по UART
-class ConsoleOutput : public IDroneOutput {
+constexpr uart_port_t kLinkUart = UART_NUM_1;  // Вільний UART канал
+constexpr int kLinkTxPin = 1;                  // Фізичний пін 1
+constexpr int kLinkRxPin = 2;                  // Фізичний пін 2
+constexpr int kLinkBaudRate = 115200;          // Швидкість передачі даних аналогічна до PI
+
+class DroneOutput : public IDroneOutput {
 public:
+  explicit DroneOutput(const mav::MavlinkEndpoint& endpoint)
+    : endpoint(endpoint)
+  {
+  }
+
   void send(const mavlink_message_t& msg) override
   {
+    endpoint.send(msg);
+
     if (msg.msgid != MAVLINK_MSG_ID_LOCAL_POSITION_NED) {
       return;
     }
 
+    // Другування позиції в лог раз на секунду (про всяк випадок)
     if (telemetryCount++ % 10 == 0) {
       const mav::LocalPositionNed position = mav::parse_local_position_ned(msg);
       std::printf("time %u ms  position %.2f %.2f  velocity %.2f %.2f\n",
@@ -50,6 +63,7 @@ public:
   void onMissionComplete() override { std::printf("mission complete notification received\n"); }
 
 private:
+  const mav::MavlinkEndpoint& endpoint;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
   uint32_t telemetryCount = 0;
 };
 
@@ -57,7 +71,14 @@ private:
 
 extern "C" void app_main()
 {
-  ConsoleOutput output;
+  const EspUartLink link(kLinkUart, kLinkTxPin, kLinkRxPin, kLinkBaudRate);
+  if (!link.isOpen()) {
+    std::printf("failed to open UART %d\n", static_cast<int>(kLinkUart));
+    return;
+  }
+  const mav::MavlinkEndpoint endpoint(link, MAVLINK_COMM_1);
+
+  DroneOutput output(endpoint);
   DroneNode droneNode(kConfig, kPhysicsTimeStep, kTimeScale, output);
 
   std::printf("esp32_drone started  config %d %s  position %.0f %.0f\n",
@@ -66,10 +87,11 @@ extern "C" void app_main()
               static_cast<double>(kConfig.startPos.x),
               static_cast<double>(kConfig.startPos.y));
 
-  // Даємо газ, як автопілот, щоб у консолі було видно рух
-  droneNode.onMessage(mav::pack_radio_control_channels_override(mav::kAutopilot, mav::kVehicle, {.accel = 1.0f, .turnRate = 0.0f}));
-
   for (;;) {
+    for (const mavlink_message_t& msg : endpoint.poll()) {
+      droneNode.onMessage(msg);
+    }
+
     droneNode.update(0.1f);
     vTaskDelay(pdMS_TO_TICKS(100));
   }

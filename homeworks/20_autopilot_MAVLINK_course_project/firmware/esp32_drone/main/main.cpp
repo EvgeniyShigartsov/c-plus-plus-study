@@ -116,9 +116,18 @@ extern "C" void app_main()
   int64_t lastUpdateMicroseconds = esp_timer_get_time();
   TickType_t lastWakeTime = xTaskGetTickCount();
 
+  bool missionStarted = false;
+
   while (!droneNode.isMissionComplete() && !droneNode.isRebootRequested()) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
       droneNode.onMessage(msg);
+
+      // Місія починається коли прийшла перша команда ззовні (крім рестарту)
+      // USB-консоль після перезапуску перепідключається не одразу, і найперші рядки не видно
+      if (!missionStarted && !droneNode.isRebootRequested()) {
+        droneLog("MISSION STARTED");
+        missionStarted = true;
+      }
     }
 
     const int64_t nowMicroseconds = esp_timer_get_time();  // Реальний час що минув

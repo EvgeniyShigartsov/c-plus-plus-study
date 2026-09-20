@@ -20,6 +20,10 @@ public:
 
   [[nodiscard]] bool isMissionComplete() const;
 
+  // Місія почалась, коли прийшло перше повідомлення ззовні (крім команди перезавантаження). До цього часу годинник і фізика стоять,
+  // тому початок місії не залежить від того, скільки дрон простояв увімкнений
+  [[nodiscard]] bool isMissionStarted() const;
+
   // Прийшла команда перезавантажитись, саме перезавантаження робить дрон
   [[nodiscard]] bool isRebootRequested() const;
 
@@ -35,6 +39,7 @@ private:
   mav::RadioControlOverride lastOperatorOverride{.roll = mav::kPwmNeutral, .throttle = mav::kPwmNeutral};
 
   bool dropped = false;
+  bool MISSION_STARTED = false;
   bool MISSION_COMPLETE = false;
   bool REBOOT_REQUESTED = false;
 

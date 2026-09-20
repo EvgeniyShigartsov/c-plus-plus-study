@@ -104,6 +104,8 @@ public:
     }
   }
 
+  void onMissionStarted() override { DRONE_LOG("mission started)"); }
+
   void onDrop(const Coord& aimPoint, const float timeSinceStart) override
   {
     DRONE_LOG("DROP t=" << timeSinceStart << " aim=(" << aimPoint.x << "," << aimPoint.y << ")");

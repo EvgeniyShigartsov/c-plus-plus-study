@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Запуск на Raspberry Pi: serial_bridge + autopilot + operator_sim, дрон - ESP32 по UART (/dev/serial0).
 # ESP32 має бути прошита з DRONE_CONFIG=<номер-тесту> (idf.py build -DDRONE_CONFIG=N).
-# Годинник дрона йде від його старту, а оператор на основі годиннику дрона бере час сценарію і положення цілей, тому міст перезавантажує дрон (--reset-drone), потім після перезавантаження стартують автопілот і оператор
-# Використання: ./run_hardware.sh [сценарій-оператора] [номер-тесту] [time-scale]
+# Годинник місії дрона стартує з першого повідомлення оператора, а оператор на основі годиннику дрона бере час сценарію і положення цілей, тому міст перезавантажує дрон (--reset-drone), потім після перезавантаження стартують автопілот і оператор
+# Використання: ./run_hardware.sh [сценарій-оператора] [номер-тесту]
 #   сценарій-оператора - ім'я файлу в data/scenarios/ без розширення .txt. Дефолт: 01_clean_attack
 #   номер-тесту        - який тесткейс з testing_data використати, 1=01_sample_circles, 2=02_eliptic_trajectories, etc. Дефолт: 1
-#   time-scale         - на залізі 1 (реальний час). Дефолт: 1
 
 set -u
 cd "$(dirname "$0")"
@@ -14,7 +13,7 @@ BIN="build"
 
 SCENARIO="${1:-01_clean_attack}"
 TEST_N="${2:-1}"
-TIME_SCALE="${3:-1}"
+TIME_SCALE=1 # на залізі завжди реальний час, але без аргументу автопілот візьме time-scale з config.json, тому передача явна
 
 case "$TEST_N" in
   1)  DIR="01_sample_circles" ;;
@@ -41,7 +40,7 @@ SERIAL_DEVICE="/dev/serial0"
 DRONE_REBOOT_WAIT_SEC=3  # скільки чекати поки ESP32 перезавантажиться після команди рестарту
 
 echo "сценарій:  $OPERATOR_SCENARIO"
-echo "тест:      $TEST_N ($DIR), time-scale $TIME_SCALE"
+echo "тест:      $TEST_N ($DIR)"
 echo "ESP32 має бути прошита з DRONE_CONFIG=$TEST_N (перезавантажується мостом автоматично)"
 echo
 

@@ -31,11 +31,14 @@ class RecordingOutput : public IDroneOutput {
 public:
   std::vector<mavlink_message_t> sent;
   std::vector<Coord> drops;
+  int missionStartedCount = 0;
   int missionCompleteCount = 0;
 
   void send(const mavlink_message_t& msg) override { sent.push_back(msg); }
 
   void onDrop(const Coord& aimPoint, const float /* timeSinceStart */) override { drops.push_back(aimPoint); }
+
+  void onMissionStarted() override { missionStartedCount++; }
 
   void onMissionComplete() override { missionCompleteCount++; }
 
@@ -156,6 +159,41 @@ TEST(DroneNodeTest, DropIsReportedOnlyOnce)
   ASSERT_EQ(output.drops.size(), 1u);
   EXPECT_FLOAT_EQ(output.drops[0].x, 235.0f);
   EXPECT_FLOAT_EQ(output.drops[0].y, 250.0f);
+}
+
+TEST(DroneNodeTest, MissionClockStandsStillUntilFirstMessage)
+{
+  RecordingOutput output;
+  DroneNode node(makeConfig(), kPhysicsTimeStep, kTimeScale, output);
+
+  runFor(node, 20);  // 2 секунди реального часу без жодного повідомлення
+
+  EXPECT_FALSE(node.isMissionStarted());
+  EXPECT_EQ(output.missionStartedCount, 0);
+  EXPECT_EQ(output.lastPosition().time_boot_ms, 0U);
+  EXPECT_GE(output.countByMsgId(MAVLINK_MSG_ID_HEARTBEAT), 1);  // heartbeat іде й до початку місії
+
+  node.onMessage(mav::pack_radio_control_channels_override(mav::kGcs, mav::kVehicle, {.accel = 0.0f, .turnRate = 0.0f}));
+  runFor(node, 20);
+
+  node.onMessage(mav::pack_radio_control_channels_override(mav::kGcs, mav::kVehicle, {.accel = 0.0f, .turnRate = 0.0f}));
+
+  EXPECT_TRUE(node.isMissionStarted());
+  EXPECT_EQ(output.missionStartedCount, 1);  // повідомляється один раз, попри кілька повідомлень
+  EXPECT_GE(output.lastPosition().time_boot_ms, 1500U);  // час місії пішов з нуля саме від першого повідомлення
+}
+
+TEST(DroneNodeTest, RebootCommandDoesNotStartMission)
+{
+  RecordingOutput output;
+  DroneNode node(makeConfig(), kPhysicsTimeStep, kTimeScale, output);
+
+  node.onMessage(mav::pack_reboot_command(mav::kAutopilot, mav::kVehicle));
+  runFor(node, 20);
+
+  EXPECT_FALSE(node.isMissionStarted());
+  EXPECT_EQ(output.missionStartedCount, 0);
+  EXPECT_EQ(output.lastPosition().time_boot_ms, 0U);
 }
 
 TEST(DroneNodeTest, RebootCommandRequestsReboot)

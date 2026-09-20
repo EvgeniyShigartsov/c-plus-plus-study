@@ -9,6 +9,7 @@
 class IDroneOutput {
 public:
   virtual void send(const mavlink_message_t& msg) = 0;
+  virtual void onMissionStarted() = 0;
   virtual void onDrop(const Coord& aimPoint, const float timeSinceStart) = 0;
   virtual void onMissionComplete() = 0;
   virtual ~IDroneOutput() = default;

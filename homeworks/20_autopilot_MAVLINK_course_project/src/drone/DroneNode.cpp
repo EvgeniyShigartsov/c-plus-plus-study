@@ -40,6 +40,16 @@ DroneNode::DroneNode(const DroneConfig& config, const float physicsTimeStep, con
 
 void DroneNode::onMessage(const mavlink_message_t& msg)
 {
+  if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kRebootCommandId) {
+    REBOOT_REQUESTED = true;
+    return;
+  }
+
+  if (!MISSION_STARTED) {
+    MISSION_STARTED = true;
+    output.onMissionStarted();
+  }
+
   if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE) {
     const mav::RadioControlOverride rc_override = mav::parse_radio_control_channels_override(msg);
     const mav::Identity from{.sysid = msg.sysid, .compid = msg.compid};
@@ -64,9 +74,6 @@ void DroneNode::onMessage(const mavlink_message_t& msg)
     output.onMissionComplete();
     MISSION_COMPLETE = true;
   }
-  else if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG && mavlink_msg_command_long_get_command(&msg) == mav::kRebootCommandId) {
-    REBOOT_REQUESTED = true;
-  }
 }
 
 void DroneNode::update(const float realDeltaSec)
@@ -76,11 +83,14 @@ void DroneNode::update(const float realDeltaSec)
 
   physics.setControl(mav::to_control_signal(operatorActive ? lastOperatorOverride : lastAutopilotOverride));
 
-  pendingPhysicsTimeSec = std::min(pendingPhysicsTimeSec + realDeltaSec * timeScale, maxCatchUpSec);
+  // Поки місія не почалась, час місії не йде
+  if (MISSION_STARTED) {
+    pendingPhysicsTimeSec = std::min(pendingPhysicsTimeSec + realDeltaSec * timeScale, maxCatchUpSec);
 
-  while (pendingPhysicsTimeSec >= physicsTimeStep) {
-    physics.stepPhysics(physicsTimeStep);
-    pendingPhysicsTimeSec -= physicsTimeStep;
+    while (pendingPhysicsTimeSec >= physicsTimeStep) {
+      physics.stepPhysics(physicsTimeStep);
+      pendingPhysicsTimeSec -= physicsTimeStep;
+    }
   }
 
   secondsSinceHeartbeat += realDeltaSec;
@@ -93,6 +103,11 @@ void DroneNode::update(const float realDeltaSec)
     sendTelemetry();
     nextTelemetryTime += simTimeStep;
   }
+}
+
+bool DroneNode::isMissionStarted() const
+{
+  return MISSION_STARTED;
 }
 
 bool DroneNode::isMissionComplete() const

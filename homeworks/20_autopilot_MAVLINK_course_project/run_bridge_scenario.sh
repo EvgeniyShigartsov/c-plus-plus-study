@@ -55,10 +55,10 @@ sleep 0.5
 PIDS+=("$!")
 "$BIN/hm20_serial_bridge" --serial-device "$BRIDGE_PORT" &
 PIDS+=("$!")
-"$BIN/hm20_autopilot" --config-path "$CONFIG" --ammo-path "$AMMO" --ballistic-table "$BALLISTIC" --sim-output "$REPO_ROOT/simulation.json" --time-scale "$TIME_SCALE" &
+"$BIN/hm20_autopilot" --config-path "$CONFIG" --ammo-path "$AMMO" --ballistic-table "$BALLISTIC" --time-scale "$TIME_SCALE" &
 PIDS+=("$!")
 sleep 0.2
-"$BIN/hm20_operator_sim" --operator-scenario "$OPERATOR_SCENARIO" --config-path "$CONFIG" --ammo-path "$AMMO" --targets "$TARGETS" --time-scale "$TIME_SCALE" &
+"$BIN/hm20_operator_sim" --operator-scenario "$OPERATOR_SCENARIO" --config-path "$CONFIG" --ammo-path "$AMMO" --targets "$TARGETS" --time-scale "$TIME_SCALE" --sim-output "$REPO_ROOT/simulation.json" &
 PIDS+=("$!")
 
 # закриття дрота після того як сценарій відпрацював

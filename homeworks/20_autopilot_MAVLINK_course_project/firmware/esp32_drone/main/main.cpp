@@ -31,7 +31,7 @@ constexpr int kLinkBaudRate = 115200;          // Швидкість перед�
 constexpr TickType_t kLoopPeriod = pdMS_TO_TICKS(10);
 constexpr uint32_t kIterationsPerReport = 1000;  // Тимчасово для перевірок, скільки оборотів запізнилось
 
-constexpr uint64_t kRestartDelay = 500;
+constexpr uint32_t kRestartDelayMs = 500;
 
 class DroneOutput : public IDroneOutput {
 public:
@@ -75,9 +75,9 @@ private:
   uint32_t telemetryCount = 0;
 };
 
-float microsecondsToSeconds(const int64_t uniseconds)
+float microsecondsToSeconds(const int64_t microseconds)
 {
-  return static_cast<float>(uniseconds) / 1'000'000.0f;
+  return static_cast<float>(microseconds) / 1'000'000.0f;
 }
 
 }  // namespace

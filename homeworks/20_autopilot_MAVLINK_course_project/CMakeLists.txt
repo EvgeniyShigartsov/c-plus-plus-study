@@ -40,7 +40,7 @@ target_include_directories(hm20_mavlink SYSTEM PUBLIC ${MAVLINK_DIR})
 target_compile_options(hm20_mavlink PRIVATE ${HM20_WARNINGS})
 
 add_library(hm20_sim STATIC src/sim/DronePhysics.cpp src/sim/JsonTargetProvider.cpp
-                            src/sim/FileConfigLoader.cpp)
+                            src/sim/FileConfigLoader.cpp src/sim/SimulationLog.cpp)
 target_include_directories(hm20_sim PUBLIC include)
 target_compile_options(hm20_sim PRIVATE ${HM20_WARNINGS})
 

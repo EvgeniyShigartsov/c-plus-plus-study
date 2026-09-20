@@ -2,7 +2,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -18,13 +17,11 @@
 #include "MissionProcessor.hpp"
 #include "providers/CachedTargetProvider.hpp"
 #include "sim/FileConfigLoader.hpp"
+#include "sim/SimulationLog.hpp"
 #include "solvers/TableSolver.hpp"
-#include "third_party/json.hpp"
 
 #define AUTOPILOT_LOG(msg) LOG("[AUTOPILOT]: " << msg)
 #define AUTOPILOT_DEBUG(msg) DEBUG("[AUTOPILOT]: " << msg)
-
-using json = nlohmann::json;
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -98,37 +95,6 @@ CliOptions parseArgs(const std::vector<std::string>& args)
   }
 
   return opts;
-}
-
-json toJsonXY(const Coord& coord)
-{
-  return {{"x", coord.x}, {"y", coord.y}};
-}
-
-void writeSimulationJson(const std::vector<SimStep>& stepsLog, const std::string& path)
-{
-  json out;
-
-  out["totalSteps"] = stepsLog.size();
-  out["steps"] = json::array();
-
-  for (const SimStep& step : stepsLog) {
-    json outStep;
-
-    outStep["position"] = toJsonXY(step.pos);
-    outStep["direction"] = step.direction;
-    outStep["state"] = step.state;
-    outStep["targetIndex"] = step.targetIdx;
-    outStep["dropPoint"] = toJsonXY(step.dropPoint);
-    outStep["aimPoint"] = toJsonXY(step.aimPoint);
-    outStep["predictedTarget"] = toJsonXY(step.predictedTarget);
-    outStep["timeSecSinceStart"] = step.timeSecSinceStart;
-
-    out["steps"].push_back(outStep);
-  }
-
-  std::ofstream outJsonFile(path);
-  outJsonFile << out.dump(2);
 }
 
 int main(int argc, char* argv[])
@@ -226,8 +192,12 @@ int main(int argc, char* argv[])
                                                    .target_id = static_cast<uint8_t>(targetIdx),
                                                    .bomb_flight_time_sec = bombFlightTime}));
 
-    writeSimulationJson(stepsLog, opts.simOutput);
-    AUTOPILOT_LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
+    if (writeSimulationJson(stepsLog, opts.simOutput)) {
+      AUTOPILOT_LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
+    }
+    else {
+      AUTOPILOT_LOG("failed to write " << opts.simOutput);
+    }
 
     const mavlink_message_t missionCompleteMsg =
       mav::pack_mission_complete_notification(mav::kAutopilot, mav::kVehicle, {.completed = true});

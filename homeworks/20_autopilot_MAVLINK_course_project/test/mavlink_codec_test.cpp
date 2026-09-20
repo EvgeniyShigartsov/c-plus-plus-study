@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <numbers>
+#include <optional>
 
 #include "link/UdpLink.hpp"
 #include "mavlink/Codec.hpp"
@@ -314,6 +315,82 @@ TEST(MavlinkCodec, StatusTextTruncatesAtWireLimit)
   const mav::StatusText parsed = mav::parse_status_text(mav::pack_status_text(mav::kAutopilot, {.text = too_long}));
 
   EXPECT_EQ(parsed.text.size(), mav::kStatusTextMaxLength);
+}
+
+TEST(MavlinkCodec, SimStepRoundTripForEveryState)
+{
+  const std::array<const char*, 6> states{"Stopped", "Turning", "Accelerating", "Moving", "Decelerating", "WaitingForConnection"};
+
+  for (const char* state : states) {
+    const SimStep original{
+      .pos = {-12.5f, 340.25f},
+      .dropPoint = {100.0f, -200.5f},
+      .aimPoint = {101.5f, -199.0f},
+      .predictedTarget = {-3.0f, 4.0f},
+      .direction = -2.5f,
+      .state = state,
+      .targetIdx = 3,
+      .step = 123456,
+      .timeSecSinceStart = 1234.56f,
+    };
+
+    const std::optional<SimStep> parsed = mav::parse_sim_step(mav::pack_sim_step(mav::kAutopilot, original));
+
+    ASSERT_TRUE(parsed.has_value()) << state;
+    EXPECT_EQ(parsed->state, original.state);
+    EXPECT_EQ(parsed->step, original.step);
+    EXPECT_EQ(parsed->targetIdx, original.targetIdx);
+    EXPECT_FLOAT_EQ(parsed->pos.x, original.pos.x);
+    EXPECT_FLOAT_EQ(parsed->pos.y, original.pos.y);
+    EXPECT_FLOAT_EQ(parsed->dropPoint.x, original.dropPoint.x);
+    EXPECT_FLOAT_EQ(parsed->dropPoint.y, original.dropPoint.y);
+    EXPECT_FLOAT_EQ(parsed->aimPoint.x, original.aimPoint.x);
+    EXPECT_FLOAT_EQ(parsed->aimPoint.y, original.aimPoint.y);
+    EXPECT_FLOAT_EQ(parsed->predictedTarget.x, original.predictedTarget.x);
+    EXPECT_FLOAT_EQ(parsed->predictedTarget.y, original.predictedTarget.y);
+    EXPECT_FLOAT_EQ(parsed->direction, original.direction);
+    EXPECT_FLOAT_EQ(parsed->timeSecSinceStart, original.timeSecSinceStart);
+  }
+}
+
+TEST(MavlinkCodec, SimStepUnknownStateBecomesEmpty)
+{
+  const SimStep original{.pos = {0.0f, 0.0f}, .state = "Flying", .targetIdx = 0};
+
+  const std::optional<SimStep> parsed = mav::parse_sim_step(mav::pack_sim_step(mav::kAutopilot, original));
+
+  ASSERT_TRUE(parsed.has_value());
+  EXPECT_TRUE(parsed->state.empty());
+}
+
+TEST(MavlinkCodec, SimStepSurvivesWireEncoding)
+{
+  const SimStep original{.pos = {1.0f, 2.0f}, .state = "Moving", .targetIdx = 2, .step = 42, .timeSecSinceStart = 0.42f};
+  const mavlink_message_t msg = mav::pack_sim_step(mav::kAutopilot, original);
+
+  std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buffer{};
+  const uint16_t length = mavlink_msg_to_send_buffer(buffer.data(), &msg);
+  mavlink_message_t received{};
+  mavlink_status_t status{};
+  bool complete = false;
+  for (uint16_t i = 0; i < length && !complete; ++i) {
+    complete = mavlink_parse_char(MAVLINK_COMM_3, buffer[i], &received, &status) != 0;
+  }
+
+  ASSERT_TRUE(complete);
+  const std::optional<SimStep> parsed = mav::parse_sim_step(received);
+  ASSERT_TRUE(parsed.has_value());
+  EXPECT_EQ(parsed->step, 42);
+  EXPECT_EQ(parsed->state, "Moving");
+}
+
+TEST(MavlinkCodec, SimStepRejectsForeignDebugFloatArray)
+{
+  std::array<float, MAVLINK_MSG_DEBUG_FLOAT_ARRAY_FIELD_DATA_LEN> data{};
+  mavlink_message_t msg{};
+  mavlink_msg_debug_float_array_pack(1, 1, &msg, 0, "other", 0, data.data());
+
+  EXPECT_FALSE(mav::parse_sim_step(msg).has_value());
 }
 
 TEST(MavlinkEndpoint, ConstructsAndPollsIdleSocketCleanly)

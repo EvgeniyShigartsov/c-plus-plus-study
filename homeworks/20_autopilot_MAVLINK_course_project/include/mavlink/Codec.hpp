@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include <common/mavlink.h>
@@ -155,4 +156,6 @@ CommandAcknowledgement parse_command_acknowledgement(const mavlink_message_t& ms
 mavlink_message_t pack_status_text(const Identity& from, const StatusText& status);
 StatusText parse_status_text(const mavlink_message_t& msg);
 
+mavlink_message_t pack_sim_step(const Identity& from, const SimStep& step);
+std::optional<SimStep> parse_sim_step(const mavlink_message_t& msg);
 }  // namespace mav

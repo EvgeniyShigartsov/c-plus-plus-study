@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <numbers>
+#include <string_view>
 
 #include "mavlink/Frames.hpp"
 #include "mavlink/RadioControl.hpp"
@@ -453,6 +454,117 @@ StatusText parse_status_text(const mavlink_message_t& msg)
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
   return {.severity = raw.severity, .text = std::string(raw.text, strnlen(raw.text, kStatusTextMaxLength))};
+}
+
+// --- DEBUG_FLOAT_ARRAY (для SimStep) ---
+namespace {
+
+constexpr std::string_view kSimStepName = "simstep";
+
+// Порядок як в enum DroneState, по дроту прилітає індекс
+constexpr std::array<std::string_view, 6> kStateNames{
+  "Stopped",
+  "Turning",
+  "Accelerating",
+  "Moving",
+  "Decelerating",
+  "WaitingForConnection",
+};
+constexpr float kUnknownState = -1.0f;
+
+// Розкладка полів SimStep у data[] у DEBUG_FLOAT_ARRAY
+enum SimStepField : std::size_t {
+  kStepIdx,
+  kTimeSec,
+  kPosX,
+  kPosY,
+  kDirection,
+  kState,
+  kTargetIdx,
+  kDropX,
+  kDropY,
+  kAimX,
+  kAimY,
+  kPredictedX,
+  kPredictedY,
+  kFieldCount,
+};
+
+float to_state_code(const std::string_view name)
+{
+  const auto* found = std::ranges::find(kStateNames, name);
+
+  return found == kStateNames.end() ? kUnknownState : static_cast<float>(found - kStateNames.begin());
+}
+
+std::string to_state_name(const float code)
+{
+  const int index = static_cast<int>(code);
+  if (index < 0 || index >= static_cast<int>(kStateNames.size())) {
+    return {};
+  }
+  return std::string(kStateNames[static_cast<std::size_t>(index)]);
+}
+
+}  // namespace
+
+mavlink_message_t pack_sim_step(const Identity& from, const SimStep& step)
+{
+  std::array<float, MAVLINK_MSG_DEBUG_FLOAT_ARRAY_FIELD_DATA_LEN> data{};
+
+  data[SimStepField::kStepIdx] = static_cast<float>(step.step);
+  data[SimStepField::kTimeSec] = step.timeSecSinceStart;
+  data[SimStepField::kPosX] = step.pos.x;
+  data[SimStepField::kPosY] = step.pos.y;
+  data[SimStepField::kDirection] = step.direction;
+  data[SimStepField::kState] = to_state_code(step.state);
+  data[SimStepField::kTargetIdx] = static_cast<float>(step.targetIdx);
+  data[SimStepField::kDropX] = step.dropPoint.x;
+  data[SimStepField::kDropY] = step.dropPoint.y;
+  data[SimStepField::kAimX] = step.aimPoint.x;
+  data[SimStepField::kAimY] = step.aimPoint.y;
+  data[SimStepField::kPredictedX] = step.predictedTarget.x;
+  data[SimStepField::kPredictedY] = step.predictedTarget.y;
+
+  std::array<char, MAVLINK_MSG_DEBUG_FLOAT_ARRAY_FIELD_NAME_LEN> name{};
+  std::ranges::copy(kSimStepName, name.begin());
+
+  constexpr uint16_t kArrayIdUnused = 0;
+
+  mavlink_message_t msg{};
+  mavlink_msg_debug_float_array_pack(from.sysid,
+                                     from.compid,
+                                     &msg,
+                                     static_cast<uint64_t>(std::llround(step.timeSecSinceStart * 1e6f)),
+                                     name.data(),
+                                     kArrayIdUnused,
+                                     data.data());
+  return msg;
+}
+
+std::optional<SimStep> parse_sim_step(const mavlink_message_t& msg)
+{
+  mavlink_debug_float_array_t raw{};
+  mavlink_msg_debug_float_array_decode(&msg, &raw);
+
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  const bool isSimStepReceived = std::string_view(raw.name, strnlen(raw.name, sizeof(raw.name))) == kSimStepName;
+
+  if (!isSimStepReceived) {
+    return std::nullopt;
+  }
+
+  return SimStep{
+    .pos = {.x = raw.data[SimStepField::kPosX], .y = raw.data[SimStepField::kPosY]},
+    .dropPoint = {.x = raw.data[SimStepField::kDropX], .y = raw.data[SimStepField::kDropY]},
+    .aimPoint = {.x = raw.data[SimStepField::kAimX], .y = raw.data[SimStepField::kAimY]},
+    .predictedTarget = {.x = raw.data[SimStepField::kPredictedX], .y = raw.data[SimStepField::kPredictedY]},
+    .direction = raw.data[SimStepField::kDirection],
+    .state = to_state_name(raw.data[SimStepField::kState]),
+    .targetIdx = static_cast<int>(raw.data[SimStepField::kTargetIdx]),
+    .step = static_cast<int>(raw.data[SimStepField::kStepIdx]),
+    .timeSecSinceStart = raw.data[SimStepField::kTimeSec],
+  };
 }
 
 }  // namespace mav

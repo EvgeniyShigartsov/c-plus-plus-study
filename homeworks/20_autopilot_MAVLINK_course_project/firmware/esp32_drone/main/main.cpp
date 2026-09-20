@@ -127,7 +127,7 @@ extern "C" void app_main()
   }
 
   std::printf("mission complete, restarting\n");
-  vTaskDelay(pdMS_TO_TICKS(kRestartDelay));
+  vTaskDelay(pdMS_TO_TICKS(kRestartDelayMs));
 
   // Перезавантаження заліза для наступного тесту
   esp_restart();

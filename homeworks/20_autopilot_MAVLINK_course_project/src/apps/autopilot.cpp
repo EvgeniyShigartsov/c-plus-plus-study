@@ -42,7 +42,7 @@ struct CliOptions {
                                        // точки скиду з кожним тіком стає менш точним, але якщо дрон досяг точки скиду раніше за цей таймаут
                                        // - спробувати уразити ціль. Так само ділиться на timeScale для консистентності часу.
   float timeScale = -1.0f;             // -1 = не задано явно, береться з config.json
-  std::string simOutput = "simulation.json";  // реальний (не заглушковий) лог кроків наведення, легасі-формат ДЗ-09
+  std::string simOutput;  // Порожньо = вимкнено, опція на випадок "використати автопілот як чорний ящик", а так симуляцію пише оператор
 };
 
 CliOptions parseArgs(const std::vector<std::string>& args)
@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
                   << "  own-port        = " << opts.ownPort << '\n'
                   << "  heartbeat-timeout = " << opts.heartbeatTimeoutSec << '\n'
                   << "  drop-refusal-timeout = " << opts.dropRefusalTimeoutSec << '\n'
-                  << "  sim-output      = " << opts.simOutput);
+                  << "  sim-output      = " << (opts.simOutput.empty() ? "(disabled)" : opts.simOutput));
 
   FileConfigLoader loader;
   if (!loader.load(opts.configPath, opts.ammoPath)) {
@@ -192,11 +192,13 @@ int main(int argc, char* argv[])
                                                    .target_id = static_cast<uint8_t>(targetIdx),
                                                    .bomb_flight_time_sec = bombFlightTime}));
 
-    if (writeSimulationJson(stepsLog, opts.simOutput)) {
-      AUTOPILOT_LOG("simulation.json written: " << stepsLog.size() << " steps -> " << opts.simOutput);
-    }
-    else {
-      AUTOPILOT_LOG("failed to write " << opts.simOutput);
+    if (!opts.simOutput.empty()) {
+      if (writeSimulationJson(stepsLog, opts.simOutput)) {
+        AUTOPILOT_LOG("simulation log written: " << stepsLog.size() << " steps: " << opts.simOutput);
+      }
+      else {
+        AUTOPILOT_LOG("failed to write: " << opts.simOutput);
+      }
     }
 
     const mavlink_message_t missionCompleteMsg =
@@ -300,7 +302,12 @@ int main(int argc, char* argv[])
           }
 
           lastStep = mission->step(lastTelemetry, connectionLost, authority.state() == AuthorityState::Yielding);
-          stepsLog.push_back(lastStep);
+
+          // Відправка логів оператору кожен крок
+          gcsEndpoint.send(mav::pack_sim_step(mav::kAutopilot, lastStep));
+          if (!opts.simOutput.empty()) {
+            stepsLog.push_back(lastStep);
+          }
         }
 
         const bool operatorHeartbeatOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;

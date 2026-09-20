@@ -11,7 +11,8 @@ idf_component_register(
     INCLUDE_DIRS
     "${HM20_ROOT}/include"
     REQUIRES
-    esp_driver_uart)
+    esp_driver_uart
+    esp_timer)
 
 target_include_directories(${COMPONENT_LIB} SYSTEM
                            PUBLIC "${HM20_ROOT}/include/third_party/c_library_v2")

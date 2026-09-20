@@ -4,6 +4,8 @@
 #include "drone/DroneNode.hpp"
 #include "drone/EmbeddedConfigs.hpp"
 #include "EspUartLink.hpp"
+#include "esp_system.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "interfaces/IDroneOutput.hpp"
@@ -24,6 +26,12 @@ constexpr uart_port_t kLinkUart = UART_NUM_1;  // Вільний UART канал
 constexpr int kLinkTxPin = 1;                  // Фізичний пін 1
 constexpr int kLinkRxPin = 2;                  // Фізичний пін 2
 constexpr int kLinkBaudRate = 115200;          // Швидкість передачі даних аналогічна до PI
+
+// Частота головного циклу = крок фізики (10 мс): команди від оператора мають оброблятись за <= 10 мс
+constexpr TickType_t kLoopPeriod = pdMS_TO_TICKS(10);
+constexpr uint32_t kIterationsPerReport = 1000;  // Тимчасово для перевірок, скільки оборотів запізнилось
+
+constexpr uint64_t kRestartDelay = 500;
 
 class DroneOutput : public IDroneOutput {
 public:
@@ -67,6 +75,11 @@ private:
   uint32_t telemetryCount = 0;
 };
 
+float microsecondsToSeconds(const int64_t uniseconds)
+{
+  return static_cast<float>(uniseconds) / 1'000'000.0f;
+}
+
 }  // namespace
 
 extern "C" void app_main()
@@ -87,12 +100,35 @@ extern "C" void app_main()
               static_cast<double>(kConfig.startPos.x),
               static_cast<double>(kConfig.startPos.y));
 
-  for (;;) {
+  int64_t lastUpdateMicroseconds = esp_timer_get_time();
+  TickType_t lastWakeTime = xTaskGetTickCount();
+  uint32_t iterations = 0;
+  uint32_t lateIterations = 0;
+
+  while (!droneNode.isMissionComplete()) {
     for (const mavlink_message_t& msg : endpoint.poll()) {
       droneNode.onMessage(msg);
     }
 
-    droneNode.update(0.1f);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    const int64_t nowMicroseconds = esp_timer_get_time();  // Реальний час що минув
+
+    const float realDeltaSec = microsecondsToSeconds(nowMicroseconds - lastUpdateMicroseconds);
+    droneNode.update(realDeltaSec);
+    lastUpdateMicroseconds = nowMicroseconds;
+
+    // Приспати процес до наступної точки розкладу (обробки даних)
+    if (xTaskDelayUntil(&lastWakeTime, kLoopPeriod) == pdFALSE) {
+      lateIterations++;
+    }
+
+    if (++iterations % kIterationsPerReport == 0) {
+      std::printf("loop iterations %u  late %u\n", static_cast<unsigned>(iterations), static_cast<unsigned>(lateIterations));
+    }
   }
+
+  std::printf("mission complete, restarting\n");
+  vTaskDelay(pdMS_TO_TICKS(kRestartDelay));
+
+  // Перезавантаження заліза для наступного тесту
+  esp_restart();
 }

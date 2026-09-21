@@ -133,7 +133,7 @@ extern "C" void app_main()
     xTaskDelayUntil(&lastWakeTime, kLoopPeriod);
   }
 
-  droneLog(droneNode.isRebootRequested() ? "reboot requested, restarting" : "mission complete, restarting");
+  droneLog(droneNode.isRebootRequested() ? "REBOOT REQUESTED, restarting" : "MISSION COMPLETE, restarting");
   vTaskDelay(pdMS_TO_TICKS(kRestartDelayMs));
 
   // Перезавантаження заліза для наступного тесту

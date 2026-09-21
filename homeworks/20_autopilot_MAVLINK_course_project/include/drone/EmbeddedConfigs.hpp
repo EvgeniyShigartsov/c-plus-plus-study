@@ -47,7 +47,7 @@ inline constexpr std::array<EmbeddedDroneConfig, 10> kEmbeddedDroneConfigs{{
              .turnThreshold = 0.1f},
    .physicsTimeStep = 0.01f},
   {.name = "04_star_trajectories",
-   .drone = {.startPos = {.x = 124.0f, .y = 124.0f},
+   .drone = {.startPos = {.x = 123.0f, .y = 123.0f},
              .altitude = 120.0f,
              .initialDir = 1.0f,
              .v0 = 15.0f,

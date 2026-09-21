@@ -58,7 +58,7 @@ add_executable(hm20_serial_bridge src/apps/serial_bridge.cpp)
 target_link_libraries(hm20_serial_bridge PRIVATE hm20_bridge hm20_mavlink)
 target_compile_options(hm20_serial_bridge PRIVATE ${HM20_WARNINGS})
 
-foreach(APP autopilot drone_sim operator_sim verdict)
+foreach(APP autopilot drone_sim operator_sim)
     add_executable(hm20_${APP} src/apps/${APP}.cpp)
     target_link_libraries(hm20_${APP} PRIVATE hm20_guidance hm20_mavlink hm20_sim hm20_drone)
     target_compile_options(hm20_${APP} PRIVATE ${HM20_WARNINGS})

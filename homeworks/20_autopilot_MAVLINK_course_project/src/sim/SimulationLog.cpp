@@ -25,9 +25,11 @@ bool writeSimulationJson(const std::vector<SimStep>& stepsLog, const std::string
   for (const SimStep& step : stepsLog) {
     json outStep;
 
+    const bool addFailsafeSuffix = step.failsafe && step.state != "WaitingForConnection";
+
     outStep["position"] = toJsonXY(step.pos);
     outStep["direction"] = step.direction;
-    outStep["state"] = step.failsafe ? step.state + " (Failsafe)" : step.state;
+    outStep["state"] = addFailsafeSuffix ? step.state + " (Failsafe)" : step.state;
     outStep["targetIndex"] = step.targetIdx;
     outStep["dropPoint"] = toJsonXY(step.dropPoint);
     outStep["aimPoint"] = toJsonXY(step.aimPoint);

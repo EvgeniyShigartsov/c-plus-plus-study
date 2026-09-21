@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Те саме, що run_scenario.sh, але дрон говорить з автопілотом і оператором через serial_bridge (імітація роботи з залізом (ESP32) на хості)
+# Те саме, що run_scenario.sh, але дрон говорить з автопілотом і оператором через serial_bridge (імітація роботи з залізом, ESP32 на хості)
 # drone_sim (serialDevice) <-> пара віртуальних портів (socat) <-> serial_bridge <-> UDP <-> autopilot + operator_sim
 # Використання: ./run_bridge_scenario.sh [сценарій-оператора] [номер-тесту] [time-scale]
 #   сценарій-оператора - ім'я файлу в data/scenarios/ без розширення .txt. Дефолт: 01_clean_attack

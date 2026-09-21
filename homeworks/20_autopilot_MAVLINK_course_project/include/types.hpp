@@ -73,6 +73,7 @@ struct SimStep {
   int targetIdx;
   int step = 0;
   float timeSecSinceStart = 0.0f;
+  bool failsafe = false;
 };
 
 struct Simulation {

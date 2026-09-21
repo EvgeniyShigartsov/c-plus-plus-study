@@ -27,7 +27,7 @@ bool writeSimulationJson(const std::vector<SimStep>& stepsLog, const std::string
 
     outStep["position"] = toJsonXY(step.pos);
     outStep["direction"] = step.direction;
-    outStep["state"] = step.state;
+    outStep["state"] = step.failsafe ? step.state + " (Failsafe)" : step.state;
     outStep["targetIndex"] = step.targetIdx;
     outStep["dropPoint"] = toJsonXY(step.dropPoint);
     outStep["aimPoint"] = toJsonXY(step.aimPoint);

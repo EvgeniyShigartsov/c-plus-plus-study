@@ -302,6 +302,7 @@ int main(int argc, char* argv[])
           }
 
           lastStep = mission->step(lastTelemetry, connectionLost, authority.state() == AuthorityState::Yielding);
+          lastStep.failsafe = authority.state() == AuthorityState::Failsafe;
 
           // Відправка логів оператору кожен крок
           gcsEndpoint.send(mav::pack_sim_step(mav::kAutopilot, lastStep));

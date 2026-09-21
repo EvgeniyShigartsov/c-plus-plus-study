@@ -497,6 +497,7 @@ enum SimStepField : std::size_t {
   kAimY,
   kPredictedX,
   kPredictedY,
+  kFailsafe,
   kFieldCount,
 };
 
@@ -535,6 +536,7 @@ mavlink_message_t pack_sim_step(const Identity& from, const SimStep& step)
   data[SimStepField::kAimY] = step.aimPoint.y;
   data[SimStepField::kPredictedX] = step.predictedTarget.x;
   data[SimStepField::kPredictedY] = step.predictedTarget.y;
+  data[SimStepField::kFailsafe] = step.failsafe ? 1.0f : 0.0f;
 
   std::array<char, MAVLINK_MSG_DEBUG_FLOAT_ARRAY_FIELD_NAME_LEN> name{};
   std::ranges::copy(kSimStepName, name.begin());
@@ -574,6 +576,7 @@ std::optional<SimStep> parse_sim_step(const mavlink_message_t& msg)
     .targetIdx = static_cast<int>(raw.data[SimStepField::kTargetIdx]),
     .step = static_cast<int>(raw.data[SimStepField::kStepIdx]),
     .timeSecSinceStart = raw.data[SimStepField::kTimeSec],
+    .failsafe = raw.data[SimStepField::kFailsafe] != 0.0f,
   };
 }
 

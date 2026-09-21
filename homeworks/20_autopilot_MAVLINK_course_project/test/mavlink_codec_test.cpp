@@ -321,7 +321,11 @@ TEST(MavlinkCodec, SimStepRoundTripForEveryState)
 {
   const std::array<const char*, 6> states{"Stopped", "Turning", "Accelerating", "Moving", "Decelerating", "WaitingForConnection"};
 
+  bool failsafe = false;
+
   for (const char* state : states) {
+    failsafe = !failsafe;
+
     const SimStep original{
       .pos = {-12.5f, 340.25f},
       .dropPoint = {100.0f, -200.5f},
@@ -332,6 +336,7 @@ TEST(MavlinkCodec, SimStepRoundTripForEveryState)
       .targetIdx = 3,
       .step = 123456,
       .timeSecSinceStart = 1234.56f,
+      .failsafe = failsafe,
     };
 
     const std::optional<SimStep> parsed = mav::parse_sim_step(mav::pack_sim_step(mav::kAutopilot, original));
@@ -340,6 +345,7 @@ TEST(MavlinkCodec, SimStepRoundTripForEveryState)
     EXPECT_EQ(parsed->state, original.state);
     EXPECT_EQ(parsed->step, original.step);
     EXPECT_EQ(parsed->targetIdx, original.targetIdx);
+    EXPECT_EQ(parsed->failsafe, original.failsafe);
     EXPECT_FLOAT_EQ(parsed->pos.x, original.pos.x);
     EXPECT_FLOAT_EQ(parsed->pos.y, original.pos.y);
     EXPECT_FLOAT_EQ(parsed->dropPoint.x, original.dropPoint.x);

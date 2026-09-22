@@ -69,7 +69,8 @@ git clone --depth 1 https://github.com/mavlink/c_library_v2.git \
 ### 1. Запуск на хості
 
 1. Зібрати проєкт з кореня репозиторію: `make build-debug`.
-2. Запустити `./homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario.sh <сценарій-оператора> <номер-тесту>`, приклад `./homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario.sh 03_link_lost_failsafe 4`
+2. Запустити `./homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario.sh <сценарій-оператора> <номер-тесту>`, приклад
+`./homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario.sh 03_link_lost_failsafe 4`
 Усі команди запуску на хості наведено у файлі homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario_commands.txt.
 
 ### 2. Запуск на хості з імітацією роботи з залізом
@@ -85,22 +86,38 @@ git clone --depth 1 https://github.com/mavlink/c_library_v2.git \
 
 Передумови:
 
-1. Pi і хост в одній локальній мережі (Internet Sharing хоста для USB-гаджета), обидві сторони знають IP одна одної.
-2. Прошивка ESP32 зібрана і залита з номером конфігу, який дорівнює номеру тесту, що буде запускатись: `idf.py build -DDRONE_CONFIG=<номер-тесту>`, потім `idf.py -p /dev/cu.usbmodemXXXX flash monitor` де "XXXX" номер девайсу у вас на машині, перевірка - ``.
-3. Код синхронізовано на Pi (rsync копіює разом з ним і склоновану бібліотеку MAVLink):
+1. Pi і хост в одній локальній мережі (Internet Sharing хоста для USB-гаджета), обидві сторони знають IP одна одної, та можуть спілкуватись через ці IP.
+
+2. На машині, з якої прошиваєте ESP32, встановлено ESP-IDF, і в терміналі активоване його venv-середовище - без цього `idf.py` не знайдеться.
+```bash
+source ~/.espressif/tools/activate_idf_v6.1.sh
+```
+У терміналі зʼявиться префікс `(venv)` - ознака, що середовище активне.
+
+3. Прошивка ESP32 зібрана і залита з номером конфігу, який дорівнює номеру тесту, що буде запускатись:
+```bash
+idf.py build -DDRONE_CONFIG=<номер-тесту>
+ls /dev/cu.usb*                              # знайти реальний порт плати
+idf.py -p /dev/cu.usbmodemXXXX flash monitor
+```
+"XXXX" - справжній порт з попереднього кроку, підставити замість плейсхолдера.
+
+4. Код синхронізовано на Pi (rsync копіює разом з ним і склоновану бібліотеку MAVLink):
 ```bash
 rsync -av --exclude 'firmware/' --exclude 'build/' --exclude '__pycache__/' \
   homeworks/20_autopilot_MAVLINK_course_project/ <ssh-адреса вашої Raspberry PI>:~/HM-20/
 ```
-4. Підключитись до вашої Raspberry PI та зібрати потрібні цілі. "-j1" бажаний у кінці якщо у вас одноядерна слабка PI (наприклад PI Zero 1.3, 512мб)
+
+5. Зібрати потрібні цілі на Pi. "-j1" бажаний у кінці, якщо у вас одноядерна слабка PI (наприклад PI Zero 1.3, 512мб):
 ```bash
-  'cmake -S ~/HM-20 -B ~/HM-20/build -G Ninja -DCMAKE_BUILD_TYPE=Release && \
-   cmake --build ~/HM-20/build --target hm20_serial_bridge hm20_autopilot -j1'
+cmake -S ~/HM-20 -B ~/HM-20/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build ~/HM-20/build --target hm20_serial_bridge hm20_autopilot -j1
 ```
 
 Запуск (два термінали):
 
-1. На Pi: `cd ~/HM-20 && ./run_hardware_pi.sh <номер-тесту> <ip-хоста>`. Скрипт сам перезавантажує ESP32 (ручний RESET не потрібен) і піднімає міст з автопілотом. Чекаємо рядок READY.
+1. На Pi: `cd ~/HM-20`
+2. `./run_hardware_pi.sh <номер-тесту (1..10)> <ip-хоста>`. Скрипт сам перезавантажує ESP32 (ручний RESET не потрібен) і піднімає міст з автопілотом. Чекаємо рядок READY.
 2. На хості, після READY: `./run_hardware_operator.sh <сценарій> <номер-тесту> <ip-pi>`.
 
 Результат - файл simulation.json у корені репозиторію на хості, там, де запущено оператора.

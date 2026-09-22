@@ -41,7 +41,7 @@
 
 Усі сценарії лежать у папці homeworks/20_autopilot_MAVLINK_course_project/data/scenarios.
 Детальніше про кожен сценарій у файлі сценарію.
-Результат виконання сценарію - файл simulation.json який зберігається на хості, перевірка - http://cppmiltech.com.ua/
+
 
 1. 01_clean_attack - базовий сценарій, оператор ввімкнув модуль автопілота, та почав надсилати дані про цілі. Автопілот сам доводить атаку до кінця.
 
@@ -55,11 +55,33 @@
 
 ## Запуск сценаріїв
 
-Всього є три варіанти запуску, на хості, на залізі, та на хості з імітацією роботи з залізом. Для зручності є окремі .sh скипти які роблять запуск всіх необхідних процесів.
-Кожен 
+Всього є три варіанти запуску, на хості, на залізі, та на хості з імітацією роботи з залізом.
+Для зручності є окремі .sh скипти які роблять запуск всіх необхідних процесів.
+Перед запуском будь якого сценарію необхідно встановити бібліотеку MAVLINK в робочий простір,
+```bash
+git clone --depth 1 https://github.com/mavlink/c_library_v2.git \
+  homeworks/20_autopilot_MAVLINK_course_project/include/third_party/c_library_v2
+```
+Окрім вказання сценарію треба також вказувати номер тесту (конфігів дрона та цілі), які лежать у homeworks/20_autopilot_MAVLINK_course_project/data/testing_data,  01_sample_circles/02_eliptic_trajectories/etc.
+
+Результат виконання сценарію - файл simulation.json який зберігається на хості, перевірка - http://cppmiltech.com.ua/
 
 ### 1. Запуск на хості
 
+1. Зібрати проєкт з кореня репозиторію: `make build-debug`.
+2. Запустити `./homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario.sh <сценарій-оператора> <номер-тесту>`, приклад `./homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario.sh 03_link_lost_failsafe 4`
+Усі команди запуску на хості наведено у файлі homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario_commands.txt.
+
+### 2. Запуск на хості з імітацією роботи з залізом
+
+Відмінність цього запуску - імітація передачі даних від дрона до автопілота через UART прямо на хості (через socat), все інше, теж саме що й звичайний запуск на хості.
+
+1. Зібрати проєкт з кореня репозиторію: `make build-debug`.
+2. Запустити `./homeworks/20_autopilot_MAVLINK_course_project/run_host_scenario.sh <сценарій-оператора> <номер-тесту>`,
+
+### 3. Запуск на реальному залізі (Raspberry PI + ESP 32)
+
+Передумови:
 
 
 # Трохи про структуру коду

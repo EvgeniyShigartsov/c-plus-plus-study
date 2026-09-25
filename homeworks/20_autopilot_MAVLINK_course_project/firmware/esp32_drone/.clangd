@@ -1,0 +1,11 @@
+CompileFlags:
+  CompilationDatabase: build
+  Remove:
+    - -mlongcalls
+    - -mtext-section-literals
+    - -mdisable-hardware-atomics
+    - -fno-shrink-wrap
+    - -fstrict-volatile-bitfields
+    - -fno-tree-switch-conversion
+    - -fno-jump-tables
+    - -fno-zero-initialized-in-bss

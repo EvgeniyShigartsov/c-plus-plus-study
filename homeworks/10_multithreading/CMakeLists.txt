@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(
     multithreading
-    src/main_test_suit_arg_as_number.cpp
+    src/main.cpp
     src/config/ComponentFactory.cpp
     src/config/FileConfigLoader.cpp
     src/providers/ThreadSafeTargetProvider.cpp

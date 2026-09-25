@@ -16,7 +16,7 @@ bool Device::onCommand(const std::string_view line, char* buf, const size_t capa
 
   if (command.kind == Command::Kind::SetPeriod) {
     periodMsValue = command.periodMs;
-    const int written = std::snprintf(buf, capacity, "ok: period=%u ms", command.periodMs);
+    const int written = std::snprintf(buf, capacity, "ok: period=%u ms", static_cast<unsigned>(command.periodMs));
     return written > 0 && static_cast<size_t>(written) < capacity;
   }
 

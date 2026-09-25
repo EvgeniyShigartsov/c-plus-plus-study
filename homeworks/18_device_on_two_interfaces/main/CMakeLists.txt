@@ -1,4 +1,11 @@
 idf_component_register(
     SRCS
     "main.cpp"
+    "core/StatusLine.cpp"
+    "core/Command.cpp"
+    "core/Device.cpp"
+    INCLUDE_DIRS
+    "core"
+    REQUIRES
+    esp_timer
 )

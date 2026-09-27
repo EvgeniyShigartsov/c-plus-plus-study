@@ -5,6 +5,11 @@
 #include "Command.hpp"
 #include "StatusLine.hpp"
 
+Device::Device(const uint32_t periodMs)
+  : periodMsValue(periodMs)
+{
+}
+
 bool Device::onTick(char* buf, const size_t capacity, const uint32_t tMs, const Reading& reading) const
 {
   return StatusLine::format(buf, capacity, tMs, reading);

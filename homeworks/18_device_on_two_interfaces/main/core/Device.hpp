@@ -7,6 +7,8 @@
 
 class Device {
 public:
+  explicit Device(const uint32_t periodMs);
+
   bool onTick(char* buf, const size_t capacity, const uint32_t tMs, const Reading& reading) const;
 
   bool onCommand(const std::string_view line, char* buf, const size_t capacity);
@@ -14,5 +16,5 @@ public:
   uint32_t periodMs() const { return periodMsValue; }
 
 private:
-  uint32_t periodMsValue = 500;
+  uint32_t periodMsValue;
 };

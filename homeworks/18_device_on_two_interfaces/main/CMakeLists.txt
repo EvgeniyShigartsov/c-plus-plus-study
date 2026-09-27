@@ -10,4 +10,5 @@ idf_component_register(
     REQUIRES
     esp_timer
     esp_adc
+    esp_driver_usb_serial_jtag
 )

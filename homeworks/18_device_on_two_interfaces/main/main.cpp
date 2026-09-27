@@ -1,4 +1,3 @@
-#include <sys/types.h>
 #include <cstdint>
 #include <cstdio>
 #include <string_view>
@@ -51,7 +50,7 @@ extern "C" void app_main()
     while (usb_serial_jtag_read_bytes(&rxByte, kMaxBytesReadPerCall, kTicksToWait) > 0) {
       const char character = static_cast<char>(rxByte);
 
-      if (character == '\n') {
+      if (character == '\n' || character == '\r') {
         if (commandLength > 0) {
           char ackBuf[64];
 
@@ -68,7 +67,6 @@ extern "C" void app_main()
       }
     }
 
-    // Період тепер керований командою p N (Device::onCommand), а не сталою величиною
     xTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(device.periodMs()));
   }
 }

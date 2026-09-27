@@ -13,7 +13,7 @@
 
 constexpr adc_channel_t kSoundSensorChannel = ADC_CHANNEL_3;
 constexpr uint32_t kDefaultPeriodMs = 500;
-constexpr uint32_t kTicksToWait = 0;  // Скільки чекати якщо даних у UART каналі ще немає
+constexpr uint32_t kTicksToWait = 0;  // Скільки чекати якщо даних у каналі ще немає
 constexpr uint32_t kMaxBytesReadPerCall = 1;
 
 uint32_t microsecondsToMilliseconds(const int64_t microseconds)
@@ -24,7 +24,7 @@ uint32_t microsecondsToMilliseconds(const int64_t microseconds)
 extern "C" void app_main()
 {
   usb_serial_jtag_driver_config_t jtagConfig = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
-  usb_serial_jtag_driver_install(&jtagConfig);  // Відкриття UART каналу з консоллю
+  usb_serial_jtag_driver_install(&jtagConfig);  // Відкриття каналу з консоллю
 
   std::printf("Device boot");
 

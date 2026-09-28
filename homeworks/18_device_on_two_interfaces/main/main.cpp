@@ -26,7 +26,7 @@ extern "C" void app_main()
   usb_serial_jtag_driver_config_t jtagConfig = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
   usb_serial_jtag_driver_install(&jtagConfig);  // Відкриття каналу з консоллю
 
-  std::printf("Device boot");
+  std::printf("Device boot\n");
 
   Device device(kDefaultPeriodMs);
   const EspAdcReader soundSensor(kSoundSensorChannel);

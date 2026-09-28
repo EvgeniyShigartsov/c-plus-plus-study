@@ -15,7 +15,8 @@ Command parseCommand(const std::string_view line)
     uint32_t periodMs = 0;
 
     const std::from_chars_result result = std::from_chars(arg.data(), arg.data() + arg.size(), periodMs);
-    if (result.ec == std::errc{}) {
+
+    if (result.ec == std::errc{} && result.ptr == arg.end()) {
       return {.kind = Command::Kind::SetPeriod, .periodMs = periodMs};
     }
   }

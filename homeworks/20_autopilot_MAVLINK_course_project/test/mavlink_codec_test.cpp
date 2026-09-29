@@ -46,7 +46,7 @@ TEST(MavlinkCodec, HeartbeatRoundTrip)
 TEST(MavlinkCodec, HeartbeatFrameCarriesSender)
 {
   const mavlink_message_t msg = mav::pack_heartbeat(mav::kGcs, {.type = MAV_TYPE_GCS});
-  EXPECT_EQ((mav::Identity{msg.sysid, msg.compid}), mav::kGcs);
+  EXPECT_EQ((mav::Identity{static_cast<uint8_t>(msg.sysid), msg.compid}), mav::kGcs);
 }
 
 TEST(MavlinkCodec, LocalPositionNedSwapsAxes)
@@ -284,7 +284,7 @@ TEST(MavlinkCodec, ManualDropCommandRoundTrip)
 
   EXPECT_EQ(msg.msgid, MAVLINK_MSG_ID_COMMAND_LONG);
   EXPECT_EQ(mavlink_msg_command_long_get_command(&msg), mav::kManualDropCommandId);
-  EXPECT_EQ((mav::Identity{.sysid = msg.sysid, .compid = msg.compid}), mav::kGcs);
+  EXPECT_EQ((mav::Identity{.sysid = static_cast<uint8_t>(msg.sysid), .compid = msg.compid}), mav::kGcs);
 
   mav::parse_manual_drop_command(msg);
 }
@@ -406,7 +406,11 @@ TEST(MavlinkCodec, RebootCommandIsStandardRebootRequest)
   ASSERT_EQ(msg.msgid, static_cast<uint32_t>(MAVLINK_MSG_ID_COMMAND_LONG));
   EXPECT_EQ(mavlink_msg_command_long_get_command(&msg), MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN);
   EXPECT_FLOAT_EQ(mavlink_msg_command_long_get_param1(&msg), 1.0f);
-  EXPECT_EQ(mavlink_msg_command_long_get_target_system(&msg), mav::kVehicle.sysid);
+  // mavlink_msg_command_long_get_target_system відсутній у цьому коміті c_library_v2
+  // (SYSID32 target_system тепер 32-бітний, поодинокий гетер не згенерований) - декодуємо повністю
+  mavlink_command_long_t raw{};
+  mavlink_msg_command_long_decode(&msg, &raw);
+  EXPECT_EQ(static_cast<uint8_t>(raw.target_system), mav::kVehicle.sysid);
 }
 
 TEST(MavlinkEndpoint, ConstructsAndPollsIdleSocketCleanly)

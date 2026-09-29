@@ -52,7 +52,7 @@ void DroneNode::onMessage(const mavlink_message_t& msg)
 
   if (msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE) {
     const mav::RadioControlOverride rc_override = mav::parse_radio_control_channels_override(msg);
-    const mav::Identity from{.sysid = msg.sysid, .compid = msg.compid};
+    const mav::Identity from{.sysid = static_cast<uint8_t>(msg.sysid), .compid = msg.compid};
 
     if (from == mav::kGcs) {
       lastOperatorOverride = rc_override;

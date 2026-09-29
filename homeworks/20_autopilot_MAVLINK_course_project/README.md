@@ -59,10 +59,14 @@
 
 Всього є три варіанти запуску, на хості, на залізі, та на хості з імітацією роботи з залізом.
 Для зручності є окремі .sh скипти які роблять запуск всіх необхідних процесів.
-Перед запуском будь якого сценарію необхідно встановити бібліотеку MAVLINK в робочий простір,
+Перед запуском будь якого сценарію необхідно встановити бібліотеку MAVLINK в робочий простір. Клонувати саме зафіксований коміт, а не `main` - бібліотека оновлюється та може викатити несумісні зміни:
 ```bash
-git clone --depth 1 https://github.com/mavlink/c_library_v2.git \
-  homeworks/20_autopilot_MAVLINK_course_project/include/third_party/c_library_v2
+mkdir -p homeworks/20_autopilot_MAVLINK_course_project/include/third_party/c_library_v2
+cd homeworks/20_autopilot_MAVLINK_course_project/include/third_party/c_library_v2
+git init -q
+git fetch --depth 1 https://github.com/mavlink/c_library_v2.git ce3aedef37c74c4c95111cf2a3f112a2dbd7e99e
+git checkout FETCH_HEAD
+cd -
 ```
 Окрім вказання сценарію треба також вказувати номер тесту (конфігів дрона та цілі), які лежать у homeworks/20_autopilot_MAVLINK_course_project/data/testing_data, 01_sample_circles/02_eliptic_trajectories/etc.
 
@@ -93,6 +97,7 @@ git clone --depth 1 https://github.com/mavlink/c_library_v2.git \
 2. На машині, з якої прошиваєте ESP32, встановлено ESP-IDF, і в терміналі активоване його venv-середовище - без цього `idf.py` не знайдеться.
 ```bash
 source ~/.espressif/tools/activate_idf_v6.1.sh
+cd homeworks/20_autopilot_MAVLINK_course_project/firmware/esp32_drone
 ```
 У терміналі зʼявиться префікс `(venv)` - ознака, що середовище активне.
 

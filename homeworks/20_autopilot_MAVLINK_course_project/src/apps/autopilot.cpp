@@ -241,7 +241,8 @@ int main(int argc, char* argv[])
           AUTOPILOT_LOG((isMissionInitSucces ? "mission: guidance core ready" : "mission: failed to init mission processor"));
         }
       }
-      else if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT && mav::Identity{.sysid = msg.sysid, .compid = msg.compid} == mav::kGcs) {
+      else if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT &&
+               mav::Identity{.sysid = static_cast<uint8_t>(msg.sysid), .compid = msg.compid} == mav::kGcs) {
         const bool wasHeartbeatOk = std::chrono::steady_clock::now() - lastOperatorHeartbeat < heartbeatTimeout;
         lastOperatorHeartbeat = std::chrono::steady_clock::now();
 

@@ -111,7 +111,10 @@ idf.py -p /dev/cu.usbmodemXXXX flash monitor
 
 4. Код синхронізовано на Pi (rsync копіює разом з ним і склоновану бібліотеку MAVLink):
 ```bash
+cd <корінь цього репозиторію>
+
 rsync -av --exclude 'firmware/' --exclude 'build/' --exclude '__pycache__/' \
+  --exclude 'hardware_works_video_demonstration_720.mp4' \
   homeworks/20_autopilot_MAVLINK_course_project/ <ssh-адреса вашої Raspberry PI>:~/HM-20/
 ```
 

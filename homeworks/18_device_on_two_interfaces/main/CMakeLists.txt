@@ -1,0 +1,14 @@
+idf_component_register(
+    SRCS
+    "main.cpp"
+    "EspAdcReader.cpp"
+    "core/StatusLine.cpp"
+    "core/Command.cpp"
+    "core/Device.cpp"
+    INCLUDE_DIRS
+    "core"
+    REQUIRES
+    esp_timer
+    esp_adc
+    esp_driver_usb_serial_jtag
+)

@@ -3,6 +3,7 @@
 #include "states/StateDecelerating.hpp"
 #include "interfaces/IDroneState.hpp"
 #include "states/StateStopped.hpp"
+#include "states/StateWaitingForConnection.hpp"
 #include "types.hpp"
 
 std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateDecelerating::execute(Simulation& sim)
@@ -14,6 +15,11 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateDecelerating::execute
 
   if (sim.CURRENT_SPEED <= 0) {
     sim.CURRENT_SPEED = 0.0f;
+
+    if (sim.connectionLost) {
+      command.state = DroneState::WaitingForConnection;
+      return {std::make_unique<StateWaitingForConnection>(), command};
+    }
 
     command.state = DroneState::Stopped;
     return {std::make_unique<StateStopped>(), command};

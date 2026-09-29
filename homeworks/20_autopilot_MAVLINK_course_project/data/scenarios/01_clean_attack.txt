@@ -1,0 +1,6 @@
+# 01_clean_attack: оператор вмикає модуль і безперервне звітування про цілі,
+# далі не втручається -- автопілот сам доводить атаку до кінця.
+# Очікується: Armed -> Engaged -> Complete, без Yielding/Failsafe, HIT.
+
+0.2 designate_targets
+0.5 enable

@@ -12,6 +12,11 @@ std::pair<std::unique_ptr<IDroneState>, DroneCommand> StateMoving::execute(Simul
     .targetDir = sim.dirToFire,
   };
 
+  if (sim.connectionLost) {
+    command.state = DroneState::Decelerating;
+    return {std::make_unique<StateDecelerating>(), command};
+  }
+
   if (sim.deltaAngle > sim.dc.turnThreshold) {
     command.state = DroneState::Decelerating;
     return {std::make_unique<StateDecelerating>(), command};

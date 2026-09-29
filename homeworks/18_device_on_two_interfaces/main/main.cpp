@@ -21,6 +21,16 @@ uint32_t microsecondsToMilliseconds(const int64_t microseconds)
   return static_cast<uint32_t>(microseconds / 1000);
 }
 
+uint64_t millisecondsToMicroseconds(const uint32_t milliseconds)
+{
+  return static_cast<uint64_t>(milliseconds) * 1000;
+}
+
+void onTick(void* arg)
+{
+  xTaskNotifyGive(static_cast<TaskHandle_t>(arg));  // Розбудити головну задачу
+}
+
 extern "C" void app_main()
 {
   usb_serial_jtag_driver_config_t jtagConfig = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
@@ -35,9 +45,23 @@ extern "C" void app_main()
   char commandBuf[64];
   size_t commandLength = 0;
 
-  TickType_t lastWakeTime = xTaskGetTickCount();
+  const TaskHandle_t mainTask = xTaskGetCurrentTaskHandle();
+
+  esp_timer_create_args_t timerArgs{};
+  timerArgs.callback = onTick;  // Колбек який буде виконаний
+  timerArgs.arg = mainTask;     // номер (дескриптор) поточної задачі
+  timerArgs.name = "tick";
+
+  esp_timer_handle_t timerHandle = nullptr;
+  esp_timer_create(&timerArgs, &timerHandle);
+  esp_timer_start_periodic(timerHandle, millisecondsToMicroseconds(device.periodMs()));
 
   while (true) {
+    // Заснути до наступного спрацювання таймера
+    ulTaskNotifyTake(pdTRUE,  // обнулити внутрішній лічильник до 0 після опрацювання сповіщення
+                     portMAX_DELAY  // чекати без таймауту
+    );
+
     const uint32_t tMs = microsecondsToMilliseconds(esp_timer_get_time());
     const Reading reading = soundSensor.read();
 
@@ -54,10 +78,17 @@ extern "C" void app_main()
         if (commandLength > 0) {
           char ackBuf[64];
 
+          const uint32_t periodBeforeCommand = device.periodMs();
           const bool isAckReady = device.onCommand(std::string_view(commandBuf, commandLength), ackBuf, sizeof(ackBuf));
           if (isAckReady) {
             std::printf("%s\n", ackBuf);
           }
+
+          // Перезапуск таймеру після зміни періоду
+          if (device.periodMs() != periodBeforeCommand) {
+            esp_timer_restart(timerHandle, millisecondsToMicroseconds(device.periodMs()));
+          }
+
           commandLength = 0;
         }
       }
@@ -66,7 +97,5 @@ extern "C" void app_main()
         commandLength++;
       }
     }
-
-    xTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(device.periodMs()));
   }
 }
